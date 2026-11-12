@@ -59,7 +59,7 @@ alwaysApply: false
   - 启用态唯一权威校验在 `RoutingRuleService#validateForSave`：`appId != null` + `appMapper.getById` 存在 + `EnabledStatusEnum.isEnabled(app.status)`，**与同方法里的消费者校验同口径**（`绑定应用未启用` / `启用规则前请选择绑定应用`）。停用态跳过这三项完整性校验。
   - `RoutingResolver#resolveAccess` 对 `rule.appId() == null` 直接抛可读 `GatewayAuthException("Routing rule has no bound app")`；⛔ 不许把 null 塞进 `LoadingCache` 的 key（缓存层抛 NPE，不是鉴权失败）。绑定应用被删 / 停用 → `Bound app not found` / `Bound app is disabled`，这是「启用即可用」契约的兜底，不是让规则变成无应用可用。
   - `AppService#delete` 命中启用态规则（`RoutingRuleMapper.countEnabledByAppCode`）时 **409 拒绝、不级联**：与改应用编码的 `CodeBindingSupport` 守卫同口径。停用规则不参与运行时解析，不拦删除。
-  - ⚠ **判例（种子绕过 service）**：`data.sql` 的 `jev-billing-judge` 曾以 `app_code=NULL, status=1` 直写，`JevBillingJudge#judge` 带 `secretKey + Rule` 头打网关后必然 403 / 裁判 `available=false`。`schema.sql` 的 `app_code DEFAULT NULL` 只是列可空，**不是业务允许**；任何种子 / 迁移 / 直写 SQL 都必须自己满足启用约束，见 `docs/database/migration/2026-11-10-jev-judge-app-binding.sql`。
+  - ⚠ **判例（种子绕过 service）**：`data.sql` 的 `jev-billing-judge` 曾以 `app_code=NULL, status=1` 直写，`JevBillingJudge#judge` 带 `secretKey + Rule` 头打网关后必然 403 / 裁判 `available=false`。`schema.sql` 的 `app_code DEFAULT NULL` 只是列可空，**不是业务允许**；任何种子 / 迁移 / 直写 SQL 都必须自己满足启用约束，见 `data.sql` 中该账户种子行（原迁移脚本已清理）。
 
 ## 5. 流式 / knot_extend
 
@@ -308,10 +308,15 @@ usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
 
 ### 8.14 异步任务档案的表达式：语义进配置，失败口径分两类（2026-10-28）
 
-⭐⭐ `kb_async_task_profiles` 里 **三个 `*_path`（`task_id_path` / `status_path` / `result_path`）是
-MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `status` = `status_path` 取到的文本、
+⭐⭐ `kb_async_task_profiles` 里 **取值类 `*_path`（`task_id_path` / `status_path` / `result_path` /
+`error_message_path` / `usage_path`）是 MVEL 表达式，`status_succeeded` / `status_failed` /
+`status_running` 是 MVEL 布尔表达式**（变量 `status` = `status_path` 取到的文本、
 `body` = 整个查询响应）。求值的**唯一出口**是 `AsyncTaskExpressionSupport`
-（`text` / `requireText` / `texts` / `test`），禁止各处自行 `MVEL.eval`。
+（`text` / `requireText` / `texts` / `test` / `object`），禁止各处自行 `MVEL.eval`。
+⭐ **`usage_path` 取的是对象不是标量**（2026-11-12）：上游把 `usage`（含 `cost`）嵌在 `data.*` 时，
+顶层取不到就会丢掉 Kafka `upstream_usage` 与对外并列 `usage`。为此新增 `object()` 而**不是**放宽
+`text()` / `scalar()` —— 后者还服务状态文本与产物地址，放宽会让「取到 Map」变成合法标量，
+静默污染终态判定。判据是「表达式的返回类型」，不是「能不能复用同一段代码」。
 **规则形态的判据**：旧的自研 JSON 路径语法只能表达「取某个节点」，而终态判定本质不是「取值相等」，
 于是状态语义被迫一半在配置（逗号列表）、一半在 Java（字符串比较）；每加一种写法都要改代码发版。
 **路径语法的适用边界是「知道结构」，表达式的适用边界是「知道意图」**——档案要的是后者。
@@ -360,7 +365,8 @@ MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `st
 - 安全边界：表达式只由管理端/运维脚本写入（与 SQL 同权限级），求值时**只绑定数据**，
   不绑定 bean、不绑类加载器。
 - 编译缓存 `ConcurrentHashMap<表达式原文, Serializable>`：改档案自然过期，无失效逻辑。
-- 守门测试：`AsyncTaskExpressionSupportTest`（14 例，含「旧逗号列表必须抛且消息指路迁移脚本」
+- 守门测试：`AsyncTaskExpressionSupportTest`（17 例，含「旧逗号列表必须抛且消息指路迁移脚本」
+  与 `object()` 的 root 为空 / 表达式空白 / 结果非 Map 三条分支；`AsyncTaskSpecRulesTest`（9 例）
   与「严格取值四条失败分支」探针）。
   双向探针实测：取值改上抛 → 3 例红；判定改宽容 `false` → 逗号列表那例红。
 

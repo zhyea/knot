@@ -63,6 +63,22 @@
 > ⚠ 命名风格：`usage` 走 snake_case（`total_tokens` / `cache_read`），
 > `billing` 沿用驼峰（`totalTokens` / `totalCost`）。这是既有契约，改动会打断调用方，暂不动。
 
+### 2.1 异步任务链路的下发条件（2026-11-12 补齐）
+
+异步任务在提交后走独立的轮询链路，账目在**终态结算**时算好落在 `settlement_json`；
+202 提交信封只是「任务已创建」，**不带** `knot_extend`，这是设计意图不是缺陷。
+
+| 项 | 口径 |
+|---|---|
+| 下发条件 | **任务已到终态**（status 2/3/4/5）**且** 提交快照 `context_json.returnUsageDetail` 为 true（即路由消费者 `return_usage_detail` 开启） |
+| 测试头 | `X-Knot-Test-Return-Usage: true` 是**叠加**开关，只看测试头也能出证据，并额外带 `upstream_body`（上游终态查询原文） |
+| 回调 body | 与轮询**同形**；回调没有请求头，所以测试头不叠加、`upstream_body` 不在回调里 —— 这是唯一的有意差异 |
+| 并列 `usage` 来源 | 从 `terminal_body` 按档案 `usage_path` 取上游 usage 对象；未配则回落 `UsageRawReader.readUsage`（顶层 `usage` / `response.usage`）。与同步链路 `rawUsage` 同口径，含供应商 cost |
+| 未结算 | 失败 / 超时 / 取消不计费，`knot_extend` 与并列 `usage` 都省略（`NON_NULL` 缺键） |
+
+> ⚠ `upstream_body` 是内部排障证据，**不随 consumer 配置下发**：消费者开了用量明细只该拿到账目，
+> 不该连上游响应原文一起收到。投影唯一出口是 `AsyncTaskViewSupport`，轮询与回调共用，不许各写一份。
+
 ## 3. `ModelUsage` 结构
 
 ```java

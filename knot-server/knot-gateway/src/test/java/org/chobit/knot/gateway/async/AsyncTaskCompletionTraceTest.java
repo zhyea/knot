@@ -136,7 +136,7 @@ class AsyncTaskCompletionTraceTest {
         AsyncTaskContext context = new AsyncTaskContext("tk_dirty", null, null,
                 "not-a-traceparent", "0123456789abcdef0123456789abcdef",
                 "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x",
-                null, null, null, null);
+                null, null, null, null, false);
         AsyncTaskDto task = taskOf("tk_dirty");
 
         completion.publishQuery(task, context, 1, null);
@@ -151,7 +151,7 @@ class AsyncTaskCompletionTraceTest {
         return new AsyncTaskContext("tk", "rule-1", "sticky-1",
                 submit.traceparent(), submit.requestId(),
                 "VIDEO_GENERATIONS", "kling-v3", "kling-v3-turbo", "pa-1", "pool-1",
-                "https://upstream.example/v1/videos", 1L, 2L, 3L, 4L);
+                "https://upstream.example/v1/videos", 1L, 2L, 3L, 4L, false);
     }
 
     private static AsyncTaskDto taskOf(String taskCode) {

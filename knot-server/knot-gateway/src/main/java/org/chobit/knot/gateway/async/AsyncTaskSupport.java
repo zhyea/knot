@@ -258,7 +258,8 @@ public class AsyncTaskSupport {
                 routing == null ? null : routing.consumerId(),
                 routing == null || routing.routingContext() == null || routing.routingContext().app() == null
                         ? null : routing.routingContext().app().id(),
-                target == null ? null : target.targetId());
+                target == null ? null : target.targetId(),
+                routing != null && routing.returnUsageDetail());
         AsyncTaskDraftDto task = build(new AsyncTaskCreation(
                 taskCode, profileCode, spec, context.protocol(),
                 exchange == null ? Map.of() : exchange.requestBody(),

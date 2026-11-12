@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,7 +31,7 @@ class AsyncTaskSpecRulesTest {
         return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
                 "data[0].outputs[0].url", null, null,
-                7, 5000, 1000, 30000, 360, 30L);
+                7, 5000, 1000, 30000, 360, 30L, null);
     }
 
     @Test
@@ -44,7 +45,7 @@ class AsyncTaskSpecRulesTest {
                 () -> AsyncTaskSpecRules.upstreamTaskIdOf(createBody,
                         new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.task_id", "data.status",
                                 "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
-                                null, 5000, 1000, 30000, 360, 30L)),
+                                null, 5000, 1000, 30000, 360, 30L, null)),
                 "task_id_path 填错必须抛（不得回落 query_path，也不得回 null 让调用方回退同步）");
         assertTrue(error.getMessage().contains("data.task_id"), "报错必须带表达式原文：" + error.getMessage());
         assertTrue(error.getMessage().contains("data"), "报错必须带响应顶层键，便于对照上游响应：" + error.getMessage());
@@ -82,7 +83,7 @@ class AsyncTaskSpecRulesTest {
     void testExpressionCanReadWholeBody() {
         AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data[0].status",
                 "body.data[0].code == 0", "status == 'failed'", null, "data[0].url", null, null,
-                null, 5000, 1000, 30000, 360, 30L);
+                null, 5000, 1000, 30000, 360, 30L, null);
         assertSame(AsyncTaskTerminalSupport.Terminal.SUCCEEDED,
                 AsyncTaskSpecRules.terminalOf(Map.of("data", List.of(Map.of("status", "ok", "code", 0))), spec));
     }
@@ -92,7 +93,7 @@ class AsyncTaskSpecRulesTest {
     void unmatchedStatusStaysRunning() {
         AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
                 "status == 'succeed'", "status == 'failed'", "status == 'queued'", "data.url", null, null,
-                null, 5000, 1000, 30000, 360, 30L);
+                null, 5000, 1000, 30000, 360, 30L, null);
         assertSame(AsyncTaskTerminalSupport.Terminal.RUNNING,
                 AsyncTaskSpecRules.terminalOf(Map.of("data", Map.of("status", "brand-new-state")), spec),
                 "上游新增状态不应被当终态，也不应被当成「正常进行中」而静默吞掉");
@@ -118,5 +119,30 @@ class AsyncTaskSpecRulesTest {
         assertEquals(30000, AsyncTaskSpecRules.nextDelayMs(20, spec), "退避必须封顶，否则越查越慢直到超时");
         // 探针：若忘记取 min(cap, ...)，第 20 次会算成 1000×2^19 ≈ 5.2e8 ms
         assertTrue(AsyncTaskSpecRules.nextDelayMs(20, spec) <= 30000);
+    }
+
+    @Test
+    @DisplayName("usageOf：配了 usagePath 就从 data.usage 取到含 cost 的对象，且优先于顶层 usage")
+    void usageOfUsesConfiguredPath() {
+        AsyncTaskSpec configured = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
+                "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
+                null, 5000, 1000, 30000, 360, 30L, "data.usage");
+        Map<String, Object> body = Map.of(
+                "data", Map.of("usage", Map.of("input_tokens", 7, "cost", "0.8")),
+                "usage", Map.of("cost", "0.1"));
+        Map<String, Object> usage = AsyncTaskSpecRules.usageOf(body, configured);
+        assertNotNull(usage);
+        assertEquals("0.8", usage.get("cost"), "配置优先：以 data.usage 为准，覆盖顶层同名键");
+    }
+
+    @Test
+    @DisplayName("usageOf：未配 usagePath 回落顶层 usage，与同步链路同一口径")
+    void usageOfFallsBackToTopLevel() {
+        Map<String, Object> body = Map.of("usage", Map.of("input_tokens", 3, "cost", "0.3"));
+        Map<String, Object> usage = AsyncTaskSpecRules.usageOf(body, spec());
+        assertNotNull(usage);
+        assertEquals("0.3", usage.get("cost"));
+        assertNull(AsyncTaskSpecRules.usageOf(Map.of("data", Map.of("usage", Map.of("cost", "0.8"))), spec()),
+                "未配置时不下钻 data.*：顶层没有 usage 就是上游没报");
     }
 }

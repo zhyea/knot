@@ -42,5 +42,7 @@ public record AsyncTaskProfileSaveDto(String profileCode,
                                       Long timeoutMinutes,
                                       /** 启用状态码（EnabledStatusEnum）；新建时 null 视为启用 */
                                       Integer status,
-                                      String remark) {
+                                      String remark,
+                                      /** 查询响应取证：从查询响应取上游 usage 对象的 MVEL 表达式（可空）；空 = 沿用顶层 usage */
+                                      String usagePath) {
 }

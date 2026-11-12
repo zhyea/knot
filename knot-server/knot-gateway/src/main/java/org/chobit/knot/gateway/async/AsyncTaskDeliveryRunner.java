@@ -66,6 +66,10 @@ public class AsyncTaskDeliveryRunner {
     /**
      * 投递一条任务并落定结果。
      *
+     * <p>⭐ body 由 {@link AsyncTaskViewSupport} 唯一投影，与轮询同形：账目由「终态 +
+     * {@code context_json.returnUsageDetail}」决定。回调没有请求头，所以测试头不叠加、
+     * {@code upstream_body} 不出现在回调里 —— 这是两处唯一的有意差异。</p>
+     *
      * @param task    已持有交付租约的行
      * @param claimId 本轮交付占位号
      * @return 是否成功送达并记上（{@code false} = 本次失败已排退避/放弃，或租约已易主）

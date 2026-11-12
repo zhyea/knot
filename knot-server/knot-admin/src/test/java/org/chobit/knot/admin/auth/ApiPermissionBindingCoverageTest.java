@@ -93,7 +93,7 @@ class ApiPermissionBindingCoverageTest {
                 () -> "以下管理端接口未登记 ks_api_permission_bindings（默认拒绝，运行期表现为 403）：\n  "
                         + String.join("\n  ", missing)
                         + "\n补登记位置：knot-admin/src/main/resources/db/data.sql，"
-                        + "既有库另需 docs/database/migration/ 下的幂等迁移脚本。");
+                        + "既有库另需同目录下的幂等迁移脚本（docs/database/migration/，执行完即删）。");
     }
 
     /**

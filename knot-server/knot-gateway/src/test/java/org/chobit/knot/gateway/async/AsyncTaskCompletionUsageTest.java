@@ -1,7 +1,9 @@
 package org.chobit.knot.gateway.async;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.traffic.CaffeineTrafficCounterStore;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -55,10 +58,30 @@ class AsyncTaskCompletionUsageTest {
         assertNull(guard.usage);
     }
 
+    @Test
+    @DisplayName("配了 usage_path：交给提取器的 body 顶层 usage 带 cost（上游把用量嵌在 data.usage）")
+    void queryBodyForUsageInjectsCostFromDataUsage() {
+        String pollSpecJson = JsonKit.toJson(new AsyncTaskSpec("GET", "/t/{task_id}", "data.id",
+                "data.status", "status == 'succeed'", "status == 'failed'", null,
+                "data.url", null, null, null, 5000, 1000, 30000, 360, 30L, "data.usage"));
+        String queryBody = "{\"data\":{\"usage\":{\"cost\":\"0.8\",\"input_tokens\":7}},"
+                + "\"usage\":{\"cost\":\"0.1\"}}";
+
+        String normalized = AsyncTaskCompletion.queryBodyForUsage(queryBody, pollSpecJson);
+
+        Map<String, Object> top = JsonKit.fromJson(normalized,
+                new TypeReference<Map<String, Object>>() {
+                });
+        @SuppressWarnings("unchecked")
+        Map<String, Object> usage = (Map<String, Object>) top.get("usage");
+        assertEquals("0.8", usage.get("cost"), "配了 usage_path 时以 data.usage 为准，覆盖顶层同名键");
+        assertEquals(7, usage.get("input_tokens"));
+    }
+
     private static AsyncTaskContext context() {
         return new AsyncTaskContext("tk", "rule-a", null, null, "req",
                 "VIDEO_GENERATIONS", "model-a", "upstream-a", "pa-1", "pool-1", "https://x",
-                1L, 2L, 3L, 4L);
+                1L, 2L, 3L, 4L, false);
     }
 
     private static UsageAccounting usage() {

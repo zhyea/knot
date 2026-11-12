@@ -479,6 +479,7 @@ CREATE TABLE IF NOT EXISTS kb_async_task_profiles (
   status_running VARCHAR(512) DEFAULT NULL COMMENT '进行中判定 MVEL 布尔表达式；为空表示「除成功/失败外一律视为非终态」',
   result_path VARCHAR(255) DEFAULT NULL COMMENT '终态产物地址的 MVEL 表达式（如 data[0].outputs[0].url）；表达式返回数组时全部保留',
   error_message_path VARCHAR(255) DEFAULT NULL COMMENT '失败原因的 MVEL 表达式（如 data.task_status_msg）；空表示沿用上游顶层 message',
+  usage_path VARCHAR(255) DEFAULT NULL COMMENT '从查询响应取上游 usage 对象的 MVEL 表达式；空表示沿用顶层 usage',
   result_url_field VARCHAR(64) DEFAULT NULL COMMENT 'result_path 返回对象数组时，取对象的哪个字段作为产物地址（如 url）；空表示元素必须是标量',
   result_expires_days INT DEFAULT NULL COMMENT '上游产物有效期（天），用于 result_expires_at 与客户端提示',
   poll_interval_ms INT NOT NULL DEFAULT 5000 COMMENT '首次轮询后的基准间隔',

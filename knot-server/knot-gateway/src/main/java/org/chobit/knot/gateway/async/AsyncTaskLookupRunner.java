@@ -71,8 +71,9 @@ public class AsyncTaskLookupRunner {
      * @param authorization 客户端原始 {@code Authorization} 头（含 {@code Bearer } 前缀）
      * @param rule          客户端声明的规则码，必须与任务归属一致
      * @param taskCode      任务句柄（路径参数）
-     * @param testReturnUsage {@code X-Knot-Test-Return-Usage} 原文；为 {@code true} 时响应额外带
-     *                       结算账（{@code knot_extend}）与上游终态原文（{@code upstream_body}）
+     * @param testReturnUsage {@code X-Knot-Test-Return-Usage} 原文；为 {@code true} 时<b>叠加</b>触发账目下发，
+     *                       并额外带上游终态原文（{@code upstream_body}）。账目本身还可根据
+     *                       「终态 + 消费者配置」下发，不依赖本头
      * @return 命中时是响应体；查不到 / 不属于该规则时是空 {@link Mono}（调用方映射成 404）
      * @throws GatewayAuthException 凭据缺失或无效（401）；⚠ {@code requireRuleAccess} 抛的那类
      *                              以 onError 形式在订阅后到达，见类注释
@@ -95,13 +96,13 @@ public class AsyncTaskLookupRunner {
      * @return 命中时是响应体；查不到返回 {@code null}（由上层翻译成空 {@code Mono}）
      */
     private AsyncTaskQueryResponse lookupBlocking(String authorization, String rule, String taskCode,
-                                                  boolean withEvidence) {
+                                                  boolean testHeader) {
         routingResolver.requireRuleAccess(authorization.substring(AuthConstants.BEARER_PREFIX.length()), rule);
         AsyncTaskDto task = StringUtils.isBlank(taskCode) ? null : taskService.getByTaskCode(taskCode.trim());
         if (task == null || !ruleMatches(task, rule)) {
             return null;
         }
-        return AsyncTaskViewSupport.toResponse(task, withEvidence);
+        return AsyncTaskViewSupport.toResponse(task, testHeader);
     }
 
     /**

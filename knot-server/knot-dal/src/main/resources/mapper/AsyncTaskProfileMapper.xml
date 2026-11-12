@@ -6,7 +6,7 @@
     <sql id="ProfileColumns">
         p.id, p.profile_code, p.protocol, p.query_method, p.query_path, p.task_id_path,
         p.status_path, p.status_succeeded, p.status_failed, p.status_running, p.result_path,
-        p.error_message_path, p.result_url_field, p.result_expires_days,
+        p.error_message_path, p.usage_path, p.result_url_field, p.result_expires_days,
         p.poll_interval_ms, p.poll_backoff_base_ms, p.poll_backoff_max_ms, p.max_attempts, p.timeout_minutes,
         p.status, p.remark, p.created_at, p.updated_at
     </sql>
@@ -56,13 +56,13 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_async_task_profiles(profile_code, protocol, query_method, query_path, task_id_path,
                                            status_path, status_succeeded, status_failed,
-                                           status_running, result_path, error_message_path, result_url_field,
+                                           status_running, result_path, error_message_path, usage_path, result_url_field,
                                            result_expires_days,
                                            poll_interval_ms, poll_backoff_base_ms, poll_backoff_max_ms,
                                            max_attempts, timeout_minutes, status, remark)
         values(#{profileCode}, #{protocol}, #{queryMethod}, #{queryPath}, #{taskIdPath},
                #{statusPath}, #{statusSucceeded}, #{statusFailed},
-               #{statusRunning}, #{resultPath}, #{errorMessagePath}, #{resultUrlField}, #{resultExpiresDays},
+               #{statusRunning}, #{resultPath}, #{errorMessagePath}, #{usagePath}, #{resultUrlField}, #{resultExpiresDays},
                #{pollIntervalMs}, #{pollBackoffBaseMs}, #{pollBackoffMaxMs},
                #{maxAttempts}, #{timeoutMinutes}, #{status}, #{remark})
     </insert>
@@ -79,6 +79,7 @@
             status_running = #{statusRunning},
             result_path = #{resultPath},
             error_message_path = #{errorMessagePath},
+            usage_path = #{usagePath},
             result_url_field = #{resultUrlField},
             result_expires_days = #{resultExpiresDays},
             poll_interval_ms = #{pollIntervalMs},

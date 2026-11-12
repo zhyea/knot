@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.async;
 
+import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.adapter.usage.UsageRawReader;
 import org.chobit.knot.svc.service.support.AsyncTaskExpressionSupport;
 import org.chobit.knot.svc.service.support.AsyncTaskTerminalSupport;
 
@@ -75,6 +77,23 @@ public final class AsyncTaskSpecRules {
      */
     public static String errorMessageOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
         return AsyncTaskExpressionSupport.text(queryBody, spec.errorMessagePath());
+    }
+
+    /**
+     * 取结算用的上游 usage 对象：配了 {@code usagePath} 就按档案表达式从查询响应里取，
+     * 否则回落顶层 {@code usage}。
+     *
+     * <p>⭐ <b>配置优先于顶层 usage</b>：异步上游常把 usage（含 cost）嵌在 {@code data.*}，
+     * 顶层没有，结算取不到就会漏计费。未配置时走 {@link UsageRawReader#readUsage}，
+     * 与同步链路同一口径（含 Responses 协议 {@code response.usage} 下钻兜底），不另写一套解析。</p>
+     *
+     * @return 上游 usage 的 {@code Map}；上游没报 usage 时返回 {@code null}
+     */
+    public static Map<String, Object> usageOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
+        if (spec != null && StringUtils.isNotBlank(spec.usagePath())) {
+            return AsyncTaskExpressionSupport.object(queryBody, spec.usagePath());
+        }
+        return UsageRawReader.readUsage(queryBody);
     }
 
     /**

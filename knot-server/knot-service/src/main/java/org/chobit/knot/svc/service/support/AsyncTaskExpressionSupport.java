@@ -46,7 +46,7 @@ public final class AsyncTaskExpressionSupport {
      *
      * <p>轮询线程每拍都要对每条任务求值若干次，不缓存等于每次都解析一遍字符串。
      * key 用表达式原文，因此改档案（换表达式）自然过期，不存在失效逻辑。
-     * 规模上限就是档案行数 × 5，无需淘汰。</p>
+     * 规模上限就是档案行数 × 6，无需淘汰。</p>
      */
     private static final Map<String, Serializable> COMPILED = new ConcurrentHashMap<>();
 
@@ -79,6 +79,41 @@ public final class AsyncTaskExpressionSupport {
             return null;
         }
         return scalar(value);
+    }
+
+    /**
+     * 取值（对象）：按表达式从响应体取一个 {@code Map}，供结算读取上游嵌在 {@code data.*} 的 usage。
+     *
+     * <p>⭐⭐ <b>为什么不能复用 {@link #text}</b>：{@code text} 的结果要过 {@code scalar}，
+     * 而 {@code scalar} 明确把 {@code Map} / {@code Iterable} 判成「取不到」回 {@code null}
+     * —— {@code AsyncTaskExpressionSupportTest#structureIsNotAScalar} 钉死了这条行为，不能为了取 usage
+     * 去改它，否则 {@code result_path} 填错时就会把整段 JSON 当产物地址交出去。取对象要的正是「结构本身」，
+     * 与取标量是两种相反的结果口径。</p>
+     *
+     * @param root       响应体
+     * @param expression 取值表达式，如 {@code data.usage}
+     * @return 取到的 {@code Map}；root / 表达式为空、取不到、结果不是 Map（标量 / 数组 / null）时回 {@code null}
+     * @throws IllegalStateException 表达式本身有语法错误（配置错，必须响）
+     */
+    public static Map<String, Object> object(Map<String, Object> root, String expression) {
+        if (root == null || StringUtils.isBlank(expression)) {
+            return null;
+        }
+        // ⚠ 编译必须在 try 之外：与 text() 同理，语法错要抛，不能被当成「取不到」吞掉。
+        Serializable compiled = compiled(expression);
+        Object value;
+        try {
+            value = MVEL.executeExpression(compiled, root);
+        } catch (RuntimeException e) {
+            log.debug("Async task expression object read miss: expression={} cause={}", expression, e.toString());
+            return null;
+        }
+        if (value instanceof Map<?, ?> map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> typed = (Map<String, Object>) map;
+            return typed;
+        }
+        return null;
     }
 
     /**
@@ -145,7 +180,7 @@ public final class AsyncTaskExpressionSupport {
         } catch (RuntimeException e) {
             throw new IllegalStateException("异步任务档案的判定表达式无法求值: 【" + expression
                     + "】—— 旧版逗号列表（如 succeeded,failed）在 MVEL 下是变量名，"
-                    + "请按 docs/database/migration/2026-10-28-async-task-mvel-expressions.sql 迁移。原因: "
+                    + "请在管理台把该档案的判定表达式改成布尔表达式（如 ['succeeded','failed'] contains status）。原因: "
                     + e.getMessage(), e);
         }
 

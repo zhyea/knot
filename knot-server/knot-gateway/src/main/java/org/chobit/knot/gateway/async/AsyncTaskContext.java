@@ -25,5 +25,7 @@ public record AsyncTaskContext(String taskCode,
                                Long routingRuleId,
                                Long consumerId,
                                Long appId,
-                               Long targetModelId) {
+                               Long targetModelId,
+                               /** 提交时快照：消费者是否要看用量明细；终态/回调据此决定要不要下发账目。旧快照缺该字段 = false */
+                               boolean returnUsageDetail) {
 }

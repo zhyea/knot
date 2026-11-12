@@ -121,7 +121,8 @@ public final class AsyncTaskConverter {
                 entity.getPollBackoffBaseMs(),
                 entity.getPollBackoffMaxMs(),
                 entity.getMaxAttempts(),
-                entity.getTimeoutMinutes());
+                entity.getTimeoutMinutes(),
+                entity.getUsagePath());
     }
 
     /**
@@ -156,6 +157,7 @@ public final class AsyncTaskConverter {
         entity.setTimeoutMinutes(dto.timeoutMinutes());
         entity.setStatus(dto.status());
         entity.setRemark(dto.remark());
+        entity.setUsagePath(dto.usagePath());
         return entity;
     }
 
@@ -188,6 +190,7 @@ public final class AsyncTaskConverter {
                 entity.getRemark(),
                 entity.getBindingCount(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt());
+                entity.getUpdatedAt(),
+                entity.getUsagePath());
     }
 }

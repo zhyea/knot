@@ -574,13 +574,13 @@ class AsyncTaskRunnerTest {
         return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
                 "data[0].outputs[0].url", null, null,
-                7, 5000, 1000, 30000, 360, 30L);
+                7, 5000, 1000, 30000, 360, 30L, null);
     }
 
     private static AsyncTaskContext context() {
         return new AsyncTaskContext("tc-1", "rule-1", null, null, "req-1",
                 "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos",
-                1L, 2L, 3L, 4L);
+                1L, 2L, 3L, 4L, false);
     }
 
     /**

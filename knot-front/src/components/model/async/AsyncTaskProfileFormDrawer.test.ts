@@ -46,6 +46,7 @@ function detail(overrides: Record<string, unknown> = {}) {
     resultPath: "data.task_result.videos",
     resultUrlField: "url",
     errorMessagePath: "",
+    usagePath: "",
     resultExpiresDays: 30,
     pollIntervalMs: 5000,
     pollBackoffBaseMs: 1000,
@@ -122,6 +123,14 @@ describe("异步任务档案抽屉 · 轮询参数", () => {
     await save(wrapper);
 
     expect(saveAsyncTaskProfile).toHaveBeenCalledWith(expect.objectContaining({timeoutMinutes: 60}));
+  });
+
+  it("编辑态回显的 usagePath 不输入直接保存，payload 里不被 blankForm 默认值冲掉", async () => {
+    const wrapper = await openEdit({usagePath: "data.usage"});
+
+    await save(wrapper);
+
+    expect(saveAsyncTaskProfile).toHaveBeenCalledWith(expect.objectContaining({usagePath: "data.usage"}));
   });
 
   it("填 45 分钟，payload 就是 45（不再有任何毫秒换算）", async () => {

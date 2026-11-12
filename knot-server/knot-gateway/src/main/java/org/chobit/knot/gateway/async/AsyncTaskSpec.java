@@ -49,7 +49,9 @@ public record AsyncTaskSpec(String queryMethod,
                             int pollBackoffMaxMs,
                             int maxAttempts,
                             /** knot 侧任务寿命（分钟）；快照与档案同单位，网关侧只做 {@code plusMinutes} */
-                            long timeoutMinutes) {
+                            long timeoutMinutes,
+                            /** 查询响应取证：取上游 usage 对象的 MVEL 表达式（如 {@code data.usage}）；空 = 沿用顶层 usage。旧快照缺该字段时为 null，走兜底 */
+                            String usagePath) {
 
     /**
      * 由档案实体投影：档案改了不影响已快照的任务。
@@ -78,11 +80,16 @@ public record AsyncTaskSpec(String queryMethod,
                 positive(profile.pollBackoffMaxMs(), AsyncTaskDefaults.POLL_BACKOFF_MAX_MS),
                 positive(profile.maxAttempts(), AsyncTaskDefaults.MAX_ATTEMPTS),
                 profile.timeoutMinutes() == null ? AsyncTaskDefaults.TASK_TIMEOUT_MINUTES
-                        : Math.max(1L, profile.timeoutMinutes()));
+                        : Math.max(1L, profile.timeoutMinutes()),
+                profile.usagePath());
     }
 
     /**
-     * 六条求值表达式的视图：交给 {@code AsyncTaskTerminalSupport} 判定。
+     * 七条表达式里用于终态判定的视图：交给 {@code AsyncTaskTerminalSupport} 判定。
+     *
+     * <p>⚠ <b>不含 {@code usagePath}</b>：它是「查询响应取证」的取值对象（取上游 usage 的
+     * {@code Map}），只在结算侧消费，不参与终态判定。旧快照（{@code poll_spec_json}）缺该字段时
+     * 反序列化为 {@code null}，运行时按顶层 usage 兜底。</p>
      *
      * <p>快照与档案都投影成同一个值对象，判定的实现因此只有一处；
      * 若网关按快照判、管理端按草稿判各写一份，试跑通过而线上判错是必然结果。</p>

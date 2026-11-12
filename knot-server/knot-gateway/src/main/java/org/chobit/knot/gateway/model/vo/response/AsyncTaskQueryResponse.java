@@ -53,13 +53,23 @@ public record AsyncTaskQueryResponse(@JsonProperty("task_id") String taskCode,
                                      @JsonInclude(JsonInclude.Include.NON_NULL) AsyncTaskFailureResponse error,
                                      /**
                                       * 终态结算账目（与同步链路 {@code knot_extend} 同形）；
-                                      * 仅当请求带 {@code X-Knot-Test-Return-Usage: true} 且该任务已结算时出现。
+                                      * 任务已到终态且消费者 {@code return_usage_detail} 开启时出现；测试头可叠加触发。
                                       *
                                       * <p>⭐ 这是「异步任务的账」唯一的可读出口：它在终态结算时产生，
                                       * 不随提交响应返回（202 信封早于结算），也不写进对外 {@code result}。</p>
                                       */
                                      @JsonInclude(JsonInclude.Include.NON_NULL)
                                      @JsonProperty("knot_extend") KnotExtendPayload knotExtend,
+                                     /**
+                                      * 上游原始 {@code usage} 原文，与 {@code knot_extend} <b>并列成对</b>输出
+                                      * （同步链路同口径，字段名取自 {@code AiPayloadFields#RAW_USAGE}）。
+                                      *
+                                      * <p>异步侧从 {@code terminal_body} 按档案 {@code usage_path} 取对象，
+                                      * 未配置时回落顶层 {@code usage} / {@code response.usage}；
+                                      * 上游未上报、任务未结算或账目不存在时省略。</p>
+                                      */
+                                     @JsonInclude(JsonInclude.Include.NON_NULL)
+                                     @JsonProperty("usage") Map<String, Object> rawUsage,
                                      /**
                                       * 上游终态查询响应原文；仅测试头下出现。
                                       *

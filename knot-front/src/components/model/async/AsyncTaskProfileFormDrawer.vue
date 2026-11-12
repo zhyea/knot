@@ -82,6 +82,14 @@
           <el-input v-model="form.statusRunning" placeholder="留空 = 除成功/失败外一律非终态" />
           <div class="profile-form__hint">留空最省事：上游新增中间态时不用改档案</div>
         </el-form-item>
+        <el-form-item label="用量对象">
+          <el-input v-model="form.usagePath" placeholder="data.usage" />
+          <div class="profile-form__hint">
+            从<b>查询响应</b>取上游<b>用量对象</b>（Map，通常含 cost / total_cost 等供应商成本口径）；
+            留空时沿用顶层 <code>usage</code> / <code>response.usage</code>；
+            取的是<b>对象</b>而非标量文本；保存时会校验 MVEL 语法
+          </div>
+        </el-form-item>
 
         <el-divider content-position="left">产物与失败原因</el-divider>
         <el-form-item label="产物地址" required>
@@ -336,6 +344,7 @@ function blankForm(): Dict {
     resultPath: "",
     resultUrlField: "",
     errorMessagePath: "",
+    usagePath: "",
     resultExpiresDays: 30,
     pollIntervalMs: 5000,
     pollBackoffBaseMs: 1000,

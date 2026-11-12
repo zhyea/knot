@@ -9,6 +9,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -137,14 +138,14 @@ class AsyncTaskExpressionSupportTest {
     }
 
     @Test
-    @DisplayName("⭐ 探针：旧版逗号列表（succeeded,failed）必须抛，且报错指路迁移脚本")
+    @DisplayName("⭐ 探针：旧版逗号列表（succeeded,failed）必须抛，且报错给出可照抄的写法")
     void probeLegacyCommaListThrows() {
         Map<String, Object> vars = Map.of("status", "succeeded");
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> AsyncTaskExpressionSupport.test(vars, "succeeded,failed"),
                 "宽容成 false 的话，任务会永远 RUNNING 到超时——配置错会被当成上游慢");
-        assertTrue(error.getMessage().contains("2026-10-28-async-task-mvel-expressions.sql"),
-                "报错必须直接告诉运维该跑哪个迁移脚本，否则只能靠读源码反推语法：" + error.getMessage());
+        assertTrue(error.getMessage().contains("['succeeded','failed'] contains status"),
+                "报错必须直接给出可照抄的写法，否则运维只能靠读源码反推语法：" + error.getMessage());
     }
 
     @Test
@@ -189,5 +190,37 @@ class AsyncTaskExpressionSupportTest {
         assertTrue(AsyncTaskExpressionSupport.texts(body(), null).isEmpty());
         assertThrows(IllegalStateException.class,
                 () -> AsyncTaskExpressionSupport.texts(body(), "data["));
+    }
+
+    @Test
+    @DisplayName("取值（对象）：data.usage 能取到含 cost 的 Map —— 上游把用量嵌在 data.* 时靠它结算")
+    void objectReadsUsageMap() {
+        Map<String, Object> root = Map.of("data", Map.of(
+                "usage", Map.of("input_tokens", 7, "cost", "0.8")));
+        Map<String, Object> usage = AsyncTaskExpressionSupport.object(root, "data.usage");
+        assertNotNull(usage);
+        assertEquals("0.8", usage.get("cost"));
+        assertEquals(7, usage.get("input_tokens"));
+    }
+
+    @Test
+    @DisplayName("取值（对象）：只认 Map，标量 / 数组 / 取不到 / 空表达式一律 null")
+    void objectRejectsScalarAndArray() {
+        Map<String, Object> root = Map.of("data", Map.of(
+                "tokens", 7,
+                "list", List.of(Map.of("cost", "0.8"))));
+        assertNull(AsyncTaskExpressionSupport.object(root, "data.tokens"), "标量不是对象");
+        assertNull(AsyncTaskExpressionSupport.object(root, "data.list"), "数组不是对象");
+        assertNull(AsyncTaskExpressionSupport.object(root, "data.missing"), "取不到返回 null");
+        assertNull(AsyncTaskExpressionSupport.object(null, "data.usage"), "root 为 null 返回 null");
+        assertNull(AsyncTaskExpressionSupport.object(root, "  "), "表达式空白返回 null");
+    }
+
+    @Test
+    @DisplayName("取值（对象）：语法错必须抛，不能被当成「取不到」")
+    void objectSyntaxErrorThrows() {
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> AsyncTaskExpressionSupport.object(body(), "data["));
+        assertTrue(error.getMessage().contains("无法编译"), error.getMessage());
     }
 }

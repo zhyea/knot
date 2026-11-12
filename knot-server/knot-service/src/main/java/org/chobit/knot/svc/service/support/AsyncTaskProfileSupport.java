@@ -85,7 +85,8 @@ public final class AsyncTaskProfileSupport {
                 dto.maxAttempts(),
                 dto.timeoutMinutes(),
                 dto.status() == null ? EnabledStatusEnum.ENABLED.code() : dto.status(),
-                StringUtils.trimToNull(dto.remark()));
+                StringUtils.trimToNull(dto.remark()),
+                StringUtils.trimToNull(dto.usagePath()));
     }
 
     /**
@@ -126,6 +127,7 @@ public final class AsyncTaskProfileSupport {
         requireLength(dto.statusPath(), PATH_MAX, "状态表达式");
         requireLength(dto.resultPath(), PATH_MAX, "产物表达式");
         requireLength(dto.errorMessagePath(), PATH_MAX, "失败原因表达式");
+        requireLength(dto.usagePath(), PATH_MAX, "用量表达式");
         requireLength(dto.resultUrlField(), 64, "产物字段名");
         requireLength(dto.statusSucceeded(), CONDITION_MAX, "成功判定表达式");
         requireLength(dto.statusFailed(), CONDITION_MAX, "失败判定表达式");
@@ -137,6 +139,7 @@ public final class AsyncTaskProfileSupport {
         compile(dto.statusPath(), "状态表达式");
         compile(dto.resultPath(), "产物表达式");
         compile(dto.errorMessagePath(), "失败原因表达式");
+        compile(dto.usagePath(), "用量表达式");
         compile(dto.statusSucceeded(), "成功判定表达式");
         compile(dto.statusFailed(), "失败判定表达式");
         compile(dto.statusRunning(), "进行中判定表达式");

@@ -41,5 +41,7 @@ public record AsyncTaskProfileDto(String profileCode,
                                      Integer pollBackoffBaseMs,
                                      Integer pollBackoffMaxMs,
                                      Integer maxAttempts,
-                                     Long timeoutMinutes) {
+                                     Long timeoutMinutes,
+                                     /** 查询响应取证：从查询响应取上游 usage 对象的 MVEL 表达式；空 = 沿用顶层 usage */
+                                     String usagePath) {
 }

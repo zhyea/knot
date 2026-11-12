@@ -48,7 +48,7 @@ class AsyncTaskSupportTest {
         return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
                 "data[0].outputs[0].url", null, null,
-                7, 5000, 1000, 30000, 360, 30L);
+                7, 5000, 1000, 30000, 360, 30L, null);
     }
 
     @Test
@@ -71,7 +71,7 @@ class AsyncTaskSupportTest {
                 Map.of("prompt", "a cat"),
                 new AsyncTaskContext("tc-1", "rule-1", null, null, "req-1",
                         "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos",
-                        1L, 2L, 3L, 4L),
+                        1L, 2L, 3L, 4L, false),
                 "up-1", "RULE-1", "V1", now, "https://client.example/callback");
         AsyncTaskDraftDto task = support.build(creation);
 
@@ -101,10 +101,10 @@ class AsyncTaskSupportTest {
     void noResultTtl() {
         AsyncTaskSpec noTtl = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
                 "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
-                null, 5000, 1000, 30000, 360, 30L);
+                null, 5000, 1000, 30000, 360, 30L, null);
         AsyncTaskDraftDto task = support.build(new AsyncTaskCreation("tc", "P", noTtl, null,
                 Map.of(), new AsyncTaskContext("tc", "r", null, null, "req", null, "m", null, null, null, null,
-                        null, null, null, null),
+                        null, null, null, null, false),
                 "up", null, null, LocalDateTime.now(), null));
         assertNull(task.resultExpiresAt());
     }
@@ -223,12 +223,26 @@ class AsyncTaskSupportTest {
     private static AsyncTaskProfileDto profileOf(String protocol) {
         return new AsyncTaskProfileDto("KLING_TASK", protocol, "GET", "/v1/tasks/{task_id}",
                 "data.id", "data.status", "status == 'succeed'", "status == 'failed'", null,
-                "data.url", null, null, 7, 5000, 1000, 30000, 360, 30L);
+                "data.url", null, null, 7, 5000, 1000, 30000, 360, 30L, null);
     }
 
     private static ModelApiBindingConfigVo binding(String asyncProfileCode) {
         ModelApiBindingEntity entity = new ModelApiBindingEntity();
         entity.setAsyncProfileCode(asyncProfileCode);
         return CONVERTER.toApiBindingVo(entity);
+    }
+
+    @Test
+    @DisplayName("context_json 快照：returnUsageDetail 往返不丢（提交时快照消费者是否要看用量明细）")
+    void contextJsonSnapshotsReturnUsageDetail() {
+        AsyncTaskContext detail = new AsyncTaskContext("tc", "r", null, null, "req", null,
+                "m", null, null, null, null, null, null, null, null, true);
+        String json = JsonKit.toJson(detail);
+        assertTrue(json.contains("returnUsageDetail"), "快照必须带这个键，否则旧快照反序列化恒为 false");
+        assertTrue(JsonKit.fromJson(json, AsyncTaskContext.class).returnUsageDetail());
+        AsyncTaskContext plain = new AsyncTaskContext("tc", "r", null, null, "req", null,
+                "m", null, null, null, null, null, null, null, null, false);
+        assertFalse(JsonKit.fromJson(JsonKit.toJson(plain), AsyncTaskContext.class).returnUsageDetail(),
+                "显式 false / 旧快照缺字段都按 false");
     }
 }

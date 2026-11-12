@@ -622,8 +622,8 @@ INSERT IGNORE INTO kb_resource_quota_bindings (resource_type, resource_code, quo
 -- 供应商凭证（认证配置整体以 AES-GCM 密文保存；前缀 ENC:）
 -- 密文解密后必须是 JSON 对象形态（如 {"apiKey":"sk-..."}），与 ProviderCredentialSupport.saveAuthConfig
 -- 的写入契约一致；旧版种子密文存的是裸密钥字符串，会导致 JsonKit.fromJson 解析失败并静默降级为空 apiKey。
--- 注意：密文由 KNOT_CREDENTIAL_ENCRYPTION_KEY 派生密钥加密，更换密钥后必须重新生成（见
--- docs/database/migration/2026-09-23-fix-provider-credential-config-format.sql 的生成说明）。
+-- 注意：密文由 KNOT_CREDENTIAL_ENCRYPTION_KEY 派生密钥加密，更换密钥后必须重新生成
+-- （按 ProviderCredentialSupport 同口径重新加密，不保留批量转换脚本）。
 INSERT IGNORE INTO kb_provider_credentials (id, provider_account_code, credential_type, auth_applier, encrypted_config, status) VALUES
 (1, 'openai-default', 'api-key', 'BEARER', 'ENC:v2:1na94bnxGhusl+EaNaQZSZneQAWMS1Cr6KU8ADFSxZlrrn6dYGvvAENb/SFRGeyPIyP4l2xJLCdMJIDy8ixFxF54BldGzycpz57QyXs=', 1),
 (2, 'anthropic-default', 'api-key', 'ANTHROPIC_API_KEY', 'ENC:v2:iLhkQvqvTW3/dlz82dKa2so3n9NNHdfWoj7MAI4FSnRoBJ0GcDyrr1SNeQHSwj6yBGH0Eudnq5cpsSVd7OSzVGvv175De8wvz15/gtKKW+k=', 1),
@@ -708,7 +708,7 @@ INSERT IGNORE INTO kx_model_sources (
 
 -- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名；request_adapter 为 UpstreamAdapter code）
 -- ⚠ 2026-10-25 适配器重命名：OPENAI_COMPATIBLE/ANTHROPIC/BEDROCK_CONVERSE 三个旧 code 已废弃，
---   新值见 docs/database/migration/2026-10-25-upstream-adapter-rename.sql（新库直接用新值播种）
+--   新值即下方 request_adapter 列的取值（PASSTHROUGH / QWEN / AWS_BEDROCK_* 等），新库直接播种
 INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
 (1, 'gpt-4o', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'PASSTHROUGH', 'DEFAULT-TOKEN', 1, 'GPT-4o Chat Completions'),
 (2, 'gpt-4o-mini', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'PASSTHROUGH', 'DEFAULT-TOKEN', 1, 'GPT-4o Mini Chat Completions'),
@@ -723,7 +723,7 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, re
 (7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'PASSTHROUGH', 'IMAGE', 1, 'OpenAI Image Generation'),
 -- 注：原 id=8（gpt-image-1 / IMAGE_EDITS / /v1/images/edits / PASSTHROUGH）已摘除：
 -- 网关 /images/edits 改为 JSON 透传，而 OpenAI 原生 edits 端点只收 multipart，透传 JSON 会被上游拒。
--- 存量库清理见 docs/database/migration/2026-10-30-drop-gpt-image-1-image-edits-binding.sql
+-- 存量库需手工 DELETE 该行（本种子是 INSERT IGNORE，不会自动摘除既有行）
 -- Bedrock runtime：api_path 留 NULL，由 AWS_BEDROCK_CHAT_COMPLETIONS_TO_CONVERSE 适配器按 /model/{模型ID}/converse 推导（模型 ID 里的 : 会编码成 %3A）
 --   usage_extractor 走 DEFAULT-TOKEN：整包路径的用量提取吃的是 handleResponse 的产物，
 --   usage 已被适配器转成 OpenAI snake_case 形状，通用提取器别名表可直接读出（2026-10-25 删专用提取器）

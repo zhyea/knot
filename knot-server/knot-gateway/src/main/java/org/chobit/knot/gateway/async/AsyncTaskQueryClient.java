@@ -15,6 +15,7 @@ import org.chobit.knot.svc.vo.gateway.ProviderCredentialConfigVo;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.gateway.upstream.support.UpstreamUrlSupport;
+import org.chobit.knot.plugin.PluginDispatcher;
 import org.chobit.knot.svc.service.support.ProviderCredentialSupport;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatusCode;
@@ -51,6 +52,7 @@ public class AsyncTaskQueryClient implements AsyncTaskQueryPort {
     private final GatewayConfigCacheService dataService;
     private final ProviderCredentialSupport credentialSupport;
     private final UpstreamAuthApplierCatalog authApplierCatalog;
+    private final PluginDispatcher pluginDispatcher;
 
     /**
      * 查询一次任务状态。
@@ -94,7 +96,18 @@ public class AsyncTaskQueryClient implements AsyncTaskQueryPort {
         String path = spec == null ? null : spec.resolvePath(upstreamTaskId);
         String url = UpstreamUrlSupport.joinUrl(access.baseUrl(),
                 UpstreamUrlSupport.joinPath(model.basePath(), path));
-        return exchange(url, access, spec == null ? HttpMethod.GET : HttpMethod.valueOf(spec.queryMethod().toUpperCase()));
+        return exchangeWithPlugins(upstreamContext, url, context.taskCode(), access,
+                spec == null ? HttpMethod.GET : HttpMethod.valueOf(spec.queryMethod().toUpperCase()));
+    }
+
+    private String exchangeWithPlugins(UpstreamRequestContext upstreamContext,
+                                       String url,
+                                       String taskCode,
+                                       UpstreamAccess access,
+                                       HttpMethod method) {
+        return AsyncTaskQueryPluginDispatcher.execute(
+                pluginDispatcher, upstreamContext, url, taskCode,
+                () -> exchange(url, access, method));
     }
 
     private String exchange(String url, UpstreamAccess access, HttpMethod method) {

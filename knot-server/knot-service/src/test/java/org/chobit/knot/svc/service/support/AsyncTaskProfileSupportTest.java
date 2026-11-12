@@ -45,7 +45,7 @@ class AsyncTaskProfileSupportTest {
                 "data.task_id", "data.task_status",
                 statusSucceeded, statusFailed, null,
                 "data.task_result.videos", "url", "data.task_status_msg",
-                7, 5000, 1000, 30000, 360, 30L, 1, "可灵");
+                7, 5000, 1000, 30000, 360, 30L, 1, "可灵", null);
     }
 
     private static AsyncTaskProfileSaveDto valid() {
@@ -59,7 +59,7 @@ class AsyncTaskProfileSupportTest {
                 "  KLING_TASK ", " video_generations ", " get ", " /v1/tasks/{task_id} ",
                 " data.task_id ", " data.status ", "status == 'ok'", "status == 'bad'",
                 "   ", " data.url ", null, "  ",
-                null, null, null, null, null, null, null, "  备注  ");
+                null, null, null, null, null, null, null, "  备注  ", null);
 
         AsyncTaskProfileSaveDto dto = AsyncTaskProfileSupport.normalize(raw);
 
@@ -89,7 +89,7 @@ class AsyncTaskProfileSupportTest {
                 dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
                 dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
                 dto.pollIntervalMs(), dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(),
-                dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark());
+                dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark(), null);
     }
 
     @Test
@@ -122,7 +122,7 @@ class AsyncTaskProfileSupportTest {
                 dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
                 dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
                 dto.pollIntervalMs(), dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(),
-                dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark());
+                dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark(), null);
 
         assertTrue(assertThrows(BusinessException.class, () -> AsyncTaskProfileSupport.validate(bad))
                 .getMessage().contains("{task_id}"));
@@ -152,7 +152,7 @@ class AsyncTaskProfileSupportTest {
                 dto.queryMethod(), dto.queryPath(), dto.taskIdPath(), dto.statusPath(),
                 dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
                 dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
-                5000, 10_000, 5_000, dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark());
+                5000, 10_000, 5_000, dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark(), null);
 
         assertTrue(assertThrows(BusinessException.class, () -> AsyncTaskProfileSupport.validate(bad))
                 .getMessage().contains("退避上限"));
@@ -198,7 +198,7 @@ class AsyncTaskProfileSupportTest {
                 dto.statusFailed(), dto.statusRunning(), dto.resultPath(), dto.resultUrlField(),
                 dto.errorMessagePath(), dto.resultExpiresDays(), dto.pollIntervalMs(),
                 dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(), dto.maxAttempts(),
-                dto.timeoutMinutes(), dto.status(), dto.remark());
+                dto.timeoutMinutes(), dto.status(), dto.remark(), null);
     }
 
     /** 只换超时一列，其余字段照抄：这类边界用例要能一眼看出「差的是哪一个数」 */
@@ -208,7 +208,7 @@ class AsyncTaskProfileSupportTest {
                 dto.statusFailed(), dto.statusRunning(), dto.resultPath(), dto.resultUrlField(),
                 dto.errorMessagePath(), dto.resultExpiresDays(), dto.pollIntervalMs(),
                 dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(), dto.maxAttempts(), minutes,
-                dto.status(), dto.remark());
+                dto.status(), dto.remark(), null);
     }
 
     @Test
@@ -283,7 +283,7 @@ class AsyncTaskProfileSupportTest {
                 dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
                 dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
                 dto.pollIntervalMs(), dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(),
-                dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark());
+                dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark(), null);
 
         // 可灵创建响应是 data.task_id，档案却写 data.id：保存期挡不住（语法合法），
         // 只能靠试跑暴露——若这里静默给 null，运维看到「试跑通过」就会直接上线。

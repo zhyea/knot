@@ -22,13 +22,13 @@ import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.plugin.PluginDispatcher;
 import org.chobit.knot.plugin.PluginExtensionPoint;
 import org.chobit.knot.plugin.PluginStageCode;
-import org.chobit.knot.plugin.upstream.UpstreamPluginContext;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.svc.service.support.ProviderCredentialSupport;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
 import org.chobit.knot.gateway.upstream.request.UpstreamAdapterRegistry;
+import org.chobit.knot.gateway.upstream.support.UpstreamPluginContextSupport;
 import org.chobit.knot.gateway.upstream.support.UpstreamUrlSupport;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
@@ -213,23 +213,13 @@ public class UpstreamProxyClient {
         pluginDispatcher.dispatch(
                 PluginExtensionPoint.UPSTREAM_EXCHANGE,
                 stageCode,
-                new UpstreamPluginContext(
-                        context.traceId(),
-                        context.traceparent(),
+                UpstreamPluginContextSupport.of(
+                        context,
                         stageCode,
-                        context.provider() == null ? null : context.provider().id(),
-                        context.provider() == null ? null : context.provider().code(),
-                        context.model() == null ? null : context.model().id(),
-                        context.model() == null ? null : context.model().modelCode(),
-                        context.protocol() == null ? null : context.protocol().code(),
-                        context.binding() == null ? null : context.binding().protocol(),
-                        context.requestBody(),
-                        context.contentType(),
                         responseSnapshot(result),
                         error,
                         upstreamRequestIdOf(result, error),
-                        upstreamUrl
-                )
+                        upstreamUrl)
         );
     }
 

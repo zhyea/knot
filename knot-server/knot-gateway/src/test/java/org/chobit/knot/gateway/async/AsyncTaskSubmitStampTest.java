@@ -127,7 +127,7 @@ class AsyncTaskSubmitStampTest {
         public AsyncTaskSpec loadSpec(String profileCode, ModelApiProtocolEnum protocol) {
             return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data.status",
                     "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
-                    7, 5000, 1000, 30000, 360, 30L);
+                    7, 5000, 1000, 30000, 360, 30L, null);
         }
     }
 

@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.async;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.common.constants.AiPayloadFields;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.common.util.JsonKit;
@@ -29,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
 
@@ -88,7 +90,32 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
                 ModelApiProtocolEnum.fromCode(context.protocol()),
                 context.traceparent(),
                 context.requestId());
+        // 只加工「交给提取器的输入」；落库证据仍用 polling.rawBody() 原文（见 queryBodyForUsage）。
+        queryBody = queryBodyForUsage(queryBody, task.pollSpecJson());
         return usageExtractorRegistry.extract(queryBody, upstreamContext);
+    }
+
+    /**
+     * 把查询响应里「按档案 usagePath 取到的 usage」补到顶层，供既有提取器读取。
+     *
+     * <p>⚠ 加工的是<b>交给提取器的输入</b>，不是落库证据：{@code AsyncTaskRunner#finish} 落
+     * {@code terminal_body} 的仍是 {@code polling.rawBody()} 原文，证据不失真；配了 {@code usage_path}
+     * 时以配置为准，会覆盖上游顶层同名 {@code usage} 键。</p>
+     *
+     * <p>包级可见，仅供单测验证「加工后的 body 顶层 usage 带 cost」，不对外暴露。</p>
+     */
+    static String queryBodyForUsage(String queryBody, String pollSpecJson) {
+        Map<String, Object> body = JsonKit.fromJson(queryBody,
+                new TypeReference<Map<String, Object>>() {
+                });
+        AsyncTaskSpec spec = JsonKit.fromJson(pollSpecJson, AsyncTaskSpec.class);
+        Map<String, Object> usage = AsyncTaskSpecRules.usageOf(body, spec);
+        if (body == null || usage == null || usage.isEmpty()) {
+            return queryBody;
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>(body);
+        normalized.put(AiPayloadFields.USAGE, usage);
+        return JsonKit.toJson(normalized);
     }
 
     /**
