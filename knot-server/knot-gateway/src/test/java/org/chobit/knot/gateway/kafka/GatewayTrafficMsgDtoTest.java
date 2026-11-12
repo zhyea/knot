@@ -231,7 +231,7 @@ class GatewayTrafficMsgDtoTest {
     void requestBudgetTimeoutIsNotInternalError() {
         // B2 全局 deadline 超时（Mono.timeout 抛 TimeoutException）：数仓侧必须与 HTTP 出口
         // （GatewayExceptionHandler.handleRequestBudgetExceeded → 504/timeout_error）同口径，
-        // 不能落进「未预期异常」兜底（500/upstream_error/internal）——那是排查口径的丢失
+        // 不能落进「未预期异常」兜底（500/internal_error/internal）——那是排查口径的丢失
         GatewayRequestContext context = context();
 
         GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, null, null,
@@ -241,6 +241,22 @@ class GatewayTrafficMsgDtoTest {
         assertEquals(504, message.httpStatus());
         assertEquals("timeout_error", message.error().type());
         assertEquals("timeout", message.error().stage());
+    }
+
+    @Test
+    void unexpectedExceptionIsInternalNotUpstream() {
+        // 2026-11-12：兜底 500 的类型从 upstream_error 改成 internal_error。
+        // 判据：上游错误是「模型服务回的」，未预期异常是「网关自己炸了」；混记会让数仓的
+        // 上游错误率凭空变高、告警也打给供应商。status 落 gateway_error（不是 upstream_error）。
+        GatewayRequestContext context = context();
+
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, null, null,
+                new IllegalStateException("unexpected"));
+
+        assertEquals("gateway_error", message.status());
+        assertEquals(500, message.httpStatus());
+        assertEquals("internal_error", message.error().type());
+        assertEquals("internal", message.error().stage());
     }
 
     @Test

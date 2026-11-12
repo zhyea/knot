@@ -39,4 +39,23 @@ public enum GatewayErrorTypeEnum {
     public String code() {
         return code;
     }
+
+    /**
+     * 按 wire code 反查枚举；未知值与 {@code null} 一律返回 {@code null}，由调用方决定兜底语义。
+     *
+     * <p>存在的意义：数仓出口把 {@code type} 投影成 {@code status} 时曾是一串手写字符串的
+     * switch（`case "upstream_error" -> ...`），新增错误类型时<b>没有任何编译期提示</b>。
+     * 有了本方法，投影可以改成枚举 switch——加常量却不给映射，<b>编译直接失败</b>。</p>
+     */
+    public static GatewayErrorTypeEnum fromCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        for (GatewayErrorTypeEnum value : values()) {
+            if (value.code.equals(code)) {
+                return value;
+            }
+        }
+        return null;
+    }
 }

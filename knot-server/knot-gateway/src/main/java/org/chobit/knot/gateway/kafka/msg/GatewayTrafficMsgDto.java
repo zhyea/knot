@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import org.chobit.knot.common.constants.AiPayloadFields;
+import org.chobit.knot.common.constants.enums.GatewayErrorTypeEnum;
 import org.chobit.knot.common.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.kafka.CallTraceContext;
@@ -351,13 +352,19 @@ public record GatewayTrafficMsgDto(String schema,
         if (error == null) {
             return "success";
         }
-        return switch (error.type()) {
-            case "rate_limit_error" -> "rate_limited";
-            case "quota_error" -> "quota_exceeded";
-            case "upstream_error" -> "upstream_error";
-            case "internal_error" -> "gateway_error";
-            case "timeout_error" -> "timeout";
-            default -> "gateway_error";
+        GatewayErrorTypeEnum type = GatewayErrorTypeEnum.fromCode(error.type());
+        if (type == null) {
+            // 未知 type 不炸（数仓链路宁可少一列语义，也不能因为一个新码丢掉整条事件），落最保守的 gateway_error
+            return "gateway_error";
+        }
+        // 穷举枚举而不是手写字符串：新增错误类型时这里会编译失败，强制作者决定它的 status
+        return switch (type) {
+            case RATE_LIMIT_ERROR -> "rate_limited";
+            case QUOTA_ERROR -> "quota_exceeded";
+            case UPSTREAM_ERROR -> "upstream_error";
+            case TIMEOUT_ERROR -> "timeout";
+            case AUTH_ERROR, INVALID_REQUEST_ERROR, MODERATION_ERROR, STORAGE_UNAVAILABLE, INTERNAL_ERROR
+                    -> "gateway_error";
         };
     }
 
