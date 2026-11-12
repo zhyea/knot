@@ -36,6 +36,8 @@ cd knot-front && npx vue-tsc --noEmit && npx vite build                # 前端�
 - **`knot-plugin` 的类禁止外部模块 import（含测试）**，依赖一律 `<scope>runtime</scope>`。
 - **权限三表与所有 `ks_` / `kx_` 表默认不动**（改错全站 403）；admin 接口**默认拒绝**，新增接口必须补权限绑定。
 - **`schema.sql` 加列必须同步写迁移脚本** 到 `docs/database/migration/YYYY-MM-DD-*.sql`；`CREATE TABLE IF NOT EXISTS` 不给既有表补列。
+  该目录只保留**未上线 / 本批次**的脚本，上线执行完即删——库形态的唯一标准是 `schema.sql`（`data.sql` 管种子），
+  不堆逐次增量历史（铁律 11 的数据库侧推论）。
 - **JDK 25 + Mockito 不能 mock 具体类**，测试替身用子类覆写。
 - **`status` 为 0 是合法值**，前端禁用 truthy 判断。
 - **跨表绑定一律存 code 不存 id。**

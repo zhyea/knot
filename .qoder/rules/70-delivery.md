@@ -14,7 +14,7 @@ description: knot 交付规范：产物落盘位置、git 纪律、变更收口�
 | 产物 | 落盘位置 | 命名 |
 |---|---|---|
 | 报告 / 方案 / 巡检 | `docs/` | `<主题>-YYYY-MM-DD.md` |
-| 数据库迁移脚本 | `docs/database/migration/` | `YYYY-MM-DD-<主题>.sql` |
+| 数据库迁移脚本 | `docs/database/migration/`（**只留未上线批次，执行完即删**） | `YYYY-MM-DD-<主题>.sql` |
 | 设计与技术方案 | `docs/design/` 或 `docs/tech/` | 沿用既有命名 |
 | 项目规范 | `docs/standards/` | 见 `PROJECT-STANDARDS.md` |
 | 工作日志（过程） | `.workbuddy/memory/` | `YYYY-MM-DD.md`（**只追加，不覆盖**） |

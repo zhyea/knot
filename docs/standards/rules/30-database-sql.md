@@ -15,7 +15,7 @@
 ## 2. 权威源与迁移
 
 - 权威 schema：`knot-server/knot-admin/src/main/resources/db/schema.sql`；初始化数据：`同目录 data.sql`。
-- **改 `db/*.sql` 必须同时写迁移脚本**，落 `docs/database/migration/YYYY-MM-DD-*.sql`。
+- **改 `db/*.sql` 必须同时写迁移脚本**，落 `docs/database/migration/YYYY-MM-DD-*.sql`；该目录**只保留未上线批次**，上线执行完即删——库形态的唯一标准是 `schema.sql` + `data.sql`，不堆逐次增量历史（铁律 11 的数据库侧推论）。
 - 迁移写法：`information_schema` 判列是否存在 → 加**可空列** → 幂等可重复执行。
 - 顺序：**先跑迁移，再 package/启应用**。既有库必须先迁移才能起新版。
 

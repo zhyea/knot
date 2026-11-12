@@ -13,8 +13,8 @@ import java.time.LocalDateTime;
  * <p>路径模板里的 {@code {task_id}} 占位可出现在 path 段或 query 段
  * （可灵是 {@code /tasks?task_ids={task_id}}，MiniMax 是 {@code /v2/query/video_generation/{task_id}}）。</p>
  *
- * <p>⚠ 2026-10-28 起：四个 {@code *Path} 是 <b>MVEL 取值表达式</b>（其中 {@code usagePath}
- * 取的是上游 usage 的 Map 对象而非标量文本），三个 {@code status*} 是
+ * <p>⚠ 2026-10-28 起：五个 {@code *Path} 是 <b>MVEL 取值表达式</b>（其中 {@code usagePath}
+ * 取的是上游 usage 的 Map 对象而非标量文本，2026-11-12 加），三个 {@code status*} 是
  * <b>MVEL 布尔表达式</b>（变量 {@code status} / {@code body}）。求值口径见
  * {@code AsyncTaskExpressionSupport}；判定语义见规范 {@code 60-business-rules.md} §8.14。</p>
  */

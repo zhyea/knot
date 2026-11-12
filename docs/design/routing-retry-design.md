@@ -157,7 +157,7 @@ for (candidate : routing.candidateModels()) {
 
 **DB**
 - `knot-admin/src/main/resources/db/schema.sql`：`kb_routing_rules` 加 `retry_policy` 列。
-- `docs/database/migration/2026-10-05-routing-retry.sql`：幂等 `ADD COLUMN IF NOT EXISTS` + 默认 `DEFAULT`。
+- 迁移脚本（已清理）：幂等 `ADD COLUMN IF NOT EXISTS` + 默认 `DEFAULT`。
 
 **后端（knot-server）**
 - `knot-dal/.../entity/RoutingRuleEntity.java`：加 `retryPolicy`（String/JSON）。

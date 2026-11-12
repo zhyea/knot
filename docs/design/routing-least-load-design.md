@@ -122,7 +122,7 @@ sort:  load 升序  →  weight 降序  →  tieBreaker(id) 升序
 
 **DB（2 处）**
 - `kb_model_pools.selection_strategy`：枚举加值 `LEAST_LOAD`，**列已存在、无需 DDL**。
-- `kb_routing_rules` 新增列 `selection_strategy VARCHAR(32) NOT NULL DEFAULT 'PRIORITY'`（schema.sql 加列；迁移 `docs/database/migration/2026-10-12-routing-least-load.sql`：`ADD COLUMN IF NOT EXISTS` 幂等，先跑再 package）。存量数据默认 PRIORITY，行为不变。
+- `kb_routing_rules` 新增列 `selection_strategy VARCHAR(32) NOT NULL DEFAULT 'PRIORITY'`（schema.sql 加列；迁移脚本 `ADD COLUMN IF NOT EXISTS` 幂等，先跑再 package）。存量数据默认 PRIORITY，行为不变。
 
 **后端（knot-server，仅 knot-gateway 改动为主）**
 - 新包 `org.chobit.knot.gateway.load`：`ModelLoadStore`（接口）、`CaffeineModelLoadStore`、`RedisModelLoadStore`、`ModelLoadStoreConfiguration`（`@ConditionalOnProperty` 双实现 + `knot.load.*`）、`ModelLoadKeys`（键拼装，对照 `TrafficCounterKeys`）。
@@ -193,7 +193,7 @@ sort:  load 升序  →  weight 降序  →  tieBreaker(id) 升序
 - 测试：新增 `ModelPoolSelectionTest`（LEAST_LOAD 排序 + 平手 + 冷启动退化）。
 
 **批次 3（规则级列 + 字段 + 前端，schema/迁移有数据风险）**
-- DB：`schema.sql` 加 `kb_routing_rules.selection_strategy VARCHAR(32) NOT NULL DEFAULT 'PRIORITY'`；迁移 `docs/database/migration/2026-10-12-routing-least-load.sql`（幂等 ADD COLUMN）；先跑迁移再 package。
+- DB：`schema.sql` 加 `kb_routing_rules.selection_strategy VARCHAR(32) NOT NULL DEFAULT 'PRIORITY'`；迁移脚本（幂等 ADD COLUMN，已清理）；先跑迁移再 package。
 - 后端：`RoutingRuleEntity`/`Dto`/`VO`/`Mapper.xml`/`Converter`/`Service` 加 `selectionStrategy`；`RoutingResolver.orderTargets(ruleCode, strategyCode)` 加规则级 `LEAST_LOAD` 分支（`primary 置顶 → load 升序 → priority 降序 → targetCode`）。
 - 前端：`RoutingRuleFormDrawer.vue` 加「目标选择策略」下拉（复用池级 `EnumControl`）+ `useDraftModel.ts` 深比较补字段。
 

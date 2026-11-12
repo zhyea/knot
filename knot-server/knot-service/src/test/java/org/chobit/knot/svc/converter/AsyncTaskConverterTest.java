@@ -1,9 +1,11 @@
 package org.chobit.knot.svc.converter;
 
 import org.chobit.knot.dal.entity.AsyncTaskEntity;
+import org.chobit.knot.dal.entity.AsyncTaskProfileEntity;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskProfileDto;
+import org.chobit.knot.svc.dto.async.AsyncTaskProfileSaveDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -115,6 +117,27 @@ class AsyncTaskConverterTest {
         assertEquals(NOW.plusMinutes(2), record.nextDeliveryAt());
         assertEquals(NOW.plusMinutes(1), record.deliveredAt());
         assertEquals("connection reset", record.deliveryError());
+    }
+
+    @Test
+    @DisplayName("⭐ 档案 usage_path 三条链路都不许漏：实体→运行时记录 / 表单→实体 / 实体→详情视图")
+    void profileUsagePathSurvivesEveryConversion() {
+        AsyncTaskProfileEntity entity = new AsyncTaskProfileEntity();
+        entity.setProfileCode("KLING_TASK");
+        entity.setUsagePath("data.usage");
+
+        assertEquals("data.usage", AsyncTaskConverter.toProfileRecord(entity).usagePath(),
+                "漏拷 = 网关取不到嵌套的上游 cost，Kafka upstream_usage 整段为空");
+        assertEquals("data.usage", AsyncTaskConverter.toProfileDetailVo(entity).usagePath(),
+                "漏拷 = 详情页看不见已配的值，用户再保存一次就把这一列清空");
+
+        AsyncTaskProfileSaveDto save = new AsyncTaskProfileSaveDto(
+                "KLING_TASK", "VIDEO_GENERATIONS", "GET", "/v1/tasks/{task_id}",
+                "data.task_id", "data.status", "status == 'ok'", "status == 'bad'", null,
+                "data.result.url", null, null, 7, 5000, 1000, 30000, 360, 30L, 1, null,
+                "data.usage");
+        assertEquals("data.usage", AsyncTaskConverter.toProfileEntity(save).getUsagePath(),
+                "漏拷 = 表单填了也存不进库，页面上永远显示为空");
     }
 
     @Test

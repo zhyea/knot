@@ -85,4 +85,18 @@ class AsyncTaskSpecTest {
         assertEquals(1L, sanitized.timeoutMinutes(), "超时必须为正，否则任务一提交就过期");
         assertNull(AsyncTaskSpec.of(null));
     }
+
+    @Test
+    @DisplayName("⭐ 快照带 usage_path：结算只读快照，漏带就退回顶层 usage")
+    void usagePathIsSnapshot() {
+        AsyncTaskProfileDto profile = new AsyncTaskProfileDto("P", "VIDEO_GENERATIONS", null,
+                "/v1/tasks/{task_id}", "data.id", "data.status",
+                "status == 'succeed'", "status == 'failed'", null, null, null,
+                null, null, null, null, null, null, null, "data.usage");
+
+        assertEquals("data.usage", AsyncTaskSpec.of(profile).usagePath(),
+                "漏带 = 结算时回查档案，在途任务会用上新配置，金额不可复现");
+        assertNull(spec("/v1/tasks/{task_id}").usagePath(),
+                "未配就是 null：交给 UsageRawReader 走顶层 usage，不是空串");
+    }
 }

@@ -318,7 +318,7 @@ usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
 
 - **取值失败 → `null`**：上游还没出字段、数组越界、上层为 null 都是常态，调用方解释成「还没出结果」。
   判 null 比判死任务安全。
-- **判定失败 → 必须抛**（`IllegalStateException`，并指路迁移脚本）：旧值 `succeeded,failed` 在 MVEL 下
+- **判定失败 → 必须抛**（`IllegalStateException`，并给出可照抄的正确写法）：旧值 `succeeded,failed` 在 MVEL 下
   是变量名，**能编译、求值期才抛**。若宽容成 `false`，任务会永远 RUNNING 直到超时结单——
   **配置错被伪装成上游慢，是最难查的一类事故**。
 - ⭐⭐ **例外：取上游任务 ID 必须抛**（2026-11-01 robin 定）。`task_id_path` 走**严格取值**
@@ -358,7 +358,7 @@ usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
 - 安全边界：表达式只由管理端/运维脚本写入（与 SQL 同权限级），求值时**只绑定数据**，
   不绑定 bean、不绑类加载器。
 - 编译缓存 `ConcurrentHashMap<表达式原文, Serializable>`：改档案自然过期，无失效逻辑。
-- 守门测试：`AsyncTaskExpressionSupportTest`（17 例，含「旧逗号列表必须抛且消息指路迁移脚本」
+- 守门测试：`AsyncTaskExpressionSupportTest`（17 例，含「旧逗号列表必须抛且消息给出可照抄写法」
   与 `object()` 的 root 为空 / 表达式空白 / 结果非 Map 三条分支；`AsyncTaskSpecRulesTest`（9 例）
   与「严格取值四条失败分支」探针）。
   双向探针实测：取值改上抛 → 3 例红；判定改宽容 `false` → 逗号列表那例红。

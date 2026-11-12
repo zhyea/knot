@@ -180,7 +180,7 @@ if (sticky.enabled() && stickyKey != null) {
 
 **DB**
 - `knot-admin/src/main/resources/db/schema.sql`：`kb_model_pools` 加 `sticky_policy TEXT DEFAULT NULL COMMENT '池内粘性路由策略（JSON）；空表示未启用'`。
-- `docs/database/migration/2026-10-12-model-pool-sticky.sql`：幂等 `ADD COLUMN IF NOT EXISTS`。**先跑迁移再 package。**
+- 迁移脚本（已清理）：幂等 `ADD COLUMN IF NOT EXISTS`。**先跑迁移再 package。**
 
 **后端（knot-server）**
 - `knot-common/.../gateway/model/StickyPolicy.java`：record（`enabled` / `headerName`），紧凑构造器归一化 + `parse` / `serialize`，对照 `RetryPolicy.java`。

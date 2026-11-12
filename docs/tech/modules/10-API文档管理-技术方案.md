@@ -13,8 +13,8 @@
   由真启冒烟核对 paths 数量兜住。
 - `GET /api/docs/changelog` —— ❌ 未实现（2026-11-12 起明确）：原有一个 `POST /api/docs/changelog` 占位端点返回两条
   硬编码版本，`POST /api/docs/openapi.json` 同样是硬编码骨架（paths 只有 `/api/health`）。两者都不随代码演进、
-  仓库内零引用，已一并删除（含 `data.sql` 的权限绑定 54/55，迁移脚本
-  `docs/database/migration/2026-11-12-remove-api-doc-permission-bindings.sql`）。
+  仓库内零引用，已一并删除（含 `data.sql` 的权限绑定 54/55；存量库须手工删这两行——
+  原迁移脚本已随历史批次清理）。
   ⚠ 删除前文档写 `GET`、实现是 `POST`，本来就不一致——这正是不该留占位端点的理由。
 
 ## 4. 关键流程

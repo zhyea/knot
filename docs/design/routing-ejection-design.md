@@ -210,7 +210,7 @@ for (RoutingRuleTargetDto candidate : routing.candidateModels()) {
 ## 9. 配置落点：DB
 
 - `kb_routing_rules` 新增列 `ejection_policy TEXT DEFAULT NULL COMMENT '异常摘除策略（JSON）；空表示走内置默认策略'`。
-- 迁移脚本 `docs/database/migration/2026-10-14-routing-ejection.sql`（落地当天日期命名）：`information_schema` 判列 → `ADD COLUMN` → 幂等可重跑。
+- 迁移脚本（落地当天日期命名，执行完已清理）：`information_schema` 判列 → `ADD COLUMN` → 幂等可重跑。
 - ⚠ 既有库必须先跑迁移再启应用：`CREATE TABLE IF NOT EXISTS` 不给既有表补列。
 - ⚠ 新增 admin 接口**必须连带权限绑定 INSERT**（默认拒绝，漏配即 403）。
 
@@ -315,7 +315,7 @@ public void release(@RequestBody ReleaseRequest request) { ... }
 
 **DB**
 - `knot-admin/src/main/resources/db/schema.sql`：`kb_routing_rules` 加 `ejection_policy`。
-- `docs/database/migration/2026-10-14-routing-ejection.sql`：幂等加列 + 3 个 admin 接口的权限绑定 INSERT。
+- 迁移脚本（已清理）：幂等加列 + 3 个 admin 接口的权限绑定 INSERT。
 
 **后端**
 - `knot-common/.../model/EjectionPolicy.java`（新增）：record + 紧凑构造器归一化 + `parse/serialize` + `DEFAULT`。
@@ -364,7 +364,7 @@ public void release(@RequestBody ReleaseRequest request) { ... }
 | `knot-common/.../model/EjectionPolicy.java` | 12 字段 record + 紧凑构造器归一化 + `parse/serialize` + `DEFAULT`（默认关闭） |
 | `knot-common/.../model/EjectionPolicyTest.java` | 11 例：默认/容错/越界/模式/冷却增长/序列化往返 |
 | `knot-admin/src/main/resources/db/schema.sql` | `kb_routing_rules` 加 `ejection_policy TEXT`（位于 `retry_policy` 之后） |
-| `docs/database/migration/2026-10-15-routing-rule-ejection-policy.sql` | 幂等加列（information_schema 判定 + PREPARE），与 retry 迁移同范式 |
+| 迁移脚本（已清理） | 幂等加列（information_schema 判定 + PREPARE），与 retry 迁移同范式 |
 | `RoutingRuleEntity` / `RoutingRuleDto` / `RoutingRule`(VO) | 均加 `ejectionPolicy` 字段 |
 | `RoutingRuleMapper.xml` | RuleSelectColumns / insert / update 三处同步 |
 | `RoutingRuleService` | 三处手工构造点 + `serialize/parse` 落库与回读 |
@@ -450,7 +450,7 @@ public void release(@RequestBody ReleaseRequest request) { ... }
 | 前端 | `src/api/gatewayOutage.ts` | `GatewayOutageItem`/`GatewayOutageAck` 接口 + `listGatewayOutages`/`releaseGatewayOutage`/`ejectGatewayOutage` |
 | 前端 | `src/components/routing/RoutingRuleFormDrawer.vue` | 编辑态「当前摘除目标」面板：el-table 展示 modelCode/状态 tag/原因/窗口计数/剩余冷却/恢复按钮 + 手动摘除表单（模型 select 取绑定 MODEL 目标 / 冷却 input-number / 原因 input）；抽屉打开时 `refreshOutages()` 拉取，网关不可达静默降级不阻塞表单 |
 
-**权限绑定（幂等迁移 `docs/database/migration/2026-10-15-gateway-outage-admin.sql`）**
+**权限绑定（幂等迁移脚本，已清理）**
 
 - 权限：`152 routing:target:outage:view`、`153 routing:target:outage:manage`
 - API 绑定：`209 GET /api/gateway/outages`、`210 POST /api/gateway/outages/release`、`211 POST /api/gateway/outages/eject`

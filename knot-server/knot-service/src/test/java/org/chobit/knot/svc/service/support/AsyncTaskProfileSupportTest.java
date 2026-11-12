@@ -59,7 +59,7 @@ class AsyncTaskProfileSupportTest {
                 "  KLING_TASK ", " video_generations ", " get ", " /v1/tasks/{task_id} ",
                 " data.task_id ", " data.status ", "status == 'ok'", "status == 'bad'",
                 "   ", " data.url ", null, "  ",
-                null, null, null, null, null, null, null, "  备注  ", null);
+                null, null, null, null, null, null, null, "  备注  ", "  data.usage  ");
 
         AsyncTaskProfileSaveDto dto = AsyncTaskProfileSupport.normalize(raw);
 
@@ -69,6 +69,8 @@ class AsyncTaskProfileSupportTest {
         assertNull(dto.statusRunning(), "空白字符串必须折成 null：可选档位用 null 表示「没配」");
         assertNull(dto.errorMessagePath());
         assertEquals("备注", dto.remark());
+        assertEquals("data.usage", dto.usagePath(),
+                "用量表达式与其它表达式同口径去空白：带空格能求值，但入库后看不出是脏数据");
         assertEquals(1, dto.status(), "未指定状态时默认启用");
     }
 
@@ -295,5 +297,34 @@ class AsyncTaskProfileSupportTest {
         assertNull(vo.upstreamTaskId());
         assertTrue(vo.errors().stream().anyMatch(e -> e.contains("task_id_path") && e.contains("data.id")),
                 "必须指出是哪一列、哪条表达式：" + vo.errors());
+    }
+
+    @Test
+    @DisplayName("⭐ 校验：用量表达式可空，但填了就必须能编译、且不超过 DB 列宽")
+    void usagePathValidated() {
+        AsyncTaskProfileSaveDto dto = valid();
+
+        assertTrue(assertThrows(BusinessException.class,
+                        () -> AsyncTaskProfileSupport.validate(withUsagePath(dto, "d".repeat(256))))
+                .getMessage().contains("用量表达式"),
+                "超 255 字符必须拒：列宽 VARCHAR(255)，靠 DB 严格模式报错时已经没有上下文了");
+
+        assertTrue(assertThrows(BusinessException.class,
+                        () -> AsyncTaskProfileSupport.validate(withUsagePath(dto, "data.usage[")))
+                .getMessage().contains("用量表达式"),
+                "语法错必须在保存期拦住：等到结算才炸，账已经算错或算不出");
+
+        AsyncTaskProfileSupport.validate(withUsagePath(dto, null));
+        AsyncTaskProfileSupport.validate(withUsagePath(dto, "data.usage"));
+    }
+
+    /** 只换用量表达式一列：这类用例要能一眼看出「差的是哪一个字段」 */
+    private static AsyncTaskProfileSaveDto withUsagePath(AsyncTaskProfileSaveDto dto, String usagePath) {
+        return new AsyncTaskProfileSaveDto(dto.profileCode(), dto.protocol(), dto.queryMethod(),
+                dto.queryPath(), dto.taskIdPath(), dto.statusPath(), dto.statusSucceeded(),
+                dto.statusFailed(), dto.statusRunning(), dto.resultPath(), dto.resultUrlField(),
+                dto.errorMessagePath(), dto.resultExpiresDays(), dto.pollIntervalMs(),
+                dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(), dto.maxAttempts(),
+                dto.timeoutMinutes(), dto.status(), dto.remark(), usagePath);
     }
 }

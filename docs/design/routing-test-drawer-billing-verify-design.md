@@ -362,9 +362,10 @@ robin 纠正：「knot_extend 不是上游返回的」。代码实证：
 
 > **命名说明**：表名 `ks_system_settings` 与 API 路径 `/api/system-settings` 按「系统设置」语义保留，Java 类一律用 `PlatformSetting*` —— 规范 4.4 禁用 `System` 作为类名词根（先例：`SystemService`→`OperationLogService`）。
 >
-> **权限 code 关键字分工（robin 2026-10-17 拍板）**：`system:` 前缀下，**用户设置 = `preference`，系统设置 = `settings`**，两者绝不共用。原「用户设置」占用的 `system:settings:{page,update,view}` 已改为 `system:preference:*`；「系统设置」新权限落 `system:settings:{view,update}`。`ks_permissions.permission_code` 有唯一键而 data.sql 用 `INSERT IGNORE`——撞名会被**静默丢弃**，且 `ks_api_permission_bindings` 无外键，会留下**永久 403 且无报错**的孤儿绑定。既有库必须跑 `2026-10-17-permission-code-settings-to-preference.sql`（**与建表脚本两个都要跑**）。
+> **权限 code 关键字分工（robin 2026-10-17 拍板）**：`system:` 前缀下，**用户设置 = `preference`，系统设置 = `settings`**，两者绝不共用。原「用户设置」占用的 `system:settings:{page,update,view}` 已改为 `system:preference:*`；「系统设置」新权限落 `system:settings:{view,update}`。`ks_permissions.permission_code` 有唯一键而 data.sql 用 `INSERT IGNORE`——撞名会被**静默丢弃**，且 `ks_api_permission_bindings` 无外键，会留下**永久 403 且无报错**的孤儿绑定。既有库须按本段口径改写 `permission_code`（原脚本已随历史批次清理；新库由 `schema.sql` + `data.sql` 直接播种，无需迁移）。
 >
-> **DB 迁移**：`2026-10-17-system-settings.sql`（建 `ks_system_settings` + 种子行，幂等，**已落地**）、`2026-10-17-retire-per-minute-billing-unit.sql`（纯守卫，**已落地**）。
+> **DB 变更**：建 `ks_system_settings` + 种子行、按分钟计费单位退役（纯守卫）——均已落地，脚本随历史批次清理；
+> 现状以 `schema.sql`（结构）+ `data.sql`（种子）为准。
 
 ### 金额对外契约（2026-10-17 robin 拍板，已落地）
 
@@ -382,7 +383,7 @@ robin 纠正：「knot_extend 不是上游返回的」。代码实证：
 
 ### 三次拍板：退役 PER_MINUTE（已落地）
 
-`PER_MINUTE=60` 是唯一非 10 的幂基数，会逼出「秒 ÷ 60」的不终止除法；dev 库 5 条规则全为 TOKEN/EMBEDDING × 1K_TOKENS，字典行 10-02 已删，前端零硬编码——**零使用，可退役**。落地：`BillingUnitEnum` 删常量、`BillingModeEnum.AUDIO` 改 `PER_SECOND`、守卫迁移 `2026-10-17-retire-per-minute-billing-unit.sql`（存量行必撞唯一键硬失败，零行无操作）。未来按分钟计费须在**配置期**折成每秒价，60 不进金额公式。
+`PER_MINUTE=60` 是唯一非 10 的幂基数，会逼出「秒 ÷ 60」的不终止除法；dev 库 5 条规则全为 TOKEN/EMBEDDING × 1K_TOKENS，字典行 10-02 已删，前端零硬编码——**零使用，可退役**。落地：`BillingUnitEnum` 删常量、`BillingModeEnum.AUDIO` 改 `PER_SECOND`、守卫迁移（脚本已清理；存量行必撞唯一键硬失败，零行无操作）。未来按分钟计费须在**配置期**折成每秒价，60 不进金额公式。
 
 ---
 

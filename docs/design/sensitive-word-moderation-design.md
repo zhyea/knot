@@ -303,7 +303,7 @@ knot:
 ## 14. 落地进度
 
 **M1 已落地（2026-10-13）**
-- 数据：`kb_moderation_word_lists` 进 `schema.sql` + `data.sql` 分类枚举种子 + 幂等迁移 `docs/database/migration/2026-10-13-moderation-word-lists.sql`。
+- 数据：`kb_moderation_word_lists` 进 `schema.sql` + `data.sql` 分类枚举种子 + 幂等迁移脚本（已清理）。
 - 枚举：`ModerationActionEnum` / `ModerationScopeEnum`（实现 `EnumOption`，**未注册** `EnumOptionRegistry`，UI 上线时再注册）。
 - 引擎：`AhoCorasickMatcher` + `TextNormalizer`（STANDARD）+ `ModerationTextExtractor` + `ModerationConfigSource`（Caffeine 快照）。
 - 集成：**两个同步插件**承载检测 —— `SensitiveWordRequestPlugin`（`GATEWAY_REQUEST`，位于 `proxy` 前故早于 `trafficGuard`）/ `SensitiveWordResponsePlugin`（`GATEWAY_RESPONSE`，位于记账后故费用照记）；`ModerationGuard` 只被插件调用，网关主链路零插桩。拒绝出口 `ModerationRejectException`（knot-plugin）→ `GatewayExceptionHandler` 转 400 + `GatewayErrorTypeEnum.MODERATION_ERROR`。
@@ -311,11 +311,11 @@ knot:
 - 注册：`data.sql` 种子两条 `kb_plugin_instances`（id 7/8，`order_no=200`，entrypoint 指向 `plugin.moderation.*`）；启动期 `PluginReconcileRunner` 按 entrypoint 兜底校正。
 - 审计：`ModerationHitEvent` → `ModerationEventSink` 结构化日志（只带元数据，原文不出库；消费者维度待快照补 code）。
 - 单测：`AhoCorasickMatcherTest` / `TextNormalizerTest` / `ModerationTextExtractorTest` / `ModerationGuardTest`（整包响应 Map 形态、流式响应体放行两例）。
-- 归属（10-14 追加）：871 行从 knot-gateway 迁到 `knot-plugin/plugin/moderation`（契约/引擎/两插件/装配）+ knot-service 的 `DbModerationWordSource`；网关仅剩 400 handler 与 `GatewayErrorTypeEnum.MODERATION_ERROR`。4 个测试类随包迁到 knot-plugin。迁移 `docs/database/migration/2026-10-14-moderation-plugin-entrypoint.sql`（换 entrypoint + 删 reconcile 重复行）。
+- 归属（10-14 追加）：871 行从 knot-gateway 迁到 `knot-plugin/plugin/moderation`（契约/引擎/两插件/装配）+ knot-service 的 `DbModerationWordSource`；网关仅剩 400 handler 与 `GatewayErrorTypeEnum.MODERATION_ERROR`。4 个测试类随包迁到 knot-plugin。迁移脚本（换 entrypoint + 删 reconcile 重复行，已清理）。
 
 **M3 已落地（2026-10-14）**
 - 后端 CRUD：`ModerationWordController`（`/api/moderation-words`：list/check-code/get/create/update/status/delete/restore/import/export）+ `ModerationWordService`（导入去重 + 逻辑删除恢复 + 唯一键 `uk_word_category(word,category_code)` 物理行判定）+ `ModerationWordConverter`。
-- 授权种子：`ks_modules(5 内容安全)/ks_menus(24 moderation.words)/ks_permissions(144-151，含插件删除 151 system:plugin:delete)/ks_api_permission_bindings(196-206)`；data.sql 直落 + 幂等迁移 `docs/database/migration/2026-10-14-moderation-word-authz-seed.sql`（status 写数字 1，规避 tinyint 严格模式 DataTruncation）。
+- 授权种子：`ks_modules(5 内容安全)/ks_menus(24 moderation.words)/ks_permissions(144-151，含插件删除 151 system:plugin:delete)/ks_api_permission_bindings(196-206)`；data.sql 直落 + 幂等迁移脚本（status 写数字 1，规避 tinyint 严格模式 DataTruncation）。
 - 前端（4 文件）：`src/api/moderationWords.ts` + `components/moderation/ModerationWordFormDialog.vue` + `ModerationWordImportDialog.vue` + `views/moderation/ModerationWordManageView.vue`（列表 + 含已删除 checkbox + CSV 导出带 BOM）；路由 `moderation/words` + i18n 四语 + `MainLayout.iconMap` 加 Warning。
 - 导入导出：`ModerationWordService.importWords` 逐行校验、本批内重复报错/库内已存在跳过、超 2 万行拒绝；`exportWords` 仅活行；`existingKeys()` 含逻辑删除行避免重导已删词撞唯一键整批回滚。
 - 单测：`ModerationWordServiceTest`（16 例，用 `CountingSnapshotCache` 计数子类规避 JDK25 Mockito inline 限制）覆盖导入跳过已删/已存、本批内重复报错、超量拒绝、仅插入时 invalidate、导出仅活行、删除拒启用词、恢复拒未删词、create 拒重复/归一化/severity 越界、update/status 拒缺失。
