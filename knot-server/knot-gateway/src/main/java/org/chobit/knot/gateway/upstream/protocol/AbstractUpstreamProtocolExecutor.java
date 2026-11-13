@@ -159,7 +159,10 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 usageExtractorRegistry.extract(handledResponseBody, context),
                 null,
                 buffered.upstreamRequestId(),
-                upstreamUrl
+                upstreamUrl,
+                // ⭐ wire 原文一并带走：适配后的 body 给客户端与计费，原文只给上游日志取证。
+                // 这里不留，上游日志就永远只能看到适配结果（跨协议绑定时连字段名都变了）。
+                buffered.body()
         );
     }
 
@@ -246,7 +249,10 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 null,
                 streamResponse,
                 streamResponse.upstreamRequestId(),
-                target.url()
+                target.url(),
+                // 流式没有整包原文：正文是 Flux 逐块转发的，硬存一份等于把流读进内存再放出去，
+                // 既改背压语义也失去「订阅即转发」的意义。流式取证靠 streaming 标记。
+                null
         );
     }
 

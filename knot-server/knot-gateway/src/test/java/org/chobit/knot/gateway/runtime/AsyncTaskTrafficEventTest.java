@@ -159,7 +159,8 @@ class AsyncTaskTrafficEventTest {
                 MediaType.APPLICATION_JSON, new RecordingHttpExchange());
         exchange.proxyResult(new ProxyResult(null, 1L, 2L, null,
                 new UpstreamStreamResponse(chunk("{}"), MediaType.APPLICATION_OCTET_STREAM,
-                        null, null, null, null), null, null));
+                        null, null, null, null), null, null,
+                null));
 
         Object response = handler.applyUsageAccounting(context, exchange);
         assertNotNull(response);

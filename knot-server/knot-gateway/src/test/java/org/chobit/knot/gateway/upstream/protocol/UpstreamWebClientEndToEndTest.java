@@ -123,6 +123,50 @@ class UpstreamWebClientEndToEndTest {
     }
 
     @Test
+    void rewrittenResponseDoesNotDestroyWireOriginal() {
+        // 跨协议绑定的本质：供应商说 A 协议，客户端要 B 协议。适配器一改，
+        // 「上游日志」若只留适配结果，对账时看到的字段全是网关重建的。
+        UpstreamAdapter rewriting = new UpstreamAdapter() {
+            @Override
+            public String code() {
+                return "REWRITE";
+            }
+
+            @Override
+            public String label() {
+                return "rewrite";
+            }
+
+            @Override
+            public Set<ModelApiProtocolEnum> protocol() {
+                return Set.of(ModelApiProtocolEnum.CHAT_COMPLETIONS);
+            }
+
+            @Override
+            public Object buildRequestBody(UpstreamRequestContext context) {
+                return context.requestBody();
+            }
+
+            @Override
+            public String resolvePath(UpstreamRequestContext context, String defaultPath) {
+                return "/buffered";
+            }
+
+            @Override
+            public String handleResponse(String responseBody, UpstreamRequestContext context) {
+                return "{\"id\":\"chatcmpl-gw\",\"object\":\"chat.completion\"}";
+            }
+        };
+
+        ProxyResult result = executor().execute(context("/buffered", Map.of("model", "gpt")), rewriting);
+
+        assertEquals("{\"id\":\"chatcmpl-gw\",\"object\":\"chat.completion\"}", result.responseBody(),
+                "客户端与计费吃适配后响应，这条不变");
+        assertEquals("{\"ok\":true}", result.upstreamResponseBody(),
+                "wire 原文必须独立保留：上游日志对账靠它，混用等于拿网关重建的字段去问供应商");
+    }
+
+    @Test
     void streamResponseCarriesUpstreamBytesToTheCaller() {
         ProxyResult result = executor().execute(context("/stream", Map.of("stream", true)), adapter("/stream"));
 
@@ -130,6 +174,8 @@ class UpstreamWebClientEndToEndTest {
         assertNotNull(stream, "流式请求必须返回响应体句柄而不是整包字符串");
         assertTrue(stream.isEventStream());
         assertEquals("req_sse", stream.upstreamRequestId());
+        assertNull(result.upstreamResponseBody(),
+                "流式没有整包原文：把 Flux 读成字符串再放出去，等于改掉背压与取消语义");
 
         String pumped = stream.body()
                 .map(buffer -> buffer.toString(StandardCharsets.UTF_8))

@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.upstream.support;
 
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.plugin.PluginStageCode;
 import org.chobit.knot.plugin.upstream.UpstreamPluginContext;
 
@@ -26,6 +27,10 @@ public final class UpstreamPluginContextSupport {
                                            Throwable error,
                                            String upstreamRequestId,
                                            String upstreamUrl) {
+        // ⭐ 上游错误证据在这里解出，而不是让插件自己去 instanceof：
+        // knot-plugin 不能反向依赖 knot-gateway，插件侧看不到 GatewayUpstreamException。
+        // 解不出（超时 / 连接失败 / 非上游异常）时两字段均为 null，插件按「上游没给响应」处理。
+        GatewayUpstreamException upstream = error instanceof GatewayUpstreamException ex ? ex : null;
         return new UpstreamPluginContext(
                 context.traceId(),
                 context.traceparent(),
@@ -41,7 +46,9 @@ public final class UpstreamPluginContextSupport {
                 responseSnapshot,
                 error,
                 upstreamRequestId,
-                upstreamUrl
+                upstreamUrl,
+                upstream == null ? null : upstream.httpStatus(),
+                upstream == null ? null : upstream.responseBody()
         );
     }
 }

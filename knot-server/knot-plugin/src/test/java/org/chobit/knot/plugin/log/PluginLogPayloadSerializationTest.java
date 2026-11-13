@@ -107,7 +107,9 @@ class PluginLogPayloadSerializationTest {
         PluginLogPayload payload = new UpstreamErrorPayload(
                 "OPENAI", "gpt-4o", "OPENAI", "req_abc123", "IllegalStateException", "boom",
                 JsonKit.toTree(Map.of("model", "gpt-4o")),
-                "https://openrouter.ai/api/v1/chat/completions");
+                "https://openrouter.ai/api/v1/chat/completions",
+                400,
+                JsonKit.toTree("{\"error\":{\"message\":\"invalid model\"}}"));
 
         JsonNode json = mapper.valueToTree(payload);
         assertEquals("provider-error", json.get("payloadType").asText());
@@ -115,5 +117,35 @@ class PluginLogPayloadSerializationTest {
         assertEquals("boom", json.get("errorMessage").asText());
         // 排障工单 90% 在错误场景：失败日志的供应商 id 是最关键的检索键
         assertEquals("req_abc123", json.get("upstreamRequestId").asText());
+    }
+
+    @Test
+    void shouldCarryUpstreamErrorEvidence() throws Exception {
+        PluginLogPayload payload = new UpstreamErrorPayload(
+                "OPENAI", "gpt-4o", "OPENAI", "req_abc123", "GatewayUpstreamException",
+                "upstream responded with status 400",
+                JsonKit.toTree(Map.of("model", "gpt-4o")),
+                "https://openrouter.ai/api/v1/chat/completions",
+                400,
+                JsonKit.toTree("{\"error\":{\"message\":\"invalid model\"}}"));
+
+        JsonNode json = mapper.valueToTree(payload);
+        // ⭐ 上游 4xx/5xx 的排障主证据：没有这两项，工单只能写「上游报 400」
+        assertEquals(400, json.get("httpStatus").asInt());
+        assertTrue(json.get("upstreamResponseBody").isTextual(),
+                "错误体是 wire 原文（可能是 HTML / 纯文本），按字符串落，不要强行树化");
+        assertTrue(json.get("upstreamResponseBody").asText().contains("invalid model"));
+    }
+
+    @Test
+    void shouldKeepNullErrorEvidence() throws Exception {
+        // 超时 / 连接失败：没有响应就没有状态码与错误体，两个字段必须是 null 而不是 0 / 空串
+        PluginLogPayload payload = new UpstreamErrorPayload(
+                "OPENAI", "gpt-4o", "OPENAI", null, "ReadTimeoutException", "read timed out",
+                JsonKit.toTree(Map.of("model", "gpt-4o")), null, null, null);
+
+        JsonNode json = mapper.valueToTree(payload);
+        assertTrue(json.get("httpStatus").isNull());
+        assertTrue(json.get("upstreamResponseBody").isNull());
     }
 }

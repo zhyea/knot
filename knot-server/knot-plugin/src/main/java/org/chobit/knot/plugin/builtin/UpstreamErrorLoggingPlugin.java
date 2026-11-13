@@ -2,6 +2,8 @@ package org.chobit.knot.plugin.builtin;
 
 
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -72,9 +74,19 @@ public class UpstreamErrorLoggingPlugin implements PluginHandler<UpstreamPluginC
                 error == null ? null : error.getClass().getSimpleName(),
                 error == null ? null : error.getMessage(),
                 JsonKit.toTree(context.requestBody()),
-                context.upstreamUrl());
+                context.upstreamUrl(),
+                context.httpStatus(),
+                errorBodyTree(context.upstreamResponseBody()));
 
         PluginLogWriter.log(log, context.stageCode(), binding, context.traceId(), payload);
+    }
+
+    /**
+     * 上游错误体转日志树：空体（超时 / 连接失败 / 上游没给 body）落 null，不落空串——
+     * 空串在日志里和「上游返回了空对象」分不开，是排障时最容易被误读的一种形态。
+     */
+    private static JsonNode errorBodyTree(String body) {
+        return body == null || body.isBlank() ? null : JsonKit.toTree(body);
     }
 
 }

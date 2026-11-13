@@ -249,13 +249,33 @@ public class UpstreamProxyClient {
         return error instanceof GatewayUpstreamException upstream ? upstream.upstreamRequestId() : null;
     }
 
-    private Map<String, Object> responseSnapshot(ProxyResult result) {
+    /**
+     * 响应阶段快照：交给 {@code UPSTREAM_RESPONSE} 阶段的插件（上游响应日志）。
+     *
+     * <p>⭐ 两个 body 键是<b>日志契约</b>，不许合一：{@code responseBody} 是适配后（客户端与计费同源），
+     * {@code upstreamResponseBody} 是供应商 wire 原文（对账与工单取证）。只留一个的话，
+     * 日志要么对不了账，要么被读成「客户端收到的就是这个形状」。</p>
+     *
+     * <p>⚠ 默认 {@code knot.plugin.log.body=truncated} 时，平台侧 512 字符预算由整份快照共享：
+     * 长响应下两个 body 里<b>只有一个能留正文</b>，另一个只剩 {@code ...(truncated)}。
+     * 取舍见下：先到先得者优先原文 —— 原文不可再生，适配结果在 {@code gateway-response-log} 有据可查。
+     * 要两个都完整，只能临时切 {@code full}。</p>
+     *
+     * <p>包级可见供单测直接驱动：键名或语义一改，走整条 {@code proxy} 链路的测试很难发现。</p>
+     */
+    static Map<String, Object> responseSnapshot(ProxyResult result) {
         if (result == null) {
             return null;
         }
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("providerId", result.providerId());
         snapshot.put("modelId", result.modelId());
+        // 流式两者都没有正文：标记放最前，避免运维以为「body 丢了」而去查上游
+        snapshot.put("streaming", result.streaming());
+        // ⭐ 顺序是刻意的：wire 原文排在适配结果之前。日志正文预算（PluginLogSupport 512）
+        // 是「整份快照先到先得」，排后面的必然拿 0；原文只此一份，适配结果在
+        // gateway-response-log 里另有一份可查，所以稀缺预算留给原文。
+        snapshot.put("upstreamResponseBody", result.upstreamResponseBody());
         snapshot.put("responseBody", result.responseBody());
         snapshot.put("usage", result.usage());
         return snapshot;
