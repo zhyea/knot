@@ -4,10 +4,9 @@ import java.text.Normalizer;
 import java.util.Locale;
 
 /**
- * 文本归一化：判定一律在归一化副本上进行，原文保留用于展示 / 后续脱敏替换。
- *
- * <p>本期为 STANDARD 强度（设计文档 §3.2）：NFKC + 去格式字符（零宽/BOM/软连字符）+ 小写折叠。
- * 繁简转换、leetspeak、谐音等高级变体留 M4。</p>
+ * 文本归一化：NFKC + 去格式字符（零宽 / BOM / 软连字符）+ 小写折叠，
+ * 不含繁简转换、leetspeak、谐音等变体。
+ * 判定一律在归一化副本上进行，原文保留用于展示 / 后续脱敏替换。
  */
 public final class TextNormalizer {
 

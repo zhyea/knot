@@ -11,11 +11,8 @@ public enum ProxyErrorCodeEnum {
     NO_ROUTING_TARGET("NO_ROUTING_TARGET"),
     UPSTREAM_ERROR("UPSTREAM_ERROR"),
     /**
-     * 上游 HTTP 成功（2xx）但响应体为空：null / 空串 / 纯空白。
-     *
-     * <p>与 {@link #UPSTREAM_ERROR} 分开：那个是「上游报了错」，本项是「上游没报错，但什么都没给」。
-     * 处置也不同——空响应是<b>确定性失败</b>，同目标重投与换候选重投都只会再空一次，
-     * 直接终止本次请求（判据见 {@code RetryableClassifier#terminal}）。</p>
+     * 上游 HTTP 成功（2xx）但响应体为空：{@code null} / 空串 / 纯空白。
+     * 属于确定性失败，重投与换候选都不会改变结果，直接终止本次请求（{@code RetryableClassifier#terminal}）。
      */
     UPSTREAM_EMPTY_RESPONSE("UPSTREAM_EMPTY_RESPONSE");
 
@@ -32,9 +29,6 @@ public enum ProxyErrorCodeEnum {
 
     /**
      * 按 code 反查枚举；{@code null} 与未知值都返回 {@code null}（大小写敏感，code 全大写）。
-     *
-     * <p>存在的意义是让调用方写 {@code switch (枚举)} 穷举，而不是手写字符串字面量：
-     * 新增一个 code 时，漏掉分支的地方会编译失败，而不是静默落进 {@code default}。</p>
      */
     public static ProxyErrorCodeEnum fromCode(String code) {
         if (code == null) {

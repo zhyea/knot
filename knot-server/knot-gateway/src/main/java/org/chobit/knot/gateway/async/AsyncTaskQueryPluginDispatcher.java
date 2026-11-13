@@ -14,19 +14,9 @@ import java.util.function.Supplier;
 
 /**
  * 异步任务查询的三阶段 UPSTREAM_* 日志编排 + fail-open 故障隔离。
- *
- * <p><b>为什么单独成类</b>：让「插件异常不改变查询结果」这条契约能在不 mock 整条
- * WebClient 链的前提下被直接测到。真正的查询动作以 {@link Supplier} 传入，本类只负责
- * 在它之前 dispatch 一次请求、成功后 dispatch 一次响应、失败后 dispatch 一次异常。</p>
- *
- * <p><b>为什么不改走 {@code UpstreamProxyClient.proxy(context)}</b>：异步查询是固定单尝试、
- * 自带 {@code queryTimeoutMs}（必须小于 claim TTL）、响应原文不可改写、也不做每次响应的
- * 自动用量提取；完整代理链会重写这些语义。故只复用 {@link UpstreamPluginContextSupport}
- * 这一个 dispatch 原语，不接管代理链。</p>
- *
- * <p><b>为什么在调用侧 fail-open</b>：{@code DefaultPluginDispatcher} 刻意不吞异常
- * （主链路的敏感词 / 内容改写插件依赖异常冒泡打断请求）。日志插件是「观测」而非「决策」，
- * 它抛的异常绝不能改变查询结果或吞掉上游异常——隔离只放在这里，每个阶段单独 try/catch。</p>
+ * 查询动作以 {@link Supplier} 传入，本类在它之前 dispatch 请求、成功后 dispatch 响应、失败后 dispatch 异常。
+ * 固定单尝试、自带 {@code queryTimeoutMs}（必须小于 claim TTL）、响应原文不可改写、不做每次响应的自动用量提取；只复用 {@link UpstreamPluginContextSupport} 这一个 dispatch 原语，不接管代理链。
+ * 在调用侧 fail-open：日志插件抛的异常不改变查询结果、不吞掉上游异常，每个阶段单独 try/catch。
  */
 @Slf4j
 final class AsyncTaskQueryPluginDispatcher {

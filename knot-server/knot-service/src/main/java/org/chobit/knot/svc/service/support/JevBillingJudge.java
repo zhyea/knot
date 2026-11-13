@@ -27,41 +27,30 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * JEV 计费裁判（v7 §6）：双盲判定链的判定层。
- *
- * <p>职责边界：<b>不碰计费算术</b>（那是 {@code BillingFactChecks} 的权威区），只把被告账 + 底层依据
- * 打包成 {@code state} 送给网关 DECISIONS 端点做<b>语义嗅探</b>。state 严格不含影子重算值 /
- * 解析用量视图 / 自检结论（双盲硬约束 §4.2）。判定失败（配置缺失 / 凭据无权 / 余额不足 / 限流 /
- * 网关错误）一律降级 {@code available:false}，绝不抛异常炸抽屉。</p>
- *
- * <p>凭据纪律（§6.1）：裁判消费者 {@code secretKey} 仅经 {@link DecisionsTransport} 进入
- * {@code Authorization} 头，不进请求体、不进日志、不下前端。</p>
+ * JEV 计费裁判：双盲判定链的判定层。
+ * 不碰计费算术（那是 {@code BillingFactChecks} 的权威区），只把被告账 + 底层依据打包成 {@code state} 送网关 DECISIONS 端点做语义嗅探；state 不含影子重算值 / 解析用量视图 / 自检结论。
+ * 判定失败（配置缺失 / 凭据无权 / 余额不足 / 限流 / 网关错误）一律降级 {@code available:false}，不抛异常；
+ * 裁判消费者 {@code secretKey} 仅经 {@link DecisionsTransport} 进入 {@code Authorization} 头，不进请求体、不进日志、不下前端。
  */
 @Slf4j
 @Component
 public class JevBillingJudge {
 
-    /** state 体积控制：produced.billing.details 超过该值只保留前 N 条（§6.6） */
+    /** state 体积控制：produced.billing.details 超过该值只保留前 N 条 */
     private static final int DETAILS_CAP = 20;
     /** 429 退避时长（单次，最多重试 1 次） */
     private static final long RETRY_BACKOFF_MS = 200;
     /** 可观测 trace 名称 */
     private static final String DECISIONS_TRACE_NAME = "knot-billing-verdict";
     /**
-     * evidence.requestAttributes 白名单（通用）：只透传计费相关请求属性，避免泄露 prompt 等敏感内容。
-     *
-     * <p>⚠ 白名单是<b>键</b>维度的，不是「全部标量」：{@code prompt} 也是字符串，靠类型过滤挡不住。</p>
+     * evidence.requestAttributes 白名单（通用）：只透传计费相关请求属性。
+     * 白名单按键维度过滤，不是「全部标量」。
      */
     private static final List<String> COMMON_REQUEST_ATTR_KEYS = List.of(
             "size", "width", "height", "duration_seconds", "duration");
     /**
-     * 视频额外放行的档位键（§4.5）。
-     *
-     * <p>⭐ 分辨率与「生成声音」开关是价目表的分档键，裁判看不到它们就只能猜。而
-     * {@code video} / {@code image} 这类键<b>刻意不给</b>：它们的值是带签名的产物地址，
-     * 放进来等于把上游 URL 送进第三方模型。「有没有输入视频」这条事实的权威在
-     * {@code state.produced.usage.input.video_seconds}（由 `VideoUsageFacts` 统一推导），
-     * 不在这里再算第二遍。</p>
+     * 视频额外放行的档位键：分辨率与「生成声音」开关（价目表分档键）；{@code video} / {@code image} 不放行。
+     * 「有没有输入视频」以 {@code state.produced.usage.input.video_seconds} 为准（由 {@code VideoUsageFacts} 统一推导），不在此重复计算。
      */
     private static final List<String> VIDEO_REQUEST_ATTR_KEYS = List.of(
             "resolution", "dimensions", "seconds",
@@ -171,9 +160,8 @@ public class JevBillingJudge {
     // ---- 错误码映射（§6.5） ----
 
     /**
-     * 网关对上游非 2xx 一律回 502（错误码隔离），但响应体 {@code error.upstreamStatus} 携带了
-     * 上游原状态码。这里把它作为「有效状态码」参与映射——否则 402/413 分支在本架构下永远不可达，
-     * 管理员只能看到「网关错误 502」，分不清余额不足与真故障。
+     * 网关对上游非 2xx 一律回 502（错误码隔离），响应体 {@code error.upstreamStatus} 携带上游原状态码；
+     * 这里把它作为「有效状态码」参与映射。
      */
     private Integer resolveEffectiveStatus(int httpStatus, String respBody) {
         if (httpStatus != HttpStatus.BAD_GATEWAY.value()) {
@@ -239,11 +227,7 @@ public class JevBillingJudge {
     }
 
     /**
-     * 计费模式码（题组分族的唯一依据）。
-     *
-     * <p>⭐ <b>不按协议分族</b>：{@code VIDEO_GENERATIONS} 协议下也可能命中一条 TOKEN 规则的错误配置，
-     * 那时该问的是「这条规则配错了」，而不是「视频用量对不对」。按 {@code billingMode} 分族，
-     * 问的才是「按这套规则算的钱对不对」。</p>
+     * 计费模式码（题组分族的唯一依据），按 {@code billingMode} 分族，不按协议分族。
      */
     private static String billingModeOf(JevJudgeContext context) {
         BillingFactRuleRef ref = context.ruleRef();
@@ -256,9 +240,6 @@ public class JevBillingJudge {
 
     /**
      * provider 段只保留下发数据合规约束。
-     *
-     * <p>上游 provider 白名单（{@code only}）与 {@code allow_fallbacks} 已移除（2026-10-20）：
-     * 上游 provider 选择无法从 knot 侧约束，且路由规则已锁定 DECISIONS 模型，无需重复表达。</p>
      */
     private Map<String, Object> buildProvider() {
         Map<String, Object> provider = new LinkedHashMap<>();
@@ -268,15 +249,8 @@ public class JevBillingJudge {
     }
 
     /**
-     * 四题，按计费模式分族（§4.5）。
-     *
-     * <p>⭐ <b>为什么必须分族</b>：四题原本是按 token 写的（{@code usage_parse_ok} 里逐项对照
-     * {@code prompt_tokens} / {@code completion_tokens}），而视频上游多数<b>根本不报 usage</b>——
-     * 拿这套题去问，裁判只能回「依据不足」，看起来像裁判不灵。真正的事实是「视频的计费量是
-     * 输出时长 × 档位，没有 token 这回事」。</p>
-     *
-     * <p>选项键（{@code CORRECT} / {@code INCORRECT} / {@code INSUFFICIENT_EVIDENCE} 等）两族一致：
-     * 变化只在 {@code instructions}（让裁判知道该看哪些字段），这样响应解析与摘要生成不分叉。</p>
+     * 四题，按计费模式分族；选项键（{@code CORRECT} / {@code INCORRECT} / {@code INSUFFICIENT_EVIDENCE} 等）两族一致，
+     * 变化只在 {@code instructions}（让裁判知道该看哪些字段），响应解析与摘要生成不分叉。
      */
     private static Map<String, Object> buildQuestions(String billingMode) {
         boolean video = isVideoMode(billingMode);
@@ -326,11 +300,8 @@ public class JevBillingJudge {
     }
 
     /**
-     * VIDEO 题组：核对「输出时长 / 产物条数 / 档位」，<b>不套 token 公式</b>。
-     *
-     * <p>视频上游普遍不报 {@code usage}，把 token 题摆到它面前只会得到「依据不足」。
-     * 真正的计费量在 {@code state.produced.usage.output.video_seconds}（按秒计费，向上取整）、
-     * {@code output.video_count}（按条计费），档位在 {@code attributes}（分辨率 / 有无声音 / 是否指定音色）。</p>
+     * VIDEO 题组：核对「输出时长 / 产物条数 / 档位」，不套 token 公式。
+     * 计费量在 {@code state.produced.usage.output.video_seconds}（按秒计费，向上取整）、{@code output.video_count}（按条计费），档位在 {@code attributes}（分辨率 / 有无声音 / 是否指定音色）。
      */
     private static String videoUsageParseInstructions() {
         return "这是<b>视频生成</b>调用，计费量是输出时长与产物条数，不是 token——"
@@ -360,9 +331,7 @@ public class JevBillingJudge {
     }
 
     /**
-     * VIDEO 题组的费用合理性说明：看「时长 × 分辨率 × 声音档位」与账是否相称。
-     *
-     * <p>⚠ 只做<b>语义嗅探</b>，不复算：档位价由规则决定，裁判手里没有价目表，让它算单价只会得到编造的数字。</p>
+     * VIDEO 题组的费用合理性说明：看「时长 × 分辨率 × 声音档位」与账是否相称；只做语义嗅探，不复算。
      */
     private static String videoCostPlausibleInstructions() {
         return "请依据 state.produced.billing 的 totalCost、details 与 state.evidence.billingRule 判断视频账单是否<b>语义相称</b>，"
@@ -400,8 +369,8 @@ public class JevBillingJudge {
     }
 
     /**
-     * state 构建（§4.2 终态契约，硬约束）：只承载「已产出 + 底层依据」；
-     * 绝不放入影子重算值（computed）、解析用量视图（parsedUsage）或自检结论（双盲）。
+     * state 构建：只承载「已产出 + 底层依据」；
+     * 不放入影子重算值（computed）、解析用量视图（parsedUsage）或自检结论（双盲）。
      *
      * @param minimal 是否极简（413 截断重试）：丢弃明细、只留汇总
      */
@@ -474,7 +443,7 @@ public class JevBillingJudge {
         return map;
     }
 
-    /** upstreamUsage 只保留数值叶子（§6.6），保留嵌套 usage 维度并剔除文本原文 */
+    /** upstreamUsage 只保留数值叶子，保留嵌套 usage 维度并剔除文本原文 */
     private static Map<String, Object> filterNumericKeys(Map<String, Object> upstreamUsage) {
         if (upstreamUsage == null || upstreamUsage.isEmpty()) {
             return Map.of();
@@ -518,10 +487,8 @@ public class JevBillingJudge {
     }
 
     /**
-     * 请求侧计费属性：只取白名单键（§6.6 体积纪律）。
-     *
-     * <p>视频多放行分辨率与「生成声音」开关——它们是价目表的分档键；而不放产物地址类键
-     * （{@code video} / {@code image}），那些值带签名，等于把上游 URL 送给第三方模型。</p>
+     * 请求侧计费属性：只取白名单键；视频多放行分辨率与「生成声音」开关（价目表分档键），
+     * 不放产物地址类键（{@code video} / {@code image}）。
      */
     private static Map<String, Object> extractRequestAttributes(Map<String, Object> requestBody, String billingMode) {
         if (requestBody == null || requestBody.isEmpty()) {

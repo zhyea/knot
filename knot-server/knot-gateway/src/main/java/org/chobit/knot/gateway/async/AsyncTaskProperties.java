@@ -7,14 +7,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.util.List;
 
 /**
- * 异步任务轮询配置（{@code knot.gateway.async-task.*}）。
- *
- * <p>⚠ 这里只放「扫描节拍」级别的旋钮：<b>单个任务多久查一次由行上的 {@code next_poll_at} 决定</b>，
- * 而后者来自档案的 {@code poll_interval_ms} 与退避参数。于是调轮询节奏不需要重启，
- * 不同任务也能有不同的退避节奏。</p>
- *
- * <p>⭐ 字段默认值统一取自 {@link AsyncTaskDefaults}（档案级与扫描级默认值的唯一出处），
- * 本类不再写裸字面量——否则「退避上限」与「查询超时」这类同值不同义的数迟早会被改串。</p>
+ * 异步任务轮询配置（{@code knot.gateway.async-task.*}），只放「扫描节拍」级别的旋钮。
+ * 单个任务多久查一次由行上的 {@code next_poll_at} 决定，后者来自档案的 {@code poll_interval_ms} 与退避参数。
+ * 字段默认值统一取自 {@link AsyncTaskDefaults}（档案级与扫描级默认值的唯一出处），本类不写裸字面量。
  */
 @Getter
 @Setter
@@ -25,25 +20,10 @@ public class AsyncTaskProperties {
     private boolean enabled = AsyncTaskDefaults.ENABLED;
 
     /**
-     * 扫描节拍（cron，默认每分钟整点一次）：只决定「多久扫一次表」，
-     * <b>单个任务多久查一次由行上的 {@code next_poll_at} 决定</b>。
-     *
-     * <p>⚠ cron 不像 {@code fixedDelay} 那样「上一轮跑完再计时」，同一方法可能被并发触发；
-     * 轮询器内部用一次性守卫跳过重叠的那一拍（见 {@code AsyncTaskPoller#tick}）。</p>
-     *
-     * <p>⭐ <b>节拍是一道下限，不是装饰</b>：档案里写 {@code poll_interval_ms = 5000} 的任务，
-     * 实际最早也要等到下一个整分才会被查。默认 1 分钟意味着——</p>
-     * <ul>
-     *   <li>单次查询间隔 ≥ 60s（原来的秒级节拍下是 5s），三段式视频通常 2~4 次查询就够，
-     *       上游调用量按分钟级任务的量级算完全不需要更密；</li>
-     *   <li>吞吐上限 = {@code batch-size} / 分钟（默认 100/min ≈ 1.7/s），不再是 100/s；</li>
-     *   <li>{@code max_attempts}（默认 360）在这个节拍下几乎永不生效，
-     *       实际由档案的 {@code timeout_minutes} 先到——两者「先到先生效」的规则没变，只是常数换了。</li>
-     * </ul>
-     *
-     * <p>要回密直接改 cron（例如 {@code *&#47;10 * * * * *}），不必改代码。
-     * 但注意单拍是全等的：{@code blockLast} 会等这一批（{@code concurrency} 路并发）跑完才进下一拍，
-     * 所以节拍只是「多久起一次批」，真正的吞吐由 {@code batch-size} × {@code concurrency} 决定。</p>
+     * 扫描节拍（cron，默认每分钟整点一次）：只决定「多久扫一次表」；单个任务多久查一次由行上的 {@code next_poll_at} 决定。
+     * cron 可能被并发触发，轮询器用一次性守卫跳过重叠拍（见 {@code AsyncTaskPoller#tick}）；节拍是查询间隔的下限，单次间隔 ≥ 60s。
+     * 吞吐上限 = {@code batch-size} / 分钟（默认 100/min ≈ 1.7/s）；{@code max_attempts}（默认 360）实际由档案 {@code timeout_minutes} 先到。
+     * 单拍全等：{@code blockLast} 等本批（{@code concurrency} 路并发）跑完才进下一拍，吞吐由 {@code batch-size} × {@code concurrency} 决定；要回密直接改 cron。
      */
     private String tickCron = AsyncTaskDefaults.TICK_CRON;
 
@@ -51,40 +31,20 @@ public class AsyncTaskProperties {
     private int batchSize = AsyncTaskDefaults.BATCH_SIZE;
 
     /**
-     * 单批内并发处理上限。
-     *
-     * <p>并发是「同时发多少个上游查询」，不是「同时占多少线程」：任务一律提交到
-     * {@code boundedElastic}，池满时排队，不会为此额外起线程。</p>
+     * 单批内并发处理上限：并发指「同时发多少个上游查询」，不是「同时占多少线程」。
+     * 任务一律提交到 {@code boundedElastic}，池满时排队。
      */
     private int concurrency = AsyncTaskDefaults.CONCURRENCY;
 
     /**
-     * 单次上游查询的超时（毫秒）。
-     *
-     * <p>⭐ <b>必须显著小于 {@link #claimTtlMs}</b>，否则占位会在查询还没回来时过期，
-     * 别的节点把同一行重新领走：同一个 {@code task_query_seq} 被发两次（数仓按
-     * {@code (task_code, task_phase, task_query_seq)} 去重，会把两次真实的上游调用压成一条），
-     * {@code attempts} 也会被两个节点各加一次导致退避跳档。
-     * 启动期由 {@code AsyncTaskPoller#init} 校验，不满足直接拒绝启动——这种误配的表现是
-     * 「偶发少算上游调用数」，事后按日志几乎查不出来，只能靠启动即炸。</p>
-     *
-     * <p>为什么不复用 {@code knot.gateway.upstream.response-timeout}（默认 120s）：
-     * 那是给生成型请求的（等模型吐字），而查一次任务状态是个亚秒级 GET。
-     * 复用的直接后果就是超时（120s）比占位（60s）还长，<b>默认配置本身就是错的</b>。</p>
+     * 单次上游查询的超时（毫秒），必须显著小于 {@link #claimTtlMs}；启动期由 {@code AsyncTaskPoller#init} 校验，不满足直接拒绝启动。
+     * 不复用 {@code knot.gateway.upstream.response-timeout}（默认 120s，面向生成型请求）。
      */
     private long queryTimeoutMs = AsyncTaskDefaults.QUERY_TIMEOUT_MS;
 
     /**
      * 占位有效期（毫秒）：节点宕机后多久可被其它节点回收。
-     *
-     * <p>⭐ 它是<b>一次处理的时间预算上限</b>，必须覆盖
-     * 「查询（{@link #queryTimeoutMs}）+ 视频转储 + 落终态（JDBC + 发事件）」。
-     * 默认 180s = 查询 30s + 转储与收尾 150s。压得太小会让健康节点在别人还没处理完时
-     * 把同一行抢走，代价是重复的上游查询与重复的外部调用（结果仍由终态 CAS 保证唯一，
-     * 但上游成本与事件口径会失真）。</p>
-     *
-     * <p>压得太大的代价是「节点崩溃后孤儿行的回收变慢」——对分钟级的视频任务无所谓，
-     * 所以宁可留足余量。</p>
+     * 一次处理的时间预算上限，必须覆盖「查询（{@link #queryTimeoutMs}）+ 视频转储 + 落终态（JDBC + 发事件）」；默认 180s = 查询 30s + 转储与收尾 150s。
      */
     private long claimTtlMs = AsyncTaskDefaults.CLAIM_TTL_MS;
 
@@ -95,9 +55,8 @@ public class AsyncTaskProperties {
     private int retentionDays = AsyncTaskDefaults.RETENTION_DAYS;
 
     /**
-     * 归档扫描节拍（cron，默认每小时整点）：终态行清理是后台家务，不需要与轮询同频。
-     *
-     * <p>同样有重叠守卫——表大时单批删除可能超过一拍。</p>
+     * 归档扫描节拍（cron，默认每小时整点）：终态行清理是后台家务，与轮询不同频。
+     * 同样有重叠守卫。
      */
     private String cleanupCron = AsyncTaskDefaults.CLEANUP_CRON;
 
@@ -107,19 +66,14 @@ public class AsyncTaskProperties {
     // ───────────────────────── 交付级：回调怎么送 ─────────────────────────
 
     /**
-     * 回调总开关。
-     *
-     * <p>关掉只是<b>不投递</b>：已武装的待回调行仍留在表里（{@code delivery_status=1}），
-     * 重新打开后继续投递。这与 {@link #enabled} 分开，因为「轮询上游」与「回推客户端」
-     * 是两条独立的对外链路，一方出问题时不该连带停掉另一方。</p>
+     * 回调总开关，与 {@link #enabled} 分开。
+     * 关掉只是不投递：已武装的待回调行仍留在表里（{@code delivery_status=1}），重新打开后继续投递。
      */
     private boolean deliveryEnabled = AsyncTaskDefaults.DELIVERY_ENABLED;
 
     /**
      * 交付扫描节拍（cron，默认每分钟整点）。
-     *
-     * <p>与 {@link #tickCron} 同形：cron 只决定「多久扫一次待投递表」，
-     * 单条任务的下一次投递时刻由行上的 {@code next_delivery_at}（退避）决定。</p>
+     * 与 {@link #tickCron} 同形：cron 只决定「多久扫一次待投递表」，单条任务的下一次投递时刻由行上的 {@code next_delivery_at}（退避）决定。
      */
     private String deliveryCron = AsyncTaskDefaults.DELIVERY_CRON;
 
@@ -140,18 +94,12 @@ public class AsyncTaskProperties {
 
     /**
      * 交付占位有效期（毫秒）：必须严格大于 {@link #deliveryTimeoutMs}。
-     *
-     * <p>否则占位会在回调请求返回前过期，另一节点把同一行重新领走，
-     * 同一笔结果被投递两次——客户侧看到重复回调，且没有任何本地报错。</p>
      */
     private long deliveryClaimTtlMs = AsyncTaskDefaults.DELIVERY_CLAIM_TTL_MS;
 
     /**
      * 回调地址主机白名单（后缀匹配，空 = 不限制主机）。
-     *
-     * <p>⭐ 无论白名单是否为空，回环 / 私网 / 链路本地 IP 一律拦截（SSRF 守卫）：
-     * {@code callback_url} 是客户端指定的<b>出站地址</b>，若不加限制，任何人都能让网关
-     * 向内部服务发起带业务数据的 POST。</p>
+     * 无论白名单是否为空，回环 / 私网 / 链路本地 IP 一律拦截（SSRF 守卫）。
      */
     private List<String> callbackAllowedHosts = List.of();
 

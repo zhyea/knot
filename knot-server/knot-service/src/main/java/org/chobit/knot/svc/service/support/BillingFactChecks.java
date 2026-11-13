@@ -21,12 +21,8 @@ import java.util.Map;
 
 /**
  * 计费自检层（代码精确，权威）：八项纯函数，对 {@link BillingFact} 做确定性校验。
- *
- * <p>判定域 = 算术正确性（可确定性）：明细公式、汇总一致、单位换算、网关账与重算账全等。
- * 三态纪律（v7 §5）：判不了的一律 {@link BillingCheckStatus#SKIP} 并说明原因，绝不充 PASS。</p>
- *
- * <p>本类不触达生产热路径、不读 JEV、不落日志；与 {@link BillingFactAssembler} 解耦，
- * 便于单测逐态覆盖（含篡改金额反向用例与 cost 缺失 SKIP）。</p>
+ * 判定域 = 算术正确性：明细公式、汇总一致、单位换算、网关账与重算账全等；判不了的一律 {@link BillingCheckStatus#SKIP} 并说明原因，绝不充 PASS。
+ * 本类不触达生产热路径、不读 JEV、不落日志，与 {@link BillingFactAssembler} 解耦。
  */
 public final class BillingFactChecks {
 
@@ -235,12 +231,8 @@ public final class BillingFactChecks {
     }
 
     /**
-     * 明细行金额复算：{@code quantity × price ÷ unitSize(unit)}。
-     *
-     * <p>{@code price} 是规则配置的原始单价，基准由同行 {@code unit} 声明；分母不能再写死 1e6，
-     * 否则 {@code 1K_TOKENS} / {@code PER_SECOND} 规则会被静默放大 1000 倍 / 1e6 倍。
-     * unit 缺失或无法识别时返回 {@code null} 跳过该行（三态纪律：判不了不充 PASS，
-     * 也不调用会抛异常的 {@link BillingUnitEnum#unitSizeOf(String)}）。</p>
+     * 明细行金额复算：{@code quantity × price ÷ unitSize(unit)}；{@code price} 是规则配置的原始单价，基准由同行 {@code unit} 声明。
+     * unit 缺失或无法识别时返回 {@code null} 跳过该行，不调用 {@link BillingUnitEnum#unitSizeOf(String)}。
      */
     private static BigDecimal lineFormulaCost(BillingFactAmountLine line) {
         if (line.quantity() == null || line.unit() == null) {

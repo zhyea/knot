@@ -6,19 +6,10 @@ import org.chobit.knot.adapter.model.ref.ModelApiBindingRef;
 import java.util.List;
 
 /**
- * 提取器选择的单一来源（改进清单 3.4，2026-10-24）：
- *
- * <p>网关 {@code UsageExtractorRegistry} 与管理端裁判 {@code RoutingTestBillingVerdictService}
- * 原先各有一份「读绑定配置选提取器」的实现，口径靠注释对齐——那种一致性是脆的，
- * 一侧改了另一侧不知道。本类把选择收敛到一处，两侧共用。</p>
- *
- * <p>口径（2.2b 移除协议/供应商猜测后的唯一路径）：<b>绑定显式配置是唯一来源</b>——
- * 流式优先 {@code streamUsageExtractor}，否则 {@code usageExtractor}；未配置（含未绑定、
- * 空白串）返回 {@code null}，由调用方回落默认提取器。默认在各侧形态不同
- * （网关是 {@code UsageExtractorCatalog}，裁判是常量），故回落不放在本类。</p>
- *
- * <p>本类不持有任何状态，纯函数；放在 knot-adapter 是因为 {@link ModelApiBindingRef}
- * 在此定义，且 gateway 与 service 两个消费方都依赖本模块。</p>
+ * 提取器选择的单一来源：网关 {@code UsageExtractorRegistry} 与管理端 {@code RoutingTestBillingVerdictService} 共用。
+ * 绑定显式配置是唯一来源：流式优先 {@code streamUsageExtractor}，否则 {@code usageExtractor}。
+ * 未配置（含未绑定、空白串）返回 {@code null}，由调用方回落默认提取器。
+ * 本类不持有任何状态，纯函数。
  */
 public final class UsageExtractorResolver {
 

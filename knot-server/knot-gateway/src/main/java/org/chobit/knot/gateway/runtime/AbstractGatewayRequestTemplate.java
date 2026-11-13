@@ -27,39 +27,27 @@ import java.util.concurrent.CompletionException;
 import java.util.function.LongConsumer;
 
 /**
- * <p>2026-10-20（WebFlux 批1-B）：链路返回值由 {@code CompletableFuture} 改为 {@link Mono}，
- * 且<b>不再依赖 {@code RequestContextHolder} 传递请求属性</b>——响应读写的载体
- * （{@link GatewayHttpExchange}）随 {@link GatewayExchange} 显式传参。原先每个异步回调都要
- * {@code withRequestContext} 重绑线程本地属性的写法已全部删除：换成 Reactor 线程模型后，
- * 那种隐式传递必然失效且<b>不报错</b>（响应头静默丢失）。</p>
+ * HTTP 请求处理模板基类：链路返回值统一为 {@link Mono}，HTTP 读写载体 {@link GatewayHttpExchange} 随 {@link GatewayExchange} 显式传参，
+ * 链路中没有任何 ThreadLocal 依赖。
  */
 public abstract class AbstractGatewayRequestTemplate {
 
     private final PluginDispatcher pluginDispatcher;
 
     /**
-     * 词库资源供给（网关唯一的审核职责）：每请求取全量启用词条随插件上下文下发，
-     * 列表由 {@link ModerationWordResource} 按路由数据同款节奏缓存（约 30s 生效延迟），
-     * 编译 / 去重 / 定时重建已收敛到 knot-plugin 的 {@code ModerationWordCache}。
+     * 词库资源供给：每请求取全量启用词条随插件上下文下发。
+     * 列表由 {@link ModerationWordResource} 按路由数据同款节奏缓存（约 30s 生效延迟）；编译 / 去重 / 定时重建在 knot-plugin 的 {@code ModerationWordCache}。
      */
     private final ModerationWordResource moderationWordResource;
 
     /**
-     * Kafka 投递器；<b>未开启 Kafka 事件输出时为 {@code null}</b>（{@code kafka.enabled=false}）。
-     *
-     * <p>埋点因此一律判空——旁路观测的开关不应改变请求链路的结构，
-     * 关闭时只是「不发布」，不是「走另一条链路」。</p>
-     *
-     * <p>主题常量由本类（埋点业务侧）维护， publish 时显式传入——投递器是纯管道，
-     * 不认识「请求层 / 响应层」这类业务概念。</p>
+     * Kafka 投递器；未开启 Kafka 事件输出时为 {@code null}（{@code kafka.enabled=false}），埋点一律判空。
+     * 主题常量由本类维护，publish 时显式传入。
      */
     private final KafkaPublisher eventPublisher;
 
     /**
      * 流量事件主题全名（埋点业务侧维护，取自 {@code kafka.topic.traffic}）。
-     *
-     * <p>2026-10-18 合并：原请求层 / 响应层两个主题收敛为一个——数仓离线批处理，
-     * 不需要早期「实时流量入口」信号，单主题单消息在终态一次发出即可。</p>
      */
     private final String trafficTopic;
 
@@ -74,13 +62,10 @@ public abstract class AbstractGatewayRequestTemplate {
     }
 
     /**
-     * Gateway request template entrypoint:
-     * validate required headers,
-     * resolve routing,
+     * Gateway request template entrypoint: validate required headers, resolve routing,
      * proxy the adapted request upstream, then apply post-response usage accounting.
      *
-     * @param http 本次请求的 HTTP 读写入口（Servlet / 未来的 reactive 实现），
-     *             由控制器在请求线程上取好后显式传入
+     * @param http 本次请求的 HTTP 读写入口，由控制器在请求线程上取好后显式传入
      */
     public final Mono<Object> handle(String authorization,
                                      String ruleCode,
@@ -110,12 +95,9 @@ public abstract class AbstractGatewayRequestTemplate {
     }
 
     /**
-     * Gateway request template entrypoint for raw JSON passthrough requests.
-     *
-     * <p>与 {@link #handle} 的差别只是入参形态：{@code handle} 收类型化
-     * {@link GatewayModelRequest}（字段集由本项目定义），本方法收客户端原始 JSON 反序列化成的
-     * {@code Map}——用于「网关不认识字段、只负责转发」的端点（如 {@code /images/edits}）；
-     * 上游字段增减不需要同步改本项目的 VO，也不会因为漏绑某个字段而把它丢掉。</p>
+     * Gateway request template entrypoint for raw JSON passthrough requests: the payload is the client's
+     * raw JSON deserialized into a {@code Map}, used by endpoints that forward fields the gateway does not know
+     * (e.g. {@code /images/edits}).
      */
     public final Mono<Object> handleJson(String authorization,
                                          String ruleCode,
@@ -132,10 +114,6 @@ public abstract class AbstractGatewayRequestTemplate {
     /**
      * 追踪上下文：优先取 Reactor Context 里 {@code GatewayTraceFilter} 写好的那一份，
      * 取不到（非 web 入口 / 单测）才按 traceparent 自建。
-     *
-     * <p>2026-10-20（WebFlux 批2）：这是 ThreadLocal → Reactor Context 的落点。
-     * 批1 时代靠 {@code GatewayTraceContext.currentOrCreate(...)} 读线程本地值，
-     * 而异步线程上那个值永远是空的——filter 分配的 spanId 与实际使用的对不上。</p>
      */
     private static GatewayTraceContext traceOf(ContextView view, String traceparent) {
         GatewayTraceContext fromContext = view.getOrDefault(GatewayTraceContext.CONTEXT_KEY, null);
@@ -174,10 +152,8 @@ public abstract class AbstractGatewayRequestTemplate {
 
     /**
      * 上游返回后的终态处理：用量记账 + 首 token 写头 + 响应层插件 + 流量事件。
-     *
-     * <p>合并后单条流量事件在终态发出（非流式即此处用量记账后；流式在响应体写完的
-     * finally；异常在 {@link #onTerminalError}）。「真正请求的模型」= 候选循环落定的 hit target，
-     * 与处置结果同一条消息携带，不再分两层、不再需乱序修正。</p>
+     * 单条流量事件在终态发出：非流式在用量记账后，流式在响应体写完的 finally，异常在 {@link #onTerminalError}。
+     * 「真正请求的模型」取候选循环落定的 hit target，与处置结果同一条消息携带。
      */
     private Object onProxyResult(GatewayRequestContext context, GatewayExchange exchange, ProxyResult result) {
         exchange.proxyResult(result);
@@ -204,9 +180,8 @@ public abstract class AbstractGatewayRequestTemplate {
 
     /**
      * 任意终态异常（含入口即拒、上游失败、计费异常）的唯一收口：插件错误阶段 + 流量事件。
-     *
-     * <p>路由未解析时 {@code routing} 为 null、{@code error.stage=header_validate}，
-     * 一条记录即可表达，数仓无需 left join 识别。</p>
+     * 路由未解析时 {@code routing} 为 null、{@code error.stage=header_validate}，
+     * 一条记录即可表达，数仓无需 left join 识别。
      */
     private void onTerminalError(GatewayRequestContext context, GatewayExchange exchange, Throwable thrown) {
         Throwable cause = unwrapCompletion(thrown);
@@ -227,21 +202,9 @@ public abstract class AbstractGatewayRequestTemplate {
 
     /**
      * 发布流量事件：数仓输出的旁路开关关闭时整体跳过。
-     *
-     * <p>⭐ 本方法是<b>全类唯一的发布出口</b>：非流式成功（{@link #onProxyResult}）、
-     * 终态异常（{@link #onTerminalError}）、流式收尾（子类 {@code streamResponse} 的 onComplete）
-     * 三处都走这里，{@code final} 防的就是再长出第四个出口。</p>
-     *
-     * <p><b>本层不判断「该不该发」，只负责发</b>：一次请求在上游真实发生了几次调用就发几条，
-     * 「哪条是终态、哪条是中间过程」由事件自带的 {@code task_*} 字段表达、由数仓聚合、
-     * 语义留在数据里而不留在网关的分支里。⚠ 反例见 2026-10-28 的路 A/B 取舍：
-     * 曾用子类钩子把异步提交事件整体丢掉，等于把「1 次提交 + N 次查询」压成「1 条终态」，
-     * 上游成本与延迟分布全部算不出来（`docs/异步任务表与通用轮询方案-2026-10-27.md` §3.2）。</p>
-     *
-     * <p>事件内容：路由维度（入口 / 规则 / 应用 / 部门 / 用户）、真正请求的模型（hit target）、
-     * 结果 / 用量 / 计费 / 错误 / 上游调用明细同一条消息携带。
-     * 入口即拒（路由未解析）照样发，只是 {@code routing} / {@code hit} 为 null、
-     * {@code error.stage=header_validate}。</p>
+     * 本方法是全类唯一的发布出口（非流式成功、终态异常、流式收尾三处都走这里）；不判断「该不该发」，上游真实发生几次调用就发几条，
+     * 哪条是终态由事件自带的 {@code task_*} 字段表达。
+     * 事件内容：路由维度、hit target、结果 / 用量 / 计费 / 错误 / 上游调用明细同一条消息；入口即拒照样发，{@code routing} / {@code hit} 为 null、{@code error.stage=header_validate}。
      */
     protected final void publishTraffic(GatewayRequestContext context,
                                         GatewayExchange exchange,
@@ -266,12 +229,9 @@ public abstract class AbstractGatewayRequestTemplate {
     protected abstract Object applyUsageAccounting(GatewayRequestContext context, GatewayExchange exchange);
 
     /**
-     * 首 token 观察者钩子：把「首个可观测产出的耗时（毫秒）」暴露给子类的派生能力
-     * （如异常摘除的慢信号计数）。默认无观察者；返回非 null 时，
-     * {@link FirstTokenHeaderWriter#mark()} 首次触发即以耗时回调一次（先于写头）。
-     *
-     * <p>流式与非流式两个出口共用本钩子：流式由 {@code applyUsageAccounting} 构造
-     * 写头器时取用，非流式由模板在响应体就绪时取用。</p>
+     * 首 token 观察者钩子：把首个可观测产出的耗时（毫秒）暴露给子类的派生能力（如异常摘除的慢信号计数）。
+     * 默认无观察者；返回非 null 时 {@link FirstTokenHeaderWriter#mark()} 首次触发即以耗时回调一次（先于写头）。
+     * 流式与非流式两个出口共用本钩子。
      */
     protected LongConsumer firstTokenObserver(GatewayRequestContext context) {
         return null;

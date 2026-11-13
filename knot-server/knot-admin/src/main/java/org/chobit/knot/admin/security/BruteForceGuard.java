@@ -8,13 +8,8 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 防爆破固定窗口计数器：在给定时间窗内累计某 key 的失败次数，超过阈值即视为「被封禁」。
- *
- * <p>用途：登录失败、消费者鉴权失败等场景的粗粒度限速——目标是抬高爆破成本，
- * 而非精确 QPS 计量，故采用固定窗口（窗末整体过期）即可。</p>
- *
- * <p>节点级（per-node）：计数仅在本 JVM 内有效，多节点部署下需以 Redis 等共享存储替换，
- * 否则各节点独立计数、整体阈值被放大为 节点数 × 阈值。当前管理端为单节点部署，先落地本地版。</p>
+ * 防爆破固定窗口计数器：在给定时间窗内累计某 key 的失败次数，超过阈值即视为「被封禁」，窗末整体过期。
+ * 用于登录失败、消费者鉴权失败等场景的粗粒度限速；计数为节点级（per-node），仅在单 JVM 内有效。
  */
 public class BruteForceGuard {
 
@@ -49,7 +44,7 @@ public class BruteForceGuard {
     }
 
     /**
-     * 成功后清除该 key 的失败计数（如登录成功清零，避免累积误封）。
+     * 成功后清除该 key 的失败计数（如登录成功清零）。
      */
     public void reset(@Nullable String key) {
         if (key != null) {

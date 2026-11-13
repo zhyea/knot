@@ -5,11 +5,9 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 计费规则版本：一个版本保存一份完整计费配置（config_json）。
- *
- * <p>按 {@code ruleId}（规则主键）归属规则主体，不按 {@code code} 关联：
- * 版本是主体的从属明细，与主体同生命周期；规则编码是可改的业务标识，
- * 一旦被版本行引用就会把编码锁死（并让改码时分不清版本行归属）。</p>
+ * 计费规则版本：一个版本保存一份完整计费配置（{@code config_json}）。
+ * 按 {@code ruleId}（规则主键）归属规则主体，不按 {@code code} 关联；版本是主体的
+ * 从属明细，与主体同生命周期。
  */
 @Data
 public class BillingRuleVersionEntity {

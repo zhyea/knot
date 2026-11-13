@@ -29,10 +29,8 @@ public record TrafficUsage(long tokens, BigDecimal cost, String currency) {
     }
 
     /**
-     * 从一次调用的完整账目投影限额/频控用量。
-     *
-     * <p>token 取归一化总量，成本只认计费结果——没有计费结果就不做估算。
-     * 同步、流式终态与异步终态共用这一入口，避免三处各自解析金额字符串而漂移。</p>
+     * 从一次调用的完整账目投影限额/频控用量：token 取归一化总量，成本只认计费结果，没有计费结果就不做估算。
+     * 同步、流式终态与异步终态共用这一入口。
      */
     public static TrafficUsage of(UsageAccounting accounting) {
         if (accounting == null) {

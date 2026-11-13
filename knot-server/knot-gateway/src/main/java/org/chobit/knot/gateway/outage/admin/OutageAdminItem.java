@@ -4,10 +4,7 @@ import org.chobit.knot.gateway.outage.OutageEntry;
 import org.chobit.knot.gateway.outage.OutageState;
 
 /**
- * 管理面视图的一条摘除条目：键 + 展平后的状态快照。
- *
- * <p>相对 {@link OutageEntry} 的嵌套 {@code state} 展平一层——管理端面板直接按字段渲染
- * （模型 / 状态 / 原因 / 窗口计数 / 剩余冷却），不必再解一层嵌套。</p>
+ * 管理面视图的一条摘除条目：键 + 展平后的状态快照，相对 {@link OutageEntry} 的嵌套 {@code state} 展平一层。
  *
  * @param ruleCode     路由规则业务码
  * @param modelCode    供应商模型业务码

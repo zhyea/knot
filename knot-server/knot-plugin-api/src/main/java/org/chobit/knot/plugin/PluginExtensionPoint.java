@@ -7,8 +7,7 @@ import org.chobit.knot.common.error.ErrorCode;
 import java.util.Arrays;
 
 /**
- * 插件扩展点：已从 ks_enum_configs（plugin_extension_point 字典）迁出，
- * 通过 /api/enum-options 以 PluginExtensionPoint 键下发前端。
+ * 插件扩展点：通过 /api/enum-options 以 PluginExtensionPoint 键下发前端。
  * 扩展点 code 与枚举名一致，落库与分发都使用该 code。
  */
 public enum PluginExtensionPoint implements EnumOption {

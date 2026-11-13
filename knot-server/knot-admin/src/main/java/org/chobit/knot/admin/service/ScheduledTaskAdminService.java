@@ -25,19 +25,8 @@ import java.util.stream.Collectors;
 
 /**
  * 定时任务的管理面编排：参数校验 + 写库 + 重新排期。
- *
- * <p>⭐ <b>本类不碰 Mapper</b>：数据读写全部走 svc 的 {@link ScheduledTaskService}。
- * 但<b>它仍然住在 admin</b>，因为它编排的 {@link ScheduledTaskSchedulerService} 依赖 Quartz —— 
- * 那是管理端专属的调度基础设施，而 knot-service 是两个 app 共用的层，
- * 搬进去会让网关也去装配一个它根本不用的 Quartz 调度器。</p>
- *
- * <p>⭐ <b>判据：数据访问进 svc，调度基础设施留 admin</b>。这不是折中，是两条不同的线：
- * 「这张表谁能读写」是全局约束（所以收在 svc），
- * 「这个进程要不要跑定时任务」是部署问题（所以留在各自的 app）。</p>
- *
- * <p>⚠ <b>为什么本类叫 {@code ScheduledTaskAdminService} 而不是 {@code ScheduledTaskService}</b>：
- * 后者现在是 svc 侧那个直连 Mapper 的数据访问类。同名会让本类无法 import 它（引用永远指向自己），
- * 只能靠全限定名绕。加 {@code Admin} 也更准：本类编排的是<b>管理面</b>的校验与重新排期。
+ * 数据读写全部走 svc 的 {@link ScheduledTaskService}；调度基础设施（Quartz）属管理端专属，故本类留在 admin。
+ * 类名带 {@code Admin} 以区别于 svc 侧同名的 {@code ScheduledTaskService}。
  */
 @Service
 public class ScheduledTaskAdminService {
@@ -119,11 +108,8 @@ public class ScheduledTaskAdminService {
     }
 
     /**
-     * 校验并投影成一条完整记录。
-     *
-     * <p>{@code existing} 为 null 表示新建。⚠ 更新时必须带上 {@code id} 与
-     * 创建/更新时间这些<b>不由请求体决定</b>的字段，否则 {@code updateTask} 会把它们覆盖成 null ——
-     * 于是「改个名字，创建时间就没了」。</p>
+     * 校验并投影成一条完整记录；{@code existing} 为 {@code null} 表示新建。
+     * 更新时必须带上 {@code id} 与创建 / 更新时间这些不由请求体决定的字段，否则 {@code updateTask} 会把它们覆盖成 {@code null}。
      */
     private ScheduledTaskDto validated(ScheduledTaskDto existing, ScheduledTaskRequest request) {
         if (request == null) {

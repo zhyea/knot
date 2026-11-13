@@ -16,18 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 异步任务管理面（{@code kb_async_tasks} 的查看与运维动作）。
- *
- * <p>⭐ <b>本类只做三件事</b>（{@code 10-backend-java.md §3.3}）：绑定入参、委托给
- * {@link AsyncTaskAdminService}、让 HTTP 状态码由异常体系决定。分页、状态码校验、
- * 透传网关全在 Service 里。</p>
- *
- * <p><b>读走库，写走网关</b>：{@code list} / 详情直接查库（网关挂了也要能排查），
- * {@code cancel} / {@code retry} / {@code cleanup} 透传给网关的 {@code /_admin/async-tasks*}——
- * 状态迁移与终态事件只能在那里发生，理由见 {@code AsyncTaskAdminService} 的类注释。</p>
- *
- * <p>⚠ <b>返回的是 svc 的 record，不是 {@code dal.entity}：</b>实体只允许出现在
- * {@code svc.converter}，于是「有没有实体漏出去」是一条 grep 就能出结果的事
- * （{@code LayeringGuardTest} 的实体棘轮）。</p>
+ * 本类只绑定入参、委托给 {@link AsyncTaskAdminService}，HTTP 状态码由异常体系决定；分页、校验、透传网关都在 Service 里。
+ * 读走库（{@code list} / 详情直接查库），写走网关（{@code cancel} / {@code retry} / {@code cleanup} 透传给 {@code /_admin/async-tasks*}）。
+ * 返回 svc 的 record 而非 {@code dal.entity}，实体只允许出现在 {@code svc.converter}。
  */
 @RestController
 @RequestMapping("/api/routing/async-tasks")
@@ -49,10 +40,7 @@ public class AsyncTaskController {
     }
 
     /**
-     * 终止一条在途任务。
-     *
-     * <p>⚠ 审计日志的 SpEL 用 record 的<b>访问器形式</b>（{@code #result.taskCode()}）——
-     * 属性形式在 record 上解析失败且切面静默兜底，会把 entityName 写成表达式原文。</p>
+     * 终止一条在途任务。审计日志的 SpEL 用 record 的访问器形式（{@code #result.taskCode()}）。
      */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "AsyncTask",
             entityName = "'异步任务 ' + #p0",
@@ -76,11 +64,7 @@ public class AsyncTaskController {
     }
 
     /**
-     * 立即执行一次「按保留窗口清理终态行」，返回删除行数。
-     *
-     * <p>⚠ 刻意<b>不接受自定义时间窗</b>：给运维一个「删掉最近一小时」的入口，等于给一次
-     * 不可撤销的误操作机会，而它换来的能力（省一次等待）几乎为零。改保留期请动配置
-     * {@code knot.gateway.async-task.retention-days}。</p>
+     * 立即执行一次「按保留窗口清理终态行」，返回删除行数；不接受自定义时间窗，保留期见配置 {@code knot.gateway.async-task.retention-days}。
      */
     @OperationLog(module = "routing", operation = "DELETE", entityType = "AsyncTask",
             entityName = "'清理终态异步任务'",

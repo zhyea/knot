@@ -5,14 +5,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * 最空闲选模所需的在途并发计量配置（{@code knot.load.*}）。
- *
- * <p>{@code store} 决定用哪种存储实现：单节点 {@code caffeine}（默认，节点内近似），
- * 多节点 {@code redis}（全局口径）。两种实现共用同一套键，切换只改这一项配置。</p>
- *
- * <p><b>故障口径：redis 档一律 fail-hard</b>，无 fail-open 开关、无降级档
- * （2026-10-15 决策）——在途数是 {@code LEAST_LOAD} 选路的唯一数据源，
- * 静默按 0 放行会让所有模型被看成「不拥塞」，已过载的模型继续被加压。
- * Redis 不可用时抛异常 → 网关 503 + ERROR 报警。</p>
+ * {@code store} 选存储实现：单节点 {@code caffeine}（默认，节点内近似）、多节点 {@code redis}（全局口径），两种实现共用同一套键。
+ * {@code redis} 档 fail-hard，无 fail-open 开关与降级档；Redis 不可用时抛异常，返回网关 503 并打 ERROR 报警。
  */
 @Data
 @ConfigurationProperties(prefix = "knot.load")
@@ -20,9 +14,7 @@ public class ModelLoadProperties {
 
     /**
      * 计量存储实现：{@code caffeine}（单节点，默认）/ {@code redis}（多节点全局）。
-     *
-     * <p>⚠ <b>必须保持 {@code null} 默认值</b>：null 表示「未显式设置」，
-     * 归一时回落 {@code caffeine}；给了默认值就分不清显式配置与未配置。</p>
+     * 保持 {@code null} 默认值，表示未显式设置，归一时回落 {@code caffeine}。
      */
     private String store;
 
@@ -33,8 +25,8 @@ public class ModelLoadProperties {
     private String keyPrefix = "knot:load";
 
     /**
-     * 在途计数的存活时间（秒）：既防「计数泄漏永久化」，也是条目在无新请求时的回收时间。
-     * 必须显著大于单请求的最长耗时（含长流式响应），否则正常请求也会被当作泄漏清掉。
+     * 在途计数的存活时间（秒）：计数泄漏的上界，也是条目在无新请求时的回收时间。
+     * 取值须显著大于单请求的最长耗时（含长流式响应）。
      */
     private long ttlSeconds = 300L;
 

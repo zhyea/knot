@@ -11,21 +11,11 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 敏感词审核守卫：被同步插件（{@link SensitiveWordRequestPlugin} / {@link SensitiveWordResponsePlugin}）调用，
- * <b>不硬编码进网关主链路</b>。
+ * 敏感词审核守卫：被同步插件（{@link SensitiveWordRequestPlugin} / {@link SensitiveWordResponsePlugin}）调用，不硬编码进网关主链路。
  *
- * <p>入站（GATEWAY_REQUEST 阶段）：该阶段位于 {@code proxy} 之前，也就天然早于频控/额度检查，
- * 命中即抛 {@link ModerationRejectException} → 400，<b>不转发上游、不计费、不占 RPM 事前计数</b>。</p>
- *
- * <p>出站（GATEWAY_RESPONSE 阶段）：位于用量记账之后，命中即不交付原响应体直接 400；
- * 上游成本已产生，<b>费用照记</b>。流式响应在此阶段拿到的是 {@code StreamingResponseBody}，不做检测（M2）。</p>
- *
- * <p>是否拦截走插件实例启停（未启用则不分发到本守卫）。生效动作/方向来自本模块的
- * {@link PluginProperties}（{@code knot.plugin.moderation.*}，经 IOC 注入）；
- * 全量词条来自 {@link GatewayPluginContext#words()}——网关每请求下发最新词库资源，
- * 守卫经 IOC 取 {@link ModerationWordCache} 编译自动机（内容版本去重），<b>不持有缓存 / 配置源，不碰持久层</b>。</p>
- *
- * <p>故障模式 <b>fail-open</b>：词库不可用（空词表）时放行，内容安全自身故障不挂全站。</p>
+ * 入站（GATEWAY_REQUEST，{@code proxy} 之前）：命中即抛 {@link ModerationRejectException} → 400，不转发上游、不计费、不占 RPM 事前计数。
+ * 出站（GATEWAY_RESPONSE，用量记账之后）：命中即 400，上游成本已产生、费用照记；流式响应（{@code StreamingResponseBody}）不做检测。
+ * 生效动作 / 方向取自 {@link PluginProperties}（{@code knot.plugin.moderation.*}）；故障模式 fail-open，词表为空时放行。
  */
 public class ModerationGuard {
 

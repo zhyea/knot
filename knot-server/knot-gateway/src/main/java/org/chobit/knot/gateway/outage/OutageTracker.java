@@ -7,15 +7,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * 摘除的门面：请求链只跟它打交道，不直接碰 {@link TargetOutageStore}。
- *
- * <p>一次候选调用的三段式用法（见 {@code GatewayRequestHandler#proxyWithFailover}）：</p>
- * <ol>
- *   <li>{@link #evaluate}：决定该候选是<b>跳过</b>、<b>作为探活放行</b>还是<b>正常放行</b>；</li>
- *   <li>{@link #recordFailure}：上游故障类失败计入窗口；</li>
- *   <li>{@link #recordSuccess}：成功清零窗口；若本次是探活请求则彻底恢复。</li>
- * </ol>
- *
- * <p>策略未启用时所有方法都是无副作用的短路——摘除是显式 opt-in 的能力。</p>
+ * 一次候选调用三段式：{@link #evaluate} 决定跳过 / 探活放行 / 正常放行，{@link #recordFailure} 把上游故障类失败计入窗口，{@link #recordSuccess} 成功清零窗口（探活请求成功则彻底恢复）。
+ * 策略未启用时所有方法无副作用地短路。
  */
 @Slf4j
 @Component
@@ -83,14 +76,8 @@ public class OutageTracker {
 
     /**
      * 记录一次慢首 token（TTFT 超阈值）：与失败类异常共用同一套窗口计数器，达阈值同样摘除。
-     *
-     * <p>由首 token 观察者在上游首个可观测产出到达时回调（见
-     * {@code FirstTokenHeaderWriter#mark()}）。三个前置条件任一不满足即短路：
-     * 策略未启用、未开 {@code countSlow}、耗时未达 {@code slowFirstTokenMs}——
-     * 慢信号是 opt-in 的观测，不能反过来拖慢正常请求。</p>
-     *
-     * <p>fail-open 轮次（候选全摘后忽略摘除重跑）产生的慢信号同样计数：
-     * 目标确实慢，与它当前是否被摘除无关。</p>
+     * 由首 token 观察者回调（{@code FirstTokenHeaderWriter#mark()}）；策略未启用、未开 {@code countSlow}、耗时未达 {@code slowFirstTokenMs} 任一即短路。
+     * {@code fail-open} 轮次产生的慢信号同样计数。
      *
      * @param policy        规则级摘除策略（null 或未启用时短路）
      * @param ruleCode      路由规则业务码

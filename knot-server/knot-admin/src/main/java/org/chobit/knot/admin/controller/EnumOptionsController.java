@@ -11,9 +11,7 @@ import java.util.Map;
 
 /**
  * 代码枚举字典：全站下拉选项的统一数据源。
- *
- * <p>登录后各页面都需要它，且无业务敏感性，因此在 {@code WebMvcConfig} 白名单放行
- * （认证即可访问，不走接口级授权）。</p>
+ * 在 {@code WebMvcConfig} 白名单放行：认证即可访问，不走接口级授权。
  */
 @RestController
 @RequestMapping("/api/enum-options")
@@ -27,12 +25,8 @@ public class EnumOptionsController {
 
     /**
      * Returns the code based enums as an array structure: {@code enumKey -> [{code, label}, ...]}.
-     *
-     * <p>数组结构而非 {@code code -> label} 的 map：JSON object key 必然是字符串，用 map 会让
-     * 数字 code 在传输层退化成字符串 "1"，与字符串 code 无法区分。</p>
-     *
-     * <p>Enums maintained in {@code ks_enum_configs} are not included here, use
-     * {@code /api/system/enums/items/{category}} for those.</p>
+     * 用数组结构而非 {@code code -> label} 的 map，避免数字 code 在传输层退化成字符串。
+     * {@code ks_enum_configs} 维护的枚举不在此返回，走 {@code /api/system/enums/items/{category}}。
      */
     @GetMapping
     public Map<String, List<EnumOptionItem>> enums() {

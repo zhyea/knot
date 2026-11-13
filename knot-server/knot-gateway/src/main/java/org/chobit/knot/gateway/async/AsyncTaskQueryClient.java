@@ -29,18 +29,8 @@ import java.util.Map;
 
 /**
  * 异步任务查询客户端：按档案拼查询请求，取回终态响应体原文。
- *
- * <p><b>只做一件事</b>：把「查上游」做成一次普通的 GET（或档案声明的其它方法），
- * 响应体原文交给上游的提取/计费管线。这里不解析任何业务字段 ——
- * 一旦在客户端里顺手取一次 status，判定口径就有了两份（档案配置 + 客户端代码），必然漂移。</p>
- *
- * <p>鉴权与 URL 一律复用既有原语（{@code UpstreamAuthApplier} + {@code UpstreamUrlSupport}），
- * 不另写一套：地址拼错或鉴权头少一个，在异步场景下的表现是「任务永远查不到」，极难定位。</p>
- *
- * <p>⭐ <b>超时是并发控制的一部分</b>：查询必须在 {@code claim_ttl} 之内结束，否则占位先过期、
- * 别的节点把同一行重新领走，同一次上游调用会被两个节点各记一遍。故超时取
- * {@link AsyncTaskProperties#getQueryTimeoutMs()}，启动期由 {@code AsyncTaskPoller#init}
- * 校验「查询超时 &lt; 占位有效期」。</p>
+ * 只把「查上游」做成一次普通的 GET（或档案声明的其它方法），响应体原文交给提取/计费管线，不解析业务字段。
+ * 鉴权与 URL 复用 {@code UpstreamAuthApplier} + {@code UpstreamUrlSupport}；超时取 {@link AsyncTaskProperties#getQueryTimeoutMs()}，启动期由 {@code AsyncTaskPoller#init} 校验「查询超时 < 占位有效期」。
  */
 @Slf4j
 @Component

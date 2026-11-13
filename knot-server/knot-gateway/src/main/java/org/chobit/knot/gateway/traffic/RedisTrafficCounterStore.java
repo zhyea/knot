@@ -7,17 +7,9 @@ import java.util.List;
 
 /**
  * 多节点计数存储：Redis。
- *
- * <p>与 {@link CaffeineTrafficCounterStore} 实现同一个 {@link TrafficCounterStore} 抽象：
- * 累加与设置过期时刻由一段 Lua 完成，保证多节点并发下的原子性
- * （拆成 {@code INCRBY} + {@code PEXPIREAT} 两条命令时，进程在两条命令之间崩掉会留下永不过期的键）。</p>
- *
- * <p>所有 Redis 访问经统一门面 {@link RedisCache}，异常分类与 ERROR 日志都在门面内完成，
- * 本类只剩「脚本 + 业务语义」。</p>
- *
- * <p><b>故障口径：fail-hard。</b>Redis 不可用时抛 {@code RedisUnavailableException}
- * → 网关 503。频控承载全局额度口径，静默按「计0」放行会让多节点下的实际限额
- * 悄悄涨到「配置值 × 节点数」，直接超发且无感知——宁可全拒并报警。</p>
+ * 与 {@link CaffeineTrafficCounterStore} 实现同一个 {@link TrafficCounterStore} 抽象：累加与设置过期时刻由一段 Lua 原子完成。
+ * 所有 Redis 访问经统一门面 {@link RedisCache}，异常分类与 ERROR 日志都在门面内完成，本类只剩「脚本 + 业务语义」。
+ * 故障口径 fail-hard：Redis 不可用时抛 {@code RedisUnavailableException} → 网关 503。
  */
 public class RedisTrafficCounterStore implements TrafficCounterStore {
 

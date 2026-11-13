@@ -7,10 +7,9 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.IOException;
 
 /**
- * 敏感字段脱敏序列化器。配合 {@link Sensitive} 注解使用，仅作用于审计快照的专用 mapper。
- *
- * <p>脱敏规则与历史实现保持一致：长度不超过 10 的原样返回；否则保留前 7 位与后 4 位，
- * 中间以 {@code ...} 替换。非 {@link String} 类型交由默认序列化器写出。
+ * 敏感字段脱敏序列化器，配合 {@link Sensitive} 注解使用，仅作用于审计快照的专用 mapper。
+ * 长度不超过 10 的原样返回；否则保留前 7 位与后 4 位，中间以 {@code ...} 替换；
+ * 非 {@link String} 类型交由默认序列化器写出。
  */
 public class SensitiveSerializer extends JsonSerializer<Object> {
 

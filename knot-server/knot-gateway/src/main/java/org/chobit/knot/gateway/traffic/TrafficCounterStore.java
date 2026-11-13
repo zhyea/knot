@@ -2,14 +2,8 @@ package org.chobit.knot.gateway.traffic;
 
 /**
  * 频控 / 额度的计数存储抽象。
- *
- * <p>抽象的下限是「一次调用完成一次原子累加」，而不是「读出来再加回去」：
- * 后者在 Redis 上需要多次往返且存在竞态，前者在 Caffeine 上可以用 per-key 计算保证原子，
- * 在 Redis 上可以用 {@code INCRBY} 单命令（或 Lua）保证原子。
- * 业务语义（限多少、算不算超）一律留在上层，存储层只认「键 + 增量 + 过期时刻」。</p>
- *
- * <p>已提供两种实现：单节点走 {@code CaffeineTrafficCounterStore}，
- * 多节点走 {@code RedisTrafficCounterStore}，由 {@code knot.traffic.counter.store} 选择。</p>
+ * 抽象的下限是「一次调用完成一次原子累加」，不是「读出来再加回去」；业务语义（限多少、算不算超）一律留在上层，存储层只认「键 + 增量 + 过期时刻」。
+ * 两种实现：单节点走 {@link CaffeineTrafficCounterStore}，多节点走 {@link RedisTrafficCounterStore}，由 {@code knot.traffic.store} 选择。
  */
 public interface TrafficCounterStore {
 

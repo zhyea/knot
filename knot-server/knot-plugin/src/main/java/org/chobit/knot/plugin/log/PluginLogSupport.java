@@ -12,38 +12,16 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 插件日志「正文」的唯一出口：决定请求 / 响应体能以什么形态进日志。
+ * 插件日志「正文」的唯一出口：决定请求 / 响应体能以什么形态进日志。截断发生在文本值层面，结构照旧保留。
  *
- * <h3>为什么必须收口</h3>
- * <p>AI 网关的正文里是 prompt、模型输出与业务数据，可能含 PII、密钥或内部资料；
- * 日志系统的访问面、留存期与备份策略通常弱于数据库。六个日志插件原本直接
- * {@code JsonKit.toJson(payload)} 整篇输出——一旦在管理端启用，完整正文就以 INFO 落盘，
- * 且每个阶段各写一遍。插件本身已是 opt-in（默认停用），但「启用即全量泄露」不能靠运维自觉避免。</p>
- *
- * <h3>为何保留 JSON 结构而不是压成字符串</h3>
- * <p>payload 的序列化形态是被消费方依赖的契约（未知字段必须原样保留、字段可寻址）。
- * 所以截断发生在<b>文本值</b>层面：结构照旧，过长的字符串值按预算截断并打标记。
- * 压成字符串会让 {@code requestBody.vendor_only_field} 这类寻址整体失效。</p>
- *
- * <h3>策略：系统属性 {@code knot.plugin.log.body}</h3>
- * <ul>
- *   <li>{@code none}：只留字节数与字段数，正文内容一律不透出（最安全）。</li>
- *   <li>{@code truncated}（默认）：保留结构，文本值按总预算截断（默认 {@value #DEFAULT_BODY_BUDGET}
- *       字符，系统属性 {@code knot.plugin.log.body.budget} 可改）。</li>
- *   <li>{@code full}：原样输出，仅供短时排障——会落完整 prompt / 模型输出，用完必须改回。</li>
- * </ul>
- *
- * <p>未知取值一律回落 {@code truncated}：宁可少落，不可多落。</p>
+ * 策略取系统属性 {@code knot.plugin.log.body}：{@code none} 只留字节数与字段数，正文内容一律不透出；
+ * {@code truncated}（默认）保留结构、文本值按总预算 {@value #DEFAULT_BODY_BUDGET} 字符截断
+ * （{@code knot.plugin.log.body.budget} 可改）；{@code full} 原样输出。未知取值一律回落 {@code truncated}。
  */
 public final class PluginLogSupport {
 
     /**
-     * 截断模式下正文总预算的默认值（字符数，整份正文共享）。
-     *
-     * <p>512 是首版取值，实测连一个普通 chat completion 都装不下——对账时两个 body
-     * 只有一个能留正文，等于把「有原文」退化成「有原文的标点」。默认放到 4096，
-     * 仍由 {@code knot.plugin.log.body.budget} 覆盖：日志体积与留存策略是部署侧的事，
-     * 不该写死在代码里。</p>
+     * 截断模式下正文总预算的默认值（字符数，整份正文共享），可由 {@code knot.plugin.log.body.budget} 覆盖。
      */
     private static final int DEFAULT_BODY_BUDGET = 4096;
 
@@ -70,9 +48,7 @@ public final class PluginLogSupport {
     }
 
     /**
-     * 本次进程实际生效的文本预算（字符数）：供测试按预算构造尺寸，不写死数字。
-     *
-     * <p>包级可见而非公开：预算的取值口径属于本类内部，调用方只该拿到「已脱敏的节点」。</p>
+     * 本次进程实际生效的文本预算（字符数），供测试按实际预算构造数据。
      */
     static int budget() {
         return BODY_BUDGET;
@@ -142,7 +118,7 @@ public final class PluginLogSupport {
     }
 
     /**
-     * 预算解析：非法、非正数一律回落默认值（与 {@link #parseMode} 同一条「宁可少落」原则）。
+     * 预算解析：非法、非正数一律回落默认值。
      */
     private static int parseBudget(String value) {
         if (value == null || value.isBlank()) {

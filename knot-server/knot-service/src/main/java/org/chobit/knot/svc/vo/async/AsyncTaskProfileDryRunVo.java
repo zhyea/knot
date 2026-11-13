@@ -4,18 +4,8 @@ import java.util.List;
 
 /**
  * 档案试跑结果：把「档案怎么读这段响应」全部摊开给人看。
- *
- * <p>⭐ <b>为什么 errors 与 warnings 分开</b>：</p>
- * <ul>
- *   <li>{@link #errors()}：<b>阻断</b>——表达式编译不过、判定返回非布尔、JSON 不是合法对象。
- *       这些在运行时会让任务判错或直接抛，配置必须改。</li>
- *   <li>{@link #warnings()}：<b>提示</b>——能跑通，但结果看起来可疑。典型是「上游状态既不匹配成功、
- *       也不匹配失败，且没配运行态」，运行时会一直轮询到超时。它不该拦住保存
- *       （也许这就是在配一个中间态），但必须让人看见。</li>
- * </ul>
- *
- * <p>⚠ {@code terminal} 为 {@code null} 表示<b>没能判定</b>（响应里取不到状态，或表达式有错）。
- * 这与「判定为 RUNNING」是两件事，前端不能把两者渲染成同一行。</p>
+ * {@link #errors()} 为阻断项（表达式编译不过、判定返回非布尔、JSON 不是合法对象）；{@link #warnings()} 为提示项（能跑通但结果可疑，如状态既不匹配成功也不匹配失败且未配运行态），不拦保存。
+ * {@code terminal} 为 {@code null} 表示没能判定（取不到状态或表达式有错），与「判定为 RUNNING」是两件事，前端不能渲染成同一行。
  *
  * @param upstreamTaskId 创建响应里按 {@code task_id_path} 取到的任务 ID
  * @param status         查询响应里按 {@code status_path} 取到的状态原文

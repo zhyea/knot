@@ -56,7 +56,7 @@ public class UpstreamProxyClient {
     /**
      * @param requestId 网关自生成的请求标识（{@code GatewayRequestContext#requestId()}）：
      *                  以 {@code X-Request-Id} 头发给上游，供供应商侧检索。
-     *                  <b>不是</b> {@code upstream_request_id}（那个是上游回给我们的）
+     *                  不是 {@code upstream_request_id}（那个是上游回给我们的）
      */
     public ProxyResult proxy(Map<String, Object> requestBody,
                              MediaType contentType,
@@ -211,11 +211,8 @@ public class UpstreamProxyClient {
     }
 
     /**
-     * 流式正文读完后补记 {@code UPSTREAM_RESPONSE}：{@code upstreamResponseBody} 装的是
-     * 有界 tee 快照（头尾双留，不是整包），{@code streaming=true} 保持原义。
-     *
-     * <p>由 {@code GatewayRequestHandler#streamResponse} 的 {@code doFinally} 出口调用，
-     * 正常结束 / 客户端取消 / 上游出错都会走到 —— 客户端断连不再意味着「这条请求没日志」。</p>
+     * 流式正文读完后补记 {@code UPSTREAM_RESPONSE}：{@code upstreamResponseBody} 装的是有界 tee 快照（头尾双留，不是整包），{@code streaming=true}。
+     * 由 {@code GatewayRequestHandler#streamResponse} 的 {@code doFinally} 出口调用，正常结束 / 客户端取消 / 上游出错都会走到。
      */
     public void logStreamTail(UpstreamRequestContext context, ProxyResult result, String streamBody) {
         if (context == null || result == null) {
@@ -228,8 +225,7 @@ public class UpstreamProxyClient {
     }
 
     /**
-     * 包级可见：分发时序（流式延后到流结束）本身是契约，需要被接线测试直接驱动，
-     * 否则「跳过了开始前那条」与「补记了那一条」都只能靠读代码相信。
+     * 包级可见：分发时序（流式延后到流结束）本身是契约，需被接线测试直接驱动。
      */
     void dispatchPlugin(UpstreamRequestContext context,
                                 PluginStageCode stageCode,
@@ -277,17 +273,9 @@ public class UpstreamProxyClient {
 
     /**
      * 响应阶段快照：交给 {@code UPSTREAM_RESPONSE} 阶段的插件（上游响应日志）。
-     *
-     * <p>⭐ 两个 body 键是<b>日志契约</b>，不许合一：{@code responseBody} 是适配后（客户端与计费同源），
-     * {@code upstreamResponseBody} 是供应商 wire 原文（对账与工单取证）。只留一个的话，
-     * 日志要么对不了账，要么被读成「客户端收到的就是这个形状」。</p>
-     *
-     * <p>⚠ 默认 {@code knot.plugin.log.body=truncated} 时，平台侧 512 字符预算由整份快照共享：
-     * 长响应下两个 body 里<b>只有一个能留正文</b>，另一个只剩 {@code ...(truncated)}。
-     * 取舍见下：先到先得者优先原文 —— 原文不可再生，适配结果在 {@code gateway-response-log} 有据可查。
-     * 要两个都完整，只能临时切 {@code full}。</p>
-     *
-     * <p>包级可见供单测直接驱动：键名或语义一改，走整条 {@code proxy} 链路的测试很难发现。</p>
+     * 两个 body 键是日志契约，不许合一：{@code responseBody} 是适配后（客户端与计费同源），{@code upstreamResponseBody} 是供应商 wire 原文（对账与工单取证）。
+     * 默认 {@code knot.plugin.log.body=truncated} 时 512 字符预算由整份快照共享，长响应下只有一个 body 能留正文；{@code upstreamResponseBody} 排在前面，优先留原文。
+     * 包级可见供单测直接驱动。
      */
     static Map<String, Object> responseSnapshot(ProxyResult result) {
         if (result == null) {

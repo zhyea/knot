@@ -28,7 +28,6 @@ public record BillingRuleDto(
     /**
      * 返回「计费字段已归一化」的副本，其余字段沿用原值。
      * 用于版本指纹等只比较版本内容的场景，不落库、不改变原 DTO。
-     * 复制逻辑放在本 record 内，避免在调用方按位置罗列全部组件。
      */
     public BillingRuleDto withNormalizedPricing(String billingMode,
                                                 String pricingPlan,

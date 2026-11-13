@@ -25,26 +25,10 @@ import org.springframework.web.server.ServerWebInputException;
 
 import java.util.concurrent.TimeoutException;
 
+/** 网关统一异常出口：把链路上的异常翻译成 OpenAI 兼容的错误响应。 */
 /**
- * 网关统一异常出口：把链路上的异常翻译成 OpenAI 兼容的错误响应。
- *
- * <p>2026-10-20（WebFlux 批2）：
- * <ul>
- *   <li>{@code @ControllerAdvice} + {@code @ResponseBody} + {@code @ResponseStatus}
- *       改为 {@code @RestControllerAdvice} + {@link ResponseEntity}——Netty 栈没有
- *       {@code HttpServletResponse} 可以就地改头，{@code Retry-After} 只能走响应实体；</li>
- *   <li>{@code AsyncRequestTimeoutException}（Servlet 异步超时）换成
- *       {@link TimeoutException}（Reactor 的 {@code Mono.timeout}）；</li>
- *   <li>补 {@link ServerWebInputException}：WebFlux 把「请求体解析失败 / 缺 @RequestParam」
- *       统一表达成它，Servlet 时代的 {@code HttpMessageNotReadableException} 不再出现。</li>
- * </ul>
- * </p>
- */
-/**
- * 覆盖范围显式列出，不用默认（全局）：管理面与网关的控制器同在一个容器里，
- * 默认全局会把其它模块的异常也吞进来，错误形状跟着网关走就错了。
- * 异步任务查询端点（{@link GatewayTaskController}）不继承 {@link GatewayControllerSupport}
- * ——它不发起代理请求，但必须共用同一套错误翻译，故单独列出。
+ * 异常处理的覆盖范围显式列出，不使用全局默认。
+ * 覆盖 {@link GatewayTaskController} 等控制器，共用同一套错误翻译。
  */
 @Slf4j
 @RestControllerAdvice(assignableTypes = {GatewayControllerSupport.class, GatewayTaskController.class})
@@ -57,12 +41,7 @@ public class GatewayExceptionHandler {
 
     /**
      * Handles missing required gateway headers / unreadable request bodies.
-     *
-     * <p>2026-10-20（WebFlux 批2）：<b>不能再按 {@code MissingRequestHeaderException} 分支</b>——
-     * 该异常的父类链是 {@code MissingRequestValueException → ServletRequestBindingException →
-     * jakarta.servlet.ServletException}，Netty 栈上没有 Servlet API，一加载就
-     * {@code NoClassDefFoundError}（本类所有方法在 bean 后处理阶段被反射扫描，整类都建不起来）。
-     * WebFlux 缺头时抛的是 {@link ServerWebInputException}，原因文本里已带上头名。</p>
+     * WebFlux 缺头抛 {@link ServerWebInputException}，原因文本里带上头名。
      */
     @ExceptionHandler({HttpMessageNotReadableException.class,
             MethodArgumentNotValidException.class,
@@ -97,10 +76,8 @@ public class GatewayExceptionHandler {
     }
 
     /**
-     * Handles cross-module 400 rejections (e.g. sensitive word moderation).
-     *
-     * <p>400 rather than 429: 429 is reserved for rate limit and quota. Only the matched
-     * category code is exposed — never the word itself, to prevent dictionary probing.</p>
+     * Handles cross-module 400 rejections (e.g. sensitive word moderation) as HTTP 400; 429 is reserved for rate limit and quota.
+     * Only the matched category code is exposed, never the word itself.
      */
     @ExceptionHandler(GatewayBadRequestException.class)
     public ResponseEntity<GatewayErrorResponse> handleGatewayBadRequestException(GatewayBadRequestException e) {
@@ -110,11 +87,8 @@ public class GatewayExceptionHandler {
     }
 
     /**
-     * Handles gateway rate limit and quota errors.
-     *
-     * <p>Both land on 429: callers need only one retry strategy, and the response body
-     * carries a structured {@code detail} (resource, dimension, limit, used, reset time)
-     * plus a {@code Retry-After} header telling when the window resets.</p>
+     * Handles gateway rate limit and quota errors, both mapped to HTTP 429.
+     * The response carries a structured {@code detail} (resource, dimension, limit, used, reset time) plus a {@code Retry-After} header.
      */
     @ExceptionHandler(GatewayTrafficRejectException.class)
     public ResponseEntity<GatewayErrorResponse> handleGatewayTrafficRejectException(GatewayTrafficRejectException e) {
@@ -154,14 +128,7 @@ public class GatewayExceptionHandler {
 
     /**
      * 共享状态存储（Redis）不可用：返回 503 + {@code storage_unavailable}。
-     *
-     * <p>刻意<b>不</b>复用 {@link GatewayUpstreamException}：上游不可用是「模型服务的问题」，
-     * 存储不可用是「网关自己的 Redis 挂了」，两者处置完全不同（一个可换节点/重试，
-     * 一个必须先修 Redis），日志告警也要分别配规则。</p>
-     *
-     * <p>这里打 ERROR 是<b>刻意</b>的：ERROR 级日志是本项目的报警通道，
-     * 日志采集侧按 {@code Redis unavailable} 关键字配规则。{@code RedisCache} 已有
-     * 分钟级节流防刷屏，此处再打一次是为了覆盖非存储入口（如管理器扫描）的故障现场。</p>
+     * 不使用 {@link GatewayUpstreamException}；按 {@code Redis unavailable} 关键字打 ERROR 日志。
      */
     @ExceptionHandler(RedisUnavailableException.class)
     public ResponseEntity<GatewayErrorResponse> handleRedisUnavailable(RedisUnavailableException e) {
@@ -193,13 +160,8 @@ public class GatewayExceptionHandler {
     }
 
     /**
-     * 全局请求预算超时（B2 deadline）：请求在 {@code knot.gateway.upstream.request-budget}
-     * 内未就绪即被 {@code Mono.timeout} 终止，返回 504。
-     *
-     * <p>2026-10-20（WebFlux 批2）：触发源由 {@code DeferredResult} 的超时换成
-     * {@code reactor} 的 {@link TimeoutException}，语义不变——这是「唯一真总超时」的出口。
-     * 与 {@link #handleGatewayUpstreamException}（上游真的回了错误或挂死）区分：
-     * 本项表示「网关自己设定的总时限到了」，错误码 {@code timeout_error} 便于排查与限流策略区分。</p>
+     * 全局请求预算超时（B2 deadline）：请求在 {@code knot.gateway.upstream.request-budget} 内未就绪即被 {@code Mono.timeout} 终止，返回 504。
+     * 由 {@link TimeoutException} 触发，错误码 {@code timeout_error}；表示网关自身设定的总时限到达，区别于 {@link #handleGatewayUpstreamException} 的上游失败。
      */
     @ExceptionHandler(TimeoutException.class)
     public ResponseEntity<GatewayErrorResponse> handleRequestBudgetExceeded(TimeoutException e) {

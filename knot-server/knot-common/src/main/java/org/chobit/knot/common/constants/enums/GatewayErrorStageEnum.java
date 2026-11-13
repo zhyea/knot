@@ -1,11 +1,8 @@
 package org.chobit.knot.common.constants.enums;
 
 /**
- * 网关失败阶段：回答「错误发生在链路的哪一段」，与 {@link GatewayErrorTypeEnum}
- * （回答「这是什么性质的错误」）正交。
- *
- * <p>只有数仓出口消费本枚举（HTTP 响应体不含 stage）：定位问题时「上游调用超时」与
- * 「请求解析超时」的处置完全不同，光靠 type 区分不出来。</p>
+ * 网关失败阶段：错误发生在链路的哪一段，与 {@link GatewayErrorTypeEnum}（错误性质）正交。
+ * 只有数仓出口消费本枚举，HTTP 响应体不含 stage。
  */
 public enum GatewayErrorStageEnum {
 

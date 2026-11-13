@@ -10,11 +10,8 @@ import java.util.Set;
 
 /**
  * 通用 VIDEO 用量提取器：{@link AbstractVideoUsageExtractor} 的默认实现。
- *
- * <p>本类只声明身份（编码 / 名称 / 说明 / 计算器 / 计费模式），<b>不覆写取数入口</b>——
- * 通用键表就是 {@link VideoUsageFacts#of} 的默认值。某供应商的字段与通用键表对不上时，
- * 另建子类覆写 {@code facts()} 并用 {@code toBuilder()} 只改差异项；
- * 不要往这里继续堆厂商键，那会让它随接入厂商线性膨胀。</p>
+ * 本类只声明身份（编码 / 名称 / 说明 / 计算器 / 计费模式），不覆写取数入口，通用键表即 {@link VideoUsageFacts#of} 的默认值。
+ * 供应商字段与通用键表对不上时另建子类覆写 {@code facts()}，用 {@code toBuilder()} 只改差异项。
  */
 @Component
 public class VideoUsageExtractor extends AbstractVideoUsageExtractor {

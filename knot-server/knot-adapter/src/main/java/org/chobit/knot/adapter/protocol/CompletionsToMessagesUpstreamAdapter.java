@@ -17,12 +17,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * OpenAI Completions → Anthropic Messages 适配器（泛化转换，不隶属单一供应商）。
- *
- * <p><b>只服务 {@code COMPLETIONS} 一种入协议</b>：请求侧 {@code prompt} 折成单条 user 消息，
- * {@code stop→stop_sequences}，移除 Completions 专有字段，{@code max_tokens} 缺省兜底 1024；
- * 响应侧把上游的 Messages 形状翻回旧版 {@code text_completion}（文本 + finish 原因 + usage，
- * 非 Messages 响应原样透传）。</p>
+ * OpenAI Completions → Anthropic Messages 适配器（泛化转换，不隶属单一供应商），只服务 {@code COMPLETIONS} 入协议。
+ * 请求侧 {@code prompt} 折成单条 user 消息，{@code stop→stop_sequences}，移除 Completions 专有字段，{@code max_tokens} 缺省兜底 1024；
+ * 响应侧把 Messages 形状翻回 {@code text_completion}（文本 + finish 原因 + usage，非 Messages 响应原样透传）。
  */
 @Component
 @Order(10)

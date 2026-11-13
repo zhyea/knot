@@ -74,10 +74,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private static final String ATTR_LOAD_RELEASE = "loadRelease";
 
     /**
-     * 请求上下文属性：本次候选实际发给上游的 {@code UpstreamRequestContext}。
-     *
-     * <p>流式响应日志要等正文读完才发，那时的分发点已经离开 {@link UpstreamProxyClient}；
-     * 把上下文挂在请求属性里，让补记与请求阶段用同一份 provider / model / trace 数据。</p>
+     * 请求上下文属性：本次候选实际发给上游的 {@code UpstreamRequestContext}，流式补记日志时据此取 provider / model / trace。
      */
     private static final String ATTR_UPSTREAM_CONTEXT = "upstreamContext";
 
@@ -85,27 +82,20 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private static final int USAGE_FAILURE_LOG_EVERY = 100;
 
     /**
-     * 请求上下文属性：本次请求实际命中的路由目标（{@code RoutingRuleTargetDto}）。
-     *
-     * <p>候选调用成功后写入，两处消费：① 首 token 观察者把慢信号归属到具体目标
-     * （异常路径无首 token，不产生慢信号）；② 数仓响应层事件据此取实际承接模型。</p>
+     * 请求上下文属性：本次请求实际命中的路由目标（{@code RoutingRuleTargetDto}），候选调用成功后写入。
+     * 由首 token 观察者归属慢信号，数仓响应层事件据此取实际承接模型。
      */
     public static final String HIT_TARGET_ATTRIBUTE = "hitTarget";
 
     /**
-     * 请求上下文属性：本次请求实际命中目标的上游完整请求地址（{@code upstreamUrl}）。
-     *
-     * <p>与 {@link #HIT_TARGET_ATTRIBUTE} 同一写入点：候选成功后由
-     * {@code ProxyResult#upstreamUrl()} 取得，供数仓流量事件直接呈现请求落点。失败路径
-     * （无成功候选）不设置，{@code hit} 的 {@code upstreamUrl} 为 null。</p>
+     * 请求上下文属性：本次请求实际命中目标的上游完整请求地址（{@code upstreamUrl}），与 {@link #HIT_TARGET_ATTRIBUTE} 同一写入点。
+     * 失败路径（无成功候选）不设置，{@code hit} 的 {@code upstreamUrl} 为 null。
      */
     public static final String HIT_TARGET_URL_ATTRIBUTE = "hitTargetUrl";
 
     /**
      * 请求上下文属性：本次请求成功记账用的流量检查上下文（{@code TrafficCheckContext}）。
-     *
-     * <p>非流式在候选成功后同步记账；流式响应要在流写完后才拿到真实用量，
-     * 必须把检查上下文随请求上下文带出，供 {@code streamResponse} 的收尾回调补记。</p>
+     * 非流式在候选成功后同步记账；流式在流写完后由 {@code streamResponse} 的收尾回调补记。
      */
     public static final String TRAFFIC_CONTEXT_ATTRIBUTE = "trafficContext";
 
@@ -121,17 +111,13 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     /** 流式用量记账失败计数：配额 / 成本被跳过的次数——必须可计量，不能只靠翻日志。 */
     private final AtomicLong usageRecordFailures = new AtomicLong();
     /**
-     * 网关域指标出口（限流 / 额度拒绝、摘除、上游失败、failover、代理耗时）。
-     * 非 Spring 单元测试构造本类时为 null，所有埋点一律判空——
-     * 与父类的 {@code eventPublisher} 同款处理：观测开关不应改变请求链路的结构。
+     * 网关域指标出口（限流 / 额度拒绝、摘除、上游失败、failover、代理耗时）；非 Spring 单测构造本类时为 null，所有埋点判空。
      */
     private final GatewayMetrics metrics;
 
     /**
      * 阻塞段调度器（{@code gatewayBlockingScheduler}）：上游调用是阻塞契约，必须离开 event loop 执行。
-     *
-     * <p>非 Spring 单元测试构造本类时为 {@code null}，退化为 Reactor 的共享
-     * {@code boundedElastic}——语义一致（任务永不回到调用线程），只是不共享配置的线程数。</p>
+     * 单测构造本类时为 {@code null}，退化为 Reactor 共享的 {@code boundedElastic}。
      */
     private final Scheduler blockingScheduler;
 
@@ -235,8 +221,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 候选遍历过程中的可变累加状态：跨异步递归调用共享。单次请求内候选是<b>顺序</b>遍历的
-     * （一个候选成功/失败后才会进入下一个），因此状态更新不存在并发竞争。
+     * 候选遍历过程中的可变累加状态：跨异步递归调用共享，单次请求内候选顺序遍历，不存在并发竞争。
      */
     private static final class ScanState {
         GatewayUpstreamException lastUpstreamException =
@@ -248,12 +233,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
     /**
      * 遍历候选链取一次成功结果（异步：整个 failover 链返回 {@link Mono}）。
-     *
-     * <p>摘除过滤发生在频控检查<b>之前</b>：被摘除的目标既不消耗该目标的频控/额度预算，
-     * 也不写入「首个拒绝原因」——被摘除跳过不等于被限流，不能把 429 误报给客户端。</p>
-     *
-     * <p>候选按索引顺序递归处理：上一个候选成功或彻底失败后才进入下一个，
-     * 保证「跨候选 failover」发生在「同候选重试」之后，也保证在途计数与摘除计数不会被并发放大。</p>
+     * 摘除过滤发生在频控检查之前：被摘除的目标不消耗频控 / 额度预算，也不写入首个拒绝原因；候选按索引顺序递归处理。
      *
      * @param ignoreEjection true 时忽略摘除状态（候选被全部摘除后 fail-open 的第二轮）
      */
@@ -434,12 +414,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 把实际承接本次请求的模型业务码（kb_models.model_code）写入响应头 {@code X-Knot-Model}。
-     *
-     * <p>池内选中、粘性命中、failover 顺延之后真正调用上游的那个模型才是这里的取值，
-     * 便于调用方与管理面调试面板定位请求落点。写头走 {@link GatewayExchange#http()}
-     * 显式入口，<b>不再读 {@code RequestContextHolder}</b>——本方法在异步线程上执行，
-     * 线程本地属性在那里必然为空（原先会静默丢头）。</p>
+     * 把实际承接本次请求的模型业务码（{@code kb_models.model_code}）写入响应头 {@code X-Knot-Model}。
+     * 取值为真正调用上游的那个模型；写头走 {@link GatewayExchange#http()} 显式入口。
      */
     private void writeSelectedModelHeader(RoutingRuleTargetDto candidate, GatewayExchange exchange) {
         if (exchange == null || candidate == null || candidate.targetCode() == null) {
@@ -458,23 +434,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
     /**
      * 对同一个路由目标按规则级策略做失败重试（非阻塞异步版）。
-     *
-     * <p>重试位于「跨候选 failover」之前：同一目标的连续失败先在原地重投，次数耗尽或
-     * 命中不可重试口径时才以最后一个异常完成，由外层切到下一个候选。</p>
-     *
-     * <p>只把 {@link GatewayUpstreamException} 当作可重试的上游失败；网关自身的异常
-     * （鉴权、频控、额度、代码缺陷）不属于上游失败，不重试，直接以原异常终止。</p>
-     *
-     * <p><b>非阻塞退避</b>：延迟由 {@code Mono.delay} 的定时调度器承载，延迟期间
-     * <b>不占用任何线程</b>；延迟结束后重试动作回到阻塞段调度器执行。</p>
-     *
-     * <p>⚠ 为什么必须是 {@code boundedElastic} 语义而不是自定义线程池：切到 Netty 之后，
-     * 若线程池用 {@code CallerRunsPolicy}，池满时任务会<b>在 event loop 线程上就地执行</b>，
-     * 一次阻塞调用就能把整个 I/O 线程卡死。{@code boundedElastic} 保证任务永不回到调用线程，
-     * 池满时排队（上限十万级），正是「包裹阻塞调用」这个场景的专用调度器。</p>
-     *
-     * <p>流式请求的失败只可能在「首个字节之前」抛到这里——一旦拿到带
-     * {@code streamResponse} 的结果就已向调用方提交，无法再重投，这也正好是流式重试的安全边界。</p>
+     * 重试位于跨候选 failover 之前：同一目标先原地重投，次数耗尽或命中不可重试口径后，由外层切到下一个候选。
+     * 只有 {@link GatewayUpstreamException} 是可重试的上游失败，网关自身的异常直接以原异常终止。
+     * 退避由 {@code Mono.delay} 承载，延迟期间不占用线程，之后回到阻塞段调度器执行；流式请求只在首个字节之前可重投。
      */
     Mono<ProxyResult> invokeWithRetry(RetryPolicy policy,
                                       RoutingRuleTargetDto candidate,
@@ -538,9 +500,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
 
     /**
-     * 本次调用是否注入「返回消费详情」（{@code knot_extend}）：消费者配置开启，
-     * 或请求头 {@code X-Knot-Test-Return-Usage: true} 临时开启（管理面调试抽屉用），
-     * 二者其一即注入。非流式与流式两个注入点共用同一判定，避免两处口径漂移。
+     * 本次调用是否注入「返回消费详情」（{@code knot_extend}）：消费者配置开启，或请求头
+     * {@code X-Knot-Test-Return-Usage: true} 临时开启，二者其一即注入；非流式与流式两个注入点共用。
      */
     private boolean shouldReturnUsageDetail(ResolvedRouting routing, GatewayExchange exchange) {
         return routing != null && (routing.returnUsageDetail() || testReturnUsageRequested(exchange));
@@ -615,12 +576,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 流式转发：先把响应头写好，再把上游响应体以 {@code Flux<DataBuffer>} 交给容器写出。
-     *
-     * <p>2026-10-20（WebFlux 批2）：返回 {@link GatewayStreamingResponse}，由
-     * {@code GatewayControllerSupport} 交给 {@code ServerHttpResponse.writeWith(...)}。
-     * 订阅即转发、客户端断连即取消（Reactor 自动归还上游连接），不再有
-     * 「后台线程阻塞读写 + 手工 close」这套 Servlet 异步模型的残留。</p>
+     * 流式转发：先写好响应头，再把上游响应体以 {@code Flux<DataBuffer>} 交给容器写出。
+     * 返回 {@link GatewayStreamingResponse}，由 {@code GatewayControllerSupport} 交给 {@code ServerHttpResponse.writeWith(...)}；订阅即转发，客户端断连即取消。
      */
     private GatewayStreamingResponse streamResponse(ProxyResult result, ResolvedRouting routing,
                                                     GatewayRequestContext context, GatewayExchange exchange) {
@@ -657,10 +614,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 流式响应写完后的补充记账：非流式在候选成功时已同步记过一次（当时用量未知、记为空），
-     * 这里用流结束时定型的最终用量把 TPM / token 配额 / 成本配额补全。
-     *
-     * <p>响应已写完，记账异常只记日志、不向上抛，也不影响上面已经完成的在途释放与事件发布。</p>
+     * 流式响应写完后的补充记账：用流结束时定型的最终用量补全 TPM / token 配额 / 成本配额。
+     * 响应已写完，记账异常只记日志、不向上抛。
      */
     /**
      * 流式用量记账失败次数（监控面）：非 0 即意味着有请求绕过了配额 / 成本记账。
@@ -700,9 +655,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
     /**
      * 慢信号观察者：策略启用时才挂（未启用则无观察者，TTFT 只写响应头）。
-     *
-     * <p>策略与规则码在请求线程捕获（此刻 {@code context.routing()} 已就绪），
-     * 命中目标在观察者触发时（流式可能在异步写线程）从上下文属性惰性读取。</p>
+     * 策略与规则码在请求线程捕获，命中目标在观察者触发时从上下文属性读取。
      */
     @Override
     protected LongConsumer firstTokenObserver(GatewayRequestContext context) {
@@ -719,9 +672,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
     /**
      * 慢信号观察者工厂：首 token 耗时超过策略阈值时给命中目标记一次 SLOW 异常。
-     *
-     * <p>包级可见供单测直接驱动（无需构造整个 handler）。取不到命中目标
-     * （异常路径、非 proxy 出口）时静默跳过——没有首 token 就没有慢信号。</p>
+     * 包级可见供单测直接驱动；取不到命中目标（异常路径、非 proxy 出口）时静默跳过。
      */
     static LongConsumer slowSignalObserver(GatewayRequestContext context,
                                            OutageTracker tracker,

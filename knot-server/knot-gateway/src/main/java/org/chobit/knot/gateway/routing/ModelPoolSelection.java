@@ -11,22 +11,10 @@ import java.util.function.ToLongFunction;
 import org.springframework.stereotype.Component;
 
 /**
- * 模型池选择策略的运行时实现。
- *
- * <p>模型池配置 {@code selection_strategy} 后，池内候选必须按该策略给出选中顺序：
- * 首个元素即本次选中的模型，其余按顺序作为故障转移候选。此前无论配置什么策略都固定按
- * priority/weight 排序，导致策略形同虚设。</p>
- *
- * <ul>
- *   <li>{@code PRIORITY}：优先级高者优先，同优先级按 id 升序，结果稳定可复现。</li>
- *   <li>{@code RANDOM}：可用候选均匀随机排序。</li>
- *   <li>{@code WEIGHTED}：按权重做无放回加权抽样（Efraimidis-Spirakis），
- *       权重越大越容易被排到前面，且长期命中比例收敛到权重占比。</li>
- *   <li>{@code LEAST_LOAD}：按<b>在途并发</b>（{@link org.chobit.knot.gateway.load.ModelLoadStore}）
- *       升序，最空闲者优先；在途相同按权重降序、再按 id 升序。确定性排序，不含随机。</li>
- * </ul>
- *
- * <p>随机源可注入，便于用固定 seed 做可重复测试。</p>
+ * 模型池选择策略的运行时实现：池内候选按配置的 {@code selection_strategy} 给出选中顺序，
+ * 首个元素即本次选中的模型，其余按顺序作为故障转移候选。
+ * {@code PRIORITY} 优先级高者优先、同级按 id 升序；{@code RANDOM} 均匀随机排序；{@code WEIGHTED} 按权重无放回加权抽样（Efraimidis-Spirakis）；
+ * {@code LEAST_LOAD} 按在途并发（{@link org.chobit.knot.gateway.load.ModelLoadStore}）升序，相同时按权重降序、再按 id 升序。
  */
 @Component
 public final class ModelPoolSelection {
@@ -45,8 +33,7 @@ public final class ModelPoolSelection {
      * 按策略给出池内候选的选中顺序。
      *
      * @param candidates  可用候选，调用方需保证模型本身可用
-     * @param strategyCode 模型池的 selection_strategy；非法或空白直接抛错，
-     *                     不做静默回退（写入入口已强校验，库中值保证合法）
+     * @param strategyCode 模型池的 selection_strategy；非法或空白直接抛错，不做静默回退
      * @param priorityOf  候选优先级
      * @param weightOf    候选权重
      * @param tieBreakerOf 稳定兜底排序键（通常为候选主键）
@@ -76,9 +63,8 @@ public final class ModelPoolSelection {
 
     /**
      * 最空闲优先：在途并发升序 → 权重降序 → 稳定兜底键升序。
-     *
-     * <p>在途全为 {@code 0}（冷启动 / 计量不可用）时退化为「权重降序 + 兜底键升序」，
-     * 即 WEIGHTED 的确定性版本——不含随机，行为可预期。</p>
+     * 在途全为 {@code 0}（冷启动 / 计量不可用）时退化为「权重降序 + 兜底键升序」，
+     * 即 WEIGHTED 的确定性版本——不含随机，行为可预期。
      */
     private <T> List<T> orderByLoad(List<T> candidates,
                                     ToLongFunction<T> loadOf,

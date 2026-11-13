@@ -54,10 +54,7 @@ public class UpstreamAuthApplierCatalog {
         return defaultApplier;
     }
 
-    /**
-     * 该 code（策略 code 或类名）是否为已注册策略。用于保存鉴权策略时校验，
-     * 避免非法值被 {@link #resolve} 静默回退成默认策略。
-     */
+    /** 该 {@code code}（策略 code 或类名）是否为已注册策略，用于保存鉴权策略时校验。 */
     public boolean supports(String codeOrClassName) {
         if (StringUtils.isBlank(codeOrClassName)) {
             return false;
@@ -66,9 +63,7 @@ public class UpstreamAuthApplierCatalog {
         return byCode.containsKey(StringUtils.upperCase(trimmed)) || byClassName.containsKey(trimmed);
     }
 
-    /**
-     * 该策略是否适用于指定的供应商认证类型（保存时校验，防止下发不匹配的组合）。
-     */
+    /** 该策略是否适用于指定的供应商认证类型，用于保存时校验。 */
     public boolean supports(String codeOrClassName, ProviderCredentialTypeEnum credentialType) {
         if (!supports(codeOrClassName)) {
             return false;

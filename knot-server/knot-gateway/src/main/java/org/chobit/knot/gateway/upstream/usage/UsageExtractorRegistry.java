@@ -24,23 +24,9 @@ import java.util.Map;
 
 /**
  * 上游响应用量提取入口：提取计费输入、计算计费结果，并保留上游原文。
- *
- * <p>提取分三份：{@code rawUsage}/{@code rawBody} 原文透传、
- * {@code billing} 内部计费输入、{@code normalized} 计费结果，
- * 三者打包成 {@link UsageAccounting} 交给 {@code ProxyResult}。</p>
- *
- * <p><b>计费不兜底（2026-10-23）</b>：用量只能由配置的 {@link UsageExtractor} 产出，
- * 不存在适配器侧的第二套解析。提取结果按三分支处置（详见 {@code docs/计费用量解析去兜底实现方案}）：</p>
- * <ul>
- *   <li>上游未上报 usage（或全零）→ 合法零用量，WARN 后正常出零账；</li>
- *   <li>响应非法 JSON / 提取器返回 {@code null} / 上游有非零用量却提取为空（口径错配）
- *       → 三处失败收敛到同一个处置点，<b>默认抛异常中断响应</b>；</li>
- *   <li>{@code knot.gateway.usage.degrade-on-failure=true} 时改为 ERROR 后放行出零账，
- *       并保留上游原文供事后重算（见 {@link UsageAccounting#degraded}）。</li>
- * </ul>
- *
- * <p>⚠ 提取器不存在（未知 code）不走上面的处置：那是配置错误而不是提取失败，
- * 降级它等于让该绑定下的所有请求永久零账且无自愈路径，故恒 fail-fast。</p>
+ * 提取分三份：{@code rawUsage}/{@code rawBody} 原文透传、{@code billing} 内部计费输入、{@code normalized} 计费结果，三者打包成 {@link UsageAccounting} 交给 {@code ProxyResult}。
+ * 用量只能由配置的 {@link UsageExtractor} 产出，不存在适配器侧的第二套解析；上游未上报 usage（或全零）属合法零用量，WARN 后出零账；非法 JSON / 提取器返回 {@code null} / 有非零用量却提取为空三处失败收敛到同一处置点，默认抛异常中断响应，{@code knot.gateway.usage.degrade-on-failure=true} 时改为 ERROR 后放行出零账并保留原文供事后重算。
+ * 提取器不存在（未知 code）属配置错误、不走上述处置，恒 fail-fast。
  */
 @Slf4j
 @Component
@@ -63,13 +49,9 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 整包提取：<b>算账用适配后 body，留证据用 wire 原文</b>，两者不许合成一份。
-     *
-     * <p>⭐ {@code responseBody} 只用来算账：提取器的口径就是统一协议（{@code prompt_tokens} /
-     * {@code completion_tokens}），喂原文会让跨协议绑定全部提取失败。
-     * {@code wireResponseBody} 只用来留证据：跨协议绑定时原文的键名是供应商口径
-     * （{@code input_tokens} / {@code output_tokens}），用适配后的 body 记 {@code rawUsage}
-     * 等于「拿网关重建的值去对供应商的账」—— 提工单会被一句「我们没返回这个字段」打回。</p>
+     * 整包提取：算账用适配后 body，留证据用 wire 原文，两者不许合成一份。
+     * {@code responseBody} 只用来算账：提取器口径是统一协议（{@code prompt_tokens} / {@code completion_tokens}）。
+     * {@code wireResponseBody} 只用来留证据：跨协议绑定时原文键名是供应商口径（{@code input_tokens} / {@code output_tokens}），{@code rawUsage} 记的是原文。
      *
      * @param wireResponseBody 供应商原文；{@code null} 表示手头只有一份（异步查询 / 单测），回落到 {@code responseBody}
      */
@@ -79,10 +61,8 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 流式转发场景：对单个 SSE {@code data:} 事件提取用量。
-     *
-     * <p>与整包提取走同一套提取器与归一化逻辑。<b>后到覆盖前一个</b>（2026-11-13 定：
-     * 上游 usage 通常在最后一个事件），代价与判据见 {@code ProxyStreamingFlux.UsageState#latest}。</p>
+     * 流式转发场景：对单个 SSE {@code data:} 事件提取用量，与整包提取走同一套提取器与归一化逻辑。
+     * 用量后到覆盖前一个（上游 usage 通常在最后一个事件）。
      *
      * @param wireEventData 该事件未适配前的 {@code data} 载荷，仅作证据；{@code null} 时回落 {@code eventData}
      */
@@ -93,15 +73,8 @@ public class UsageExtractorRegistry {
 
     /**
      * 解析本次提取要用的提取器：配置错误在此暴露，不回落到任何兜底实现。
-     *
-     * <p>流式转发前调用它做预检——预检只解析不提取（此刻还没有响应体），
-     * 让「配了未知 extractor code」在响应头写出之前就失败。</p>
-     *
-     * <p>注意覆盖面：{@link #resolveExtractorCode} 末行恒回落到默认提取器，
-     * 因此本方法<b>只在显式配了错误 code 时</b>抛异常；未配置走默认提取器，属合法路径。</p>
-     *
-     * <p>本方法<b>恒 fail-fast，不受 {@code knot.gateway.usage.degrade-on-failure} 影响</b>：
-     * 未知 code 是配置错误而非提取失败，降级它只会让该绑定下的请求静默零账。</p>
+     * 流式转发前调用它做预检（只解析不提取），让「配了未知 extractor code」在响应头写出之前就失败。
+     * {@link #resolveExtractorCode} 末行恒回落到默认提取器，因此只在显式配了错误 code 时抛异常；本方法恒 fail-fast，不受 {@code knot.gateway.usage.degrade-on-failure} 影响。
      */
     public UsageExtractor<?> requireExtractor(boolean eventStream, UpstreamRequestContext context) {
         String code = resolveExtractorCode(eventStream, context);
@@ -154,11 +127,8 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 证据侧的原文对象：解析失败返回 {@code null}（只丢证据、不阻断计费）并留一条 WARN。
-     *
-     * <p>与上面的 {@link ExtractFailure#INVALID_JSON} 判定刻意不共用一次 try：那份决定
-     * 「这单能不能出账」，这份只决定「事后有没有原文可查」，失败后果不同级。
-     * 静默降级成 {@code null} 会让「上游没报 usage」与「原文读不出来」在日志里长得一样，故留 WARN。</p>
+     * 证据侧的原文对象：解析失败返回 {@code null}（只丢证据、不阻断计费），并留一条 WARN。
+     * 与 {@link ExtractFailure#INVALID_JSON} 判定不共用一次 try —— 那份决定这单能不能出账，这份只决定事后有没有原文可查。
      */
     private static Map<String, Object> readWireBody(String wireBody, UpstreamRequestContext context) {
         if (StringUtils.isBlank(wireBody)) {
@@ -174,10 +144,7 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 判定提取结果是否属于「提取不出用量」。
-     *
-     * <p>能否为空由提取器声明，不在这里跨协议猜——未声明允许的，上游有正数却提取为空即口径错配。
-     * 静默记零账会把问题推迟到对账，而到那时候已经查不清是哪一次请求了。</p>
+     * 判定提取结果是否属于「提取不出用量」：能否为空由提取器声明，不在这里跨协议猜；未声明允许的，上游有正数却提取为空即口径错配。
      *
      * @return 失败原因；{@code null} 表示提取成功（含合法零用量）
      */
@@ -194,10 +161,8 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 提取失败的<b>唯一</b>处置点：按 {@code knot.gateway.usage.degrade-on-failure} 决定抛出还是降级。
-     *
-     * <p>三处失败全部收敛到这里，新增失败原因只加 {@link ExtractFailure} 枚举项，
-     * 处置逻辑不再分叉——否则每加一处失败就要在三个地方各写一遍开关判断。</p>
+     * 提取失败的唯一处置点：按 {@code knot.gateway.usage.degrade-on-failure} 决定抛出还是降级。
+     * 三处失败全部收敛到这里，新增失败原因只加 {@link ExtractFailure} 枚举项，处置逻辑不再分叉。
      */
     private UsageAccounting applyFailurePolicy(ExtractFailure failure,
                                               UsageExtractor<?> extractor,
@@ -222,13 +187,8 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 原始 usage 里是否存在正数量：区分「上游明确报了零」与「提取器读不出来」。
-     *
-     * <p>上游可能合法上报全零 usage（如 SSE 中间事件），此时不应判为口径错配；
-     * 只有确实存在非零数值却被提取成空，才说明提取器配错。</p>
-     *
-     * <p>本方法只在提取器<b>未</b>声明 {@link UsageExtractor#allowsEmptyUsage()} 时充当门控：
-     * 声明了允许全零的提取器直接放行，不再据此判错——能不能空由提取器决定，不在这里猜。</p>
+     * 原始 usage 里是否存在正数量：区分「上游明确报了零」与「提取器读不出来」，嵌套 map 逐层检查。
+     * 上游可能合法上报全零 usage（如 SSE 中间事件）；本方法只在提取器未声明 {@link UsageExtractor#allowsEmptyUsage()} 时充当门控。
      */
     private static boolean hasPositiveNumber(Map<String, Object> usage) {
         if (usage == null || usage.isEmpty()) {
@@ -251,12 +211,7 @@ public class UsageExtractorRegistry {
 
     /**
      * 一次提取失败的原因。
-     *
-     * <p>收敛成枚举的目的是让「抛 or 降」的判定只写一遍：新增失败情形只加枚举项，
-     * {@link #applyFailurePolicy} 不动。</p>
-     *
-     * <p>{@code detail} 沿用去兜底之前的报错原文，运维既有的 grep 习惯不用改；
-     * {@code code} 是给日志用的稳定标识（日志里只有它，错误文案留给异常消息）。</p>
+     * {@code detail} 是报错原文（异常消息），{@code code} 是给日志用的稳定标识。
      */
     private enum ExtractFailure {
 
@@ -318,10 +273,7 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 计费规则解析：模型显式绑定优先，未绑定时按模型族回退（族精确匹配 → 默认规则）。
-     *
-     * <p>回退链必须存在——{@code kb_models.billing_rule_code} 允许为空，
-     * 只认显式绑定会让未绑模型的计费整体消失（明细与总价全无）。</p>
+     * 计费规则解析：模型显式绑定优先，未绑定时按模型族回退（族精确匹配 → 默认规则）；{@code kb_models.billing_rule_code} 允许为空。
      */
     private BillingRuleConfigVo resolveBillingRule(UpstreamRequestContext context) {
         if (context == null || context.model() == null) {
@@ -334,7 +286,7 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 计费规则快照 → 适配层投影：只带计价消费的六个字段（改进清单 2.5）。
+     * 计费规则快照 → 适配层投影：只带计价消费的字段。
      * 快照由 {@link GatewayConfigCacheService} 产出，投影发生在网关侧边界上。
      */
     private static BillingRuleRef ruleRef(BillingRuleConfigVo rule) {

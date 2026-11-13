@@ -6,19 +6,9 @@ import java.time.LocalDateTime;
 
 /**
  * 异步任务实例（{@code kb_async_tasks}）：一次「提交 + 轮询」= 一行。
- *
- * <p><b>DB 是唯一真相源</b>：任务不放在 Redis / 进程内存里，缓存不可用不应放大成任务丢失。
- * 三个 JSON 段各司其职，缺一不可：</p>
- * <ul>
- *   <li>{@code requestJson}：客户端原始请求体，终态提取计费属性的<b>唯一</b>输入
- *       （提取器读的就是这一份，不是转换后的上游体 —— 见 {@code UsageExtractorRegistry}）；</li>
- *   <li>{@code pollSpecJson}：提交时快照的查询口径，档案改了也不影响在途任务，保证可复现；</li>
- *   <li>{@code contextJson}：重建计费与事件上下文（路由/命中/追踪）。</li>
- * </ul>
- *
- * <p>三个 JSON 段在实体里以<b>文本</b>承载：MySQL 的 JSON 列接受字符串字面量，
- * 读取也以字符串返回，序列化策略由调用方（{@code JsonKit}）唯一决定 ——
- * 不引入 typeHandler，避免「同一个字段两种序列化口径」。</p>
+ * 三个 JSON 段：{@code requestJson} 客户端原始请求体（终态提取计费属性的唯一输入）；
+ * {@code pollSpecJson} 提交时快照的查询口径；{@code contextJson} 重建计费与事件上下文。
+ * 三段在实体里以文本承载，序列化策略由调用方 {@code JsonKit} 唯一决定。
  */
 @Data
 public class AsyncTaskEntity {
@@ -31,24 +21,15 @@ public class AsyncTaskEntity {
     private String upstreamTaskId;
     /**
      * 任务状态（{@code AsyncTaskStatusEnum.code()}）：0-PENDING 1-POLLING 2-SUCCEEDED
-     * 3-FAILED 4-EXPIRED 5-CANCELLED。
-     *
-     * <p>⚠ 实体故意<b>不</b>声明成枚举类型：dal 不依赖 gateway（枚举在那边），
-     * 若在这里建一个同形态的副本枚举，就成了「同一个状态集的两份定义」，必然漂移。
-     * 需要枚举语义时由 gateway 侧 {@code AsyncTaskStatusEnum.fromCode} 转换。</p>
+     * 3-FAILED 4-EXPIRED 5-CANCELLED。字段为整型，需要枚举语义时由 gateway 侧
+     * {@code AsyncTaskStatusEnum.fromCode} 转换。
      */
     private Integer status;
     private Integer attempts;
     /**
-     * 重试轮次（0 = 从未被管理端重试过）。
-     *
-     * <p>⭐ <b>它存在的唯一理由是「同一条任务可能有多条终态事件」</b>：管理端把
-     * {@code FAILED} / {@code EXPIRED} 重新打开后，{@code attempts} 归零、{@code task_query_seq}
-     * 从 1 重新计数。若没有轮次字段，重试后的第 1 次查询与上一轮的第 1 次查询在事件流里
-     * 完全同键（{@code task_code + task_phase + task_query_seq}），数仓按该键去重会把两次
-     * 真实的上游调用压成一条——方向是「少记」，事后无从还原。</p>
-     *
-     * <p>⚠ 它<b>不参与</b>状态机判定、不影响退避与超时，纯粹是数据侧的轮次坐标。</p>
+     * 重试轮次（0 = 从未被管理端重试过）。管理端重开任务时 +1，它是终态事件流的去重坐标
+     * （{@code task_code + task_phase + task_query_seq + 轮次}）；不参与状态机判定，
+     * 不影响退避与超时。
      */
     private Integer retryRound;
     /** 下次轮询时刻；终态为 null，天然退出扫描集 */
@@ -63,23 +44,14 @@ public class AsyncTaskEntity {
     private String contextJson;
     private String resultJson;
     /**
-     * 上游<b>终态查询响应原文</b>（原样，不解析、不裁剪）。
-     *
-     * <p>⭐ 存在的理由是「计费必须可复现」：视频类提取器从<b>响应</b>取输出时长与产物数，
-     * 请求体只提供分辨率/声音/参考图等维度。这份响应原先用完即弃（只进 Kafka 流量事件），
-     * 于是管理端离线重算没有任何输入——「重算对照」只能恒 SKIP。
-     * 落库后它同时是排障第一现场：换供应商、上游字段漂移时不必再翻 Kafka。</p>
-     *
-     * <p>⚠ 与 {@code resultJson} 分开：后者是对外契约（客户端轮询/回调原样读 {@code result}），
-     * 上游原文不能混进去。</p>
+     * 上游终态查询响应原文（原样，不解析、不裁剪），供计费复现与排障使用。
+     * 与 {@code resultJson} 分开：后者是对外契约，客户端轮询/回调原样读 {@code result}，
+     * 上游原文不混入其中。
      */
     private String terminalBody;
     /**
-     * 终态<b>结算快照</b>，与同步链路 {@code knot_extend} 同形（{@code {usage, billing}}）。
-     *
-     * <p>⭐ 网关对这次调用算出的账此前只存在于流量事件里，任何接口都查不到；
-     * 落库后异步任务的「被告账」才存在，离线校验与人工排障才有对象。
-     * 失败/超时/取消不计费 → 恒为 {@code null}（不写零账，零账会被读成「算了 0 元」）。</p>
+     * 终态结算快照，与同步链路 {@code knot_extend} 同形（{@code {usage, billing}}）。
+     * 失败/超时/取消不计费 → 恒为 {@code null}（不写零账）。
      */
     private String settlementJson;
     private String errorCode;
@@ -92,17 +64,13 @@ public class AsyncTaskEntity {
     private LocalDateTime resultExpiresAt;
 
     /**
-     * 客户端回推地址；{@code null} 表示本任务不回调。
-     *
-     * <p>它从客户端原始请求体提取并落库，但<b>不会</b>跟着请求体发给上游
-     * （{@code VideoRequestSupport} 负责剥除）——上游直接推终态会让这笔用量绕过结算。</p>
+     * 客户端回推地址；{@code null} 表示本任务不回调。由客户端原始请求体提取并落库，
+     * 不随请求体发给上游（由 {@code VideoRequestSupport} 剥除）。
      */
     private String callbackUrl;
     /**
-     * 回调交付状态（{@code AsyncTaskDeliveryStatusEnum.code()}）：0-无需回调 1-待回调 2-成功 3-失败。
-     *
-     * <p>⭐ 与 {@code status} <b>正交</b>：生成成功不代表回调成功。合成一个枚举会出现
-     * 「某终态代表回调失败、不代表任务失败」这种自相矛盾的取值。</p>
+     * 回调交付状态（{@code AsyncTaskDeliveryStatusEnum.code()}）：0-无需回调 1-待回调
+     * 2-成功 3-失败。与 {@code status} 正交：生成成功不代表回调成功。
      */
     private Integer deliveryStatus;
     /** 已尝试投递次数（含失败重试） */

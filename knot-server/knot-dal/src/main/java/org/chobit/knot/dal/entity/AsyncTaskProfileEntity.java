@@ -6,17 +6,10 @@ import java.time.LocalDateTime;
 
 /**
  * 异步任务查询口径档案（{@code kb_async_task_profiles}）：描述「怎么查上游」，一家异步上游一行。
- *
- * <p>与任务实例表分离是通用性的根：查询路径、终态判定、产物位置、产物时效逐家不同，
- * 塞进任务行会无法复用。新增一家异步上游 = 加一行档案 + 绑定引用，不改表、不改代码。</p>
- *
- * <p>路径模板里的 {@code {task_id}} 占位可出现在 path 段或 query 段
- * （可灵是 {@code /tasks?task_ids={task_id}}，MiniMax 是 {@code /v2/query/video_generation/{task_id}}）。</p>
- *
- * <p>⚠ 2026-10-28 起：五个 {@code *Path} 是 <b>MVEL 取值表达式</b>（其中 {@code usagePath}
- * 取的是上游 usage 的 Map 对象而非标量文本，2026-11-12 加），三个 {@code status*} 是
- * <b>MVEL 布尔表达式</b>（变量 {@code status} / {@code body}）。求值口径见
- * {@code AsyncTaskExpressionSupport}；判定语义见规范 {@code 60-business-rules.md} §8.14。</p>
+ * 路径模板里的 {@code {task_id}} 占位可出现在 path 段或 query 段（如
+ * {@code /tasks?task_ids={task_id}}、{@code /v2/query/video_generation/{task_id}}）。
+ * 五个 {@code *Path} 是 MVEL 取值表达式（{@code usagePath} 取上游 usage 的 Map 对象），
+ * 三个 {@code status*} 是 MVEL 布尔表达式（变量 {@code status} / {@code body}）。
  */
 @Data
 public class AsyncTaskProfileEntity {
@@ -52,16 +45,14 @@ public class AsyncTaskProfileEntity {
     private Integer pollBackoffBaseMs;
     private Integer pollBackoffMaxMs;
     private Integer maxAttempts;
-    /** knot 侧任务寿命（<b>分钟</b>）；到期转 EXPIRED，与 {@code poll_*_ms} 不同单位 */
+    /** knot 侧任务寿命（分钟）；到期转 EXPIRED，与 {@code poll_*_ms} 不同单位 */
     private Long timeoutMinutes;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
     private Integer status;
     private String remark;
     /**
-     * 引用该档案的模型绑定行数（<b>派生列</b>：由列表 SQL 的子查询算出，不参与任何写入）。
-     *
-     * <p>管理面用它回答「这条档案现在能不能删」，因此只能在查询路径上出现；
-     * 写路径（insert/update）刻意不含它。</p>
+     * 引用该档案的模型绑定行数（派生列：由列表 SQL 的子查询算出，不参与任何写入，
+     * 只出现在查询路径）。供管理面判断该档案能否删除。
      */
     private Integer bindingCount;
     /** 创建时刻（管理面展示用；DB 默认 CURRENT_TIMESTAMP，不由代码写入） */

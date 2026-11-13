@@ -17,12 +17,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * OpenAI ChatCompletions → Anthropic Messages 适配器（泛化转换，不隶属单一供应商）。
- *
- * <p><b>只服务 {@code CHAT_COMPLETIONS} 一种入协议</b>：请求侧 system 角色消息提升为顶层
- * {@code system}，{@code max_completion_tokens→max_tokens}、{@code stop→stop_sequences}，
- * 移除 Anthropic 不支持的字段，{@code max_tokens} 缺省兜底 1024；响应侧把上游的 Messages
- * 形状翻回 {@code chat.completion}（文本 + finish 原因 + usage，非 Messages 响应原样透传）。</p>
+ * OpenAI ChatCompletions → Anthropic Messages 适配器（泛化转换，不隶属单一供应商），只服务 {@code CHAT_COMPLETIONS} 入协议。
+ * 请求侧 system 角色消息提升为顶层 {@code system}，{@code max_completion_tokens→max_tokens}、{@code stop→stop_sequences}，
+ * 移除 Anthropic 不支持的字段，{@code max_tokens} 缺省兜底 1024；响应侧把 Messages 形状翻回 {@code chat.completion}
+ * （文本 + finish 原因 + usage，非 Messages 响应原样透传）。
  */
 @Component
 @Order(10)

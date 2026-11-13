@@ -31,20 +31,8 @@ import java.util.function.Consumer;
 
 /**
  * 把上游响应边收边发给调用方：上游每产出一块就写一块，网关侧不堆积整包响应。
- *
- * <p>2026-10-20（WebFlux 批2）：由 {@code ProxyStreamingBody}（{@code StreamingResponseBody} +
- * {@code InputStream} 逐行读写）改为纯 {@code Flux<DataBuffer>} 变换——
- * 不再有阻塞读、不再有管道、不再需要在 {@code finally} 里手工补抛「泵出错」。</p>
- *
- * <p>SSE 场景额外做一件事：逐事件累计用量，并在上游 {@code data: [DONE]} <b>之前</b>插入独立的
- * {@code knot_extend} 事件（上游原始 usage 以并列 {@code usage} 字段透出；上游不发 [DONE] 时在流结束处
- * 兜底插入），不改动上游原有 chunk，与整包缓冲模式下的行为保持一致。</p>
- *
- * <p>⭐ 正文 tee 是<b>只读旁路</b>：在 {@code lines()} 的 wire 行（非 SSE 为原始字节块）上
- * {@code doOnNext} 复制一份，主链拿到的还是原来那块 {@code DataBuffer} —— 不动 readPosition、
- * 不 release、不额外 {@code request(n)}、不切线程。攒进有界头尾缓冲，流结束时
- * （{@code doFinally}，取消 / 出错同样触发）由 {@code streamBodySink} 写出。
- * 用头尾双留而不是「只留前 N 字节」：usage 与收尾事件都在流末尾，只留头部等于留了个开头。</p>
+ * SSE 场景额外做一件事：逐事件累计用量，并在上游 {@code data: [DONE]} 之前插入独立的 {@code knot_extend} 事件（上游原始 usage 以并列 {@code usage} 字段透出；上游不发 [DONE] 时在流结束处兜底插入），不改动上游原有 chunk。
+ * 正文 tee 是只读旁路：在 {@code lines()} 的 wire 行（非 SSE 为原始字节块）上 {@code doOnNext} 复制一份，主链拿到的仍是原来那块 {@code DataBuffer}（不动 readPosition、不 release、不额外 {@code request(n)}、不切线程），攒进有界头尾缓冲，流结束时由 {@code streamBodySink} 写出。
  */
 @Slf4j
 public final class ProxyStreamingFlux {
@@ -65,8 +53,7 @@ public final class ProxyStreamingFlux {
     private static final String OMITTED_MARK = "\n...(omitted %d bytes)...\n";
 
     /**
-     * 单行累积上限（1MB）：正常 SSE 事件是几十到几千字节，1MB 已经远超合理值。
-     * 上游若长时间不发换行（畸形或恶意），累积到上限即失败，避免把网关堆内存吃穿。
+     * 单行累积上限（1MB）：上游长时间不发换行（畸形或恶意）时，累积到上限即失败。
      */
     private static final int MAX_LINE_BYTES = 1 << 20;
 
@@ -138,12 +125,8 @@ public final class ProxyStreamingFlux {
     }
 
     /**
-     * 上游 2xx 却一个字节都没给：绝不能以「正常结束」收场——调用方会以为模型答了空，
-     * 计费侧也拿不到用量，两侧同时静默出错。
-     *
-     * <p>此处响应头早已写出（首行 flush 即提交），改不了状态码，只能让流以错误终止；
-     * 能提前发现的零长度响应由执行器在写出前判掉（{@code executeStreaming} 看
-     * {@code Content-Length: 0}），本方法是「chunked 但一个字节不发」这条漏网路径的兜底。</p>
+     * 上游 2xx 却一个字节都没给：让流以错误终止，不能以「正常结束」收场。
+     * 此处响应头已写出，改不了状态码；{@code Content-Length: 0} 的零长度响应由 {@code executeStreaming} 提前判掉，本方法兜底 chunked 空流。
      */
     private static Flux<DataBuffer> emptyGuard(Flux<DataBuffer> body) {
         return body.switchOnFirst((signal, flux) -> {
@@ -213,13 +196,7 @@ public final class ProxyStreamingFlux {
 
     /**
      * 单行处理：先过适配器（0..N 行），再对适配后的行做 {@code [DONE]} 插入与用量累计。
-     *
-     * <p>顺序不能反过来：协议转换类适配器会把上游的收尾事件<b>合成</b>成 {@code [DONE]}
-     * （Anthropic 的 {@code message_stop} → {@code data: [DONE]}），所以要按适配后的行判断流末尾，
-     * 否则 {@code knot_extend} 会插在客户端已经不认的位置。</p>
-     *
-     * <p>响应适配是协议正确性，不受 {@code appendUsage}（计费注入开关）影响——
-     * 该开关只 gate 用量提取与 {@code knot_extend} 注入。</p>
+     * 响应适配是协议正确性，不受 {@code appendUsage} 影响——该开关只 gate 用量提取与 {@code knot_extend} 注入。
      */
     private static Flux<String> transform(String line,
                                           UpstreamStreamResponse stream,
@@ -317,10 +294,7 @@ public final class ProxyStreamingFlux {
     }
 
     /**
-     * 单行超过 {@link #MAX_LINE_BYTES}：畸形上游或异常代理才会出现，正常 SSE 事件远小于此。
-     *
-     * <p>以错误终止而非截断：截断会让客户端把半条 JSON 当成完整事件解析，
-     * 错误至少能被上层看见并计入上游失败。</p>
+     * 单行超过 {@link #MAX_LINE_BYTES}：畸形上游或异常代理才会出现，以错误终止而非截断。
      */
     private static Flux<String> lineTooLong() {
         return Flux.error(new IllegalStateException(
@@ -395,13 +369,9 @@ public final class ProxyStreamingFlux {
     }
 
     /**
-     * 有界头尾旁路：头部填满后，余下字节只进尾部环形缓冲，头尾<b>不重叠</b>。
-     *
-     * <p>⚠ 输出是 UTF-8 解码的字符串：头尾切点可能正好劈开一个多字节字符，解码会得到
-     * replacement char。作为排障 / 对账快照可接受——它不是要回放到客户端的正文。</p>
-     *
-     * <p>{@code synchronized} 不是为了并发写（Reactor 逐块串行），而是给
-     * {@code doFinally} 可能落在另一线程时提供可见性；无竞争，开销可忽略。</p>
+     * 有界头尾旁路：头部填满后，余下字节只进尾部环形缓冲，头尾不重叠。
+     * 输出是 UTF-8 解码的字符串，头尾切点可能劈开多字节字符而得到 replacement char —— 仅作排障 / 对账快照，不回放给客户端。
+     * {@code synchronized} 用于 {@code doFinally} 可能落在另一线程时提供可见性。
      */
     static final class BodyTee {
 
@@ -463,8 +433,6 @@ public final class ProxyStreamingFlux {
 
     /**
      * 逐事件累计用量与「是否已注入」的可变状态。
-     *
-     * <p>单次请求内 SSE 是顺序处理的（{@code concatMap}），不存在并发写。</p>
      */
     private static final class UsageState {
 
@@ -472,17 +440,7 @@ public final class ProxyStreamingFlux {
         private boolean appended;
 
         /**
-         * 后到覆盖前一个（2026-11-13 robin 定：上游 usage 通常在最后一个事件）。
-         *
-         * <p>⭐ <b>代价是明知的，不是没想到</b>：Anthropic 原生 {@code messages} 流式把用量拆在两个事件里 ——
-         * {@code message_start.usage.input_tokens} 与 {@code message_delta.usage.output_tokens}，
-         * 只留最后一个事件时<b>输入侧 token 记 0</b>。走适配器的协议不受影响：
-         * {@code AnthropicStreamSupport} 把整轮用量合进最后一个 chunk 的 {@code usage}（含
-         * {@code prompt_tokens}），最后一个事件本身就是全量。</p>
-         *
-         * <p>此前是「取 token 总量更大的一份」：同一场景下也只是二选一，并非逐字段合并，
-         * 且谁大谁赢会让结果随请求内容跳变，比固定取最后一个更难解释。逐字段合并
-         * （{@code UsageExtractItem.mergeMax}）只存在于提取器内部，不在这一层。</p>
+         * 记录最新一次用量：后到覆盖前一个（上游 usage 通常在最后一个事件）。
          */
         void latest(UsageAccounting candidate) {
             if (candidate != null) {

@@ -40,11 +40,7 @@ public class GatewayImageController extends GatewayControllerSupport {
 
     /**
      * Handles image edit requests.
-     *
-     * <p>2026-10-30：<b>改为 JSON 原样透传</b>——不再逐字段绑定 multipart 表单，
-     * 客户端给什么 JSON 就原样转发给上游（{@code image} 走 URL / data URL 由上游约定），
-     * 网关不认识字段、不参与拼装；上游字段增减无需同步改本项目的 VO，
-     * 也不会像旧实现那样因为漏绑某个字段而把它静默丢掉。</p>
+     * 客户端 JSON 原样透传给上游，网关不认识字段、不参与拼装（{@code image} 走 URL / data URL 由上游约定）。
      */
     @PostMapping("/edits")
     public Mono<ResponseEntity<Object>> edits(

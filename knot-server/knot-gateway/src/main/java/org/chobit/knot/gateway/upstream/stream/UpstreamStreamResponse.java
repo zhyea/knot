@@ -11,24 +11,9 @@ import java.util.Map;
 
 /**
  * 上游流式响应的句柄：持有尚未消费的响应体 {@link Flux}，以及响应元数据快照。
- *
- * <p>2026-10-20（WebFlux 批2）：<b>不再需要 InputStream 桥接与 close()</b>。
- * 批1 时代容器还是 Servlet，必须用 {@code PipedInputStream} 把 Flux 泵成阻塞流；
- * 切到 Netty 后响应体直接以 {@code Flux<DataBuffer>} 交给容器写出，
- * 取消 / 结束由 Reactor 自动完成，连接由 reactor-netty 在流终止时归还。</p>
- *
- * <p>附带收益：管道桥接会丢错误（写端出错只能关管道，读端只见 {@code -1}，看起来像正常结束），
- * 批1 需要用 {@code pumpError()} 手工补抛；现在错误沿 {@code onError} 原样传播，
- * 上游中途失败一定能被调用方看到。</p>
- *
- * <p>{@code upstreamHeaders} 是上游响应头的<b>白名单快照</b>（见
- * {@code UpstreamRequestIdResolver}），构造时一次性抓取，与连接生命周期解耦——
- * 流写完后取供应商侧请求标识（只取 request-id）依然可读。</p>
- *
- * <p>2026-10-25：重新持有 {@link UpstreamAdapter}（2026-10-23 计费去兜底时曾移除）——
- * 理由与计费无关：流式路径的响应适配（{@link UpstreamAdapter#streamAdapter}）
- * 需要适配器在场，与整包路径的 {@code handleResponse} 对称。为 {@code null} 时
- * 流式响应按透传处理。</p>
+ * 响应体以 {@code Flux<DataBuffer>} 交给容器写出，取消 / 结束由 Reactor 完成，连接由 reactor-netty 在流终止时归还；错误沿 {@code onError} 原样传播。
+ * {@code upstreamHeaders} 是上游响应头的白名单快照（见 {@code UpstreamRequestIdResolver}），构造时一次性抓取，与连接生命周期解耦，流写完后仍可读供应商侧请求标识。
+ * {@link UpstreamAdapter} 供流式响应适配（{@link UpstreamAdapter#streamAdapter}）；为 {@code null} 时按透传处理。
  */
 public final class UpstreamStreamResponse {
 

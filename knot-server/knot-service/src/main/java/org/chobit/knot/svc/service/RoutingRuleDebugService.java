@@ -38,10 +38,8 @@ import org.springframework.web.client.HttpStatusCodeException;
 
 /**
  * 路由规则调试域：同步测试、流式测试、调试能力下发、逐目标协议枚举。
- *
- * <p>从 {@code RoutingRuleService} 拆出的边界是「是否向网关发起真实请求」与「是否解析模型/模型池的
- * 协议绑定」：规则本身的读写（CRUD、审计快照、写路径校验）留在 {@code RoutingRuleService}，
- * 调试一侧只通过它读规则（{@link RoutingRuleService#getById}），不触碰写路径。</p>
+ * 规则本身的读写（CRUD、审计快照、写路径校验）留在 {@code RoutingRuleService}；
+ * 调试一侧只通过 {@link RoutingRuleService#getById} 读规则，不触碰写路径。
  */
 @Service
 public class RoutingRuleDebugService {
@@ -96,9 +94,7 @@ public class RoutingRuleDebugService {
 
     /**
      * 打开一条流式调试通道：完成全部校验后向网关发起请求，并持有未关闭的响应体供增量读取。
-     *
-     * <p>校验失败时抛出 {@link BusinessException}，由全局异常处理器在建立 SSE 之前返回
-     * 4xx {@code ApiResponse}；一旦返回本方法，调用方必须关闭返回的句柄。</p>
+     * 校验失败时抛出 {@link BusinessException}，由全局异常处理器在建立 SSE 之前返回 4xx {@code ApiResponse}；调用方必须关闭返回的句柄。
      *
      * @param gatewayBaseUrl 网关基地址（管理端配置透传，已归一化）
      */
@@ -119,8 +115,7 @@ public class RoutingRuleDebugService {
 
     /**
      * 调试能力下发：网关路径、说明文案与 prompt 字段路径。
-     * 默认请求体不再硬编码，改由「预设请求」用例（kb_test_request_presets）维护，
-     * 调试面板按当前协议从预设中载入具体请求体。
+     * 默认请求体由「预设请求」用例（kb_test_request_presets）维护，调试面板按当前协议从预设中载入具体请求体。
      */
     public List<ProtocolDebugCapabilityItem> listDebugCapabilities() {
         return Arrays.stream(ModelApiProtocolEnum.values())
@@ -136,10 +131,8 @@ public class RoutingRuleDebugService {
     }
 
     /**
-     * 调试面板协议下拉的数据源：逐目标下发其支持的接口协议。
-     *
-     * <p>与调试准入校验 {@link #resolveTestProtocol} 共用 {@link #supportedProtocolsForTarget}，
-     * 前端不再自行解析模型/模型池的协议绑定，杜绝「下拉列出的协议」与「后端放行的协议」两份实现漂移。
+     * 调试面板协议下拉的数据源：逐目标下发其支持的接口协议，与调试准入校验 {@link #resolveTestProtocol}
+     * 共用 {@link #supportedProtocolsForTarget}，前端不自行解析模型 / 模型池的协议绑定。
      */
     public RoutingRuleDebugProtocols listDebugProtocols(Long ruleId) {
         List<RoutingRuleTargetDto> targets = routingRuleService.getById(ruleId).targets();

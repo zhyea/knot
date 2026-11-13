@@ -14,12 +14,8 @@ import java.util.List;
 
 /**
  * Allows the admin console to call the gateway directly for streaming debug requests.
- *
- * <p>The origin list is explicit and configurable; wildcard origins are intentionally not
- * enabled because the gateway receives consumer API keys in the Authorization header.</p>
- *
- * <p>2026-10-20（WebFlux 批2）：{@code WebMvcConfigurer#addCorsMappings} 属于 Servlet 栈，
- * 容器换成 Netty 后不再生效——改为注册 {@link CorsWebFilter}。匹配规则仍是 {@code /**}。</p>
+ * The origin list is explicit and configurable; wildcard origins are not enabled.
+ * Registers a {@link CorsWebFilter}; the matching pattern is {@code /**}.
  */
 @Configuration(proxyBeanMethods = false)
 public class GatewayCorsConfiguration {

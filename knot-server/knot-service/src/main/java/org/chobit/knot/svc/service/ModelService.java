@@ -61,10 +61,7 @@ public class ModelService {
     private static final int BASE_PATH_MAX_LENGTH = 255;
 
     /**
-     * 模型级 Base Path 允许的字符集：ASCII 路径安全字符。
-     *
-     * <p>刻意不含 {@code %}——Bedrock 的模型 ID 会编码成 {@code %3A} 出现在协议路径里，
-     * 若允许用户手写百分号，会与已编码路径混在一起难以区分「谁的编码」。</p>
+     * 模型级 Base Path 允许的字符集：ASCII 路径安全字符，不含 {@code %}。
      */
     private static final Pattern BASE_PATH_PATTERN = Pattern.compile("^/[A-Za-z0-9._~\\-/]*$");
 
@@ -309,13 +306,8 @@ public class ModelService {
     }
 
     /**
-     * 逻辑删除供应商模型。被引用时拒绝删除（先解除引用再删）。
-     *
-     * <p>不走物理删除：历史路由目标的 target_code 仍需能解析出可读信息，且删除可恢复。</p>
-     *
-     * <p>四类引用都要拦：路由规则目标、模型池条目、厂商模型映射、模型 API 协议绑定。
-     * 后三类若不拦，逻辑删除后对应的 inner join 查询会直接落空（池内条目「凭空消失」、
-     * API 绑定查不到协议），属于静默数据损坏。</p>
+     * 逻辑删除供应商模型，可恢复；被引用时拒绝删除（先解除引用再删）。
+     * 拦截四类引用：路由规则目标、模型池条目、厂商模型映射、模型 API 协议绑定。
      */
     @Transactional
     public void delete(Long id) {
@@ -349,15 +341,8 @@ public class ModelService {
     }
 
     /**
-     * 新增折扣策略。
-     *
-     * <p>⭐ <b>基础校验</b>（2026-10-31 robin 拍板「折扣做基础校验，仅展示、不返客户端」）：
-     * {@link #validateDiscountPolicy} 只查「类型非空 / 值非空且非负」这类会让展示或落库直接炸掉的边界，
-     * <b>不</b>做业务语义校验（如折扣率上限、类型是否枚举项）——那是越界，且折扣<b>不参与计费</b>，
-     * 算错类型也不会算错钱。</p>
-     *
-     * <p>折扣<b>仅管理面展示</b>：网关侧 {@code knot-gateway} / {@code knot-common} 无任何折扣取价逻辑，
-     * 校验失败按 {@link ErrorCode#VALIDATION_ERROR} 返回，但折扣数据<b>不进客户端/网关响应</b>。</p>
+     * 新增折扣策略：{@link #validateDiscountPolicy} 只做基础校验（类型非空、值非空且非负），不做业务语义校验。
+     * 折扣仅管理面展示，不参与计费，不进客户端/网关响应；校验失败按 {@link ErrorCode#VALIDATION_ERROR} 返回。
      */
     @Transactional
     public DiscountPolicyDto createDiscountPolicy(String modelCode, DiscountPolicyDto request) {
@@ -395,8 +380,6 @@ public class ModelService {
 
     /**
      * 折扣基础校验：类型非空、值非空且非负。
-     *
-     * <p>只挡「会让展示或落库直接炸」的边界，不做业务语义校验——折扣不参与计费，过度校验是越界。</p>
      */
     private void validateDiscountPolicy(DiscountPolicyDto request) {
         if (request == null) {
@@ -450,11 +433,8 @@ public class ModelService {
     }
 
     /**
-     * 恢复已逻辑删除的供应商模型。
-     *
-     * <p>model_code 唯一性按物理行判定（uk_models_code 不区分 is_deleted），所以逻辑删除后同
-     * {@code model_code} 无法新建，只能恢复。恢复时校验绑定的统一模型仍存在且未删除，
-     * 避免恢复出一个指向已删除统一模型的模型。</p>
+     * 恢复已逻辑删除的供应商模型：{@code model_code} 唯一性按物理行判定（uk_models_code 不区分 is_deleted），
+     * 逻辑删除后同 {@code model_code} 无法新建，只能恢复；恢复时校验绑定的统一模型仍存在且未删除。
      */
     @Transactional
     public ModelDto restore(Long id) {
@@ -476,10 +456,7 @@ public class ModelService {
     }
 
     /**
-     * 单条详情补全：频控额度 + API 绑定 + 编码绑定数。
-     *
-     * <p>绑定数只在详情路径算（5 次 count），列表路径不带上——列表是分页的多行，
-     * 逐行算会变成 N×5 次查询，而列表页并不渲染这个字段。</p>
+     * 单条详情补全：频控额度 + API 绑定 + 编码绑定数；绑定数只在详情路径计算，列表路径不带上。
      */
     private ModelDto enrich(ModelEntity entity) {
         TrafficPolicies traffic = trafficPolicySupport.load(TrafficResourceTypeEnum.MODEL.code(), entity.getId());
@@ -627,15 +604,8 @@ public class ModelService {
     }
 
     /**
-     * 归一化并校验模型级 Base Path。
-     *
-     * <p>空串表示「无模型级前缀」，这是绝大多数模型的常态——上游 host 一律由供应商账户提供。
-     * 只有供应商给每个模型分配独立路径段（如 Cloudsway 的 endpoint_id）时才需要填。</p>
-     *
-     * <p>刻意拒绝协议头 / query / fragment / 空格与中文：这些要么说明用户把 host 填错了位置，
-     * 要么会让 {@code WebClient.uri(String)} 当 URI 模板解析，导致实际请求地址与预期不符。</p>
-     *
-     * <p>包级可见：供单测直接驱动归一化规则，不必拖 ModelService 整条依赖链。</p>
+     * 归一化并校验模型级 Base Path：空串表示无模型级前缀，只有供应商给每个模型分配独立路径段时才需要填。
+     * 拒绝协议头 / query / fragment / 空格与中文。
      */
     static String normalizeBasePath(String basePath) {
         String value = basePath == null ? "" : basePath.trim();

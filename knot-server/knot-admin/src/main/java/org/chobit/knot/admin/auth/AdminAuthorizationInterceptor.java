@@ -24,7 +24,6 @@ public class AdminAuthorizationInterceptor implements HandlerInterceptor {
 
     /**
      * Validates the current admin request authorization before the controller executes.
-     * <p>
      * 默认拒绝：所有 {@code /api/**} 的 handler 方法都要经过接口级授权，无绑定即 403。
      * 公共接口通过在 {@code WebMvcConfig} 中显式配置 excludePathPatterns 白名单放行。
      */

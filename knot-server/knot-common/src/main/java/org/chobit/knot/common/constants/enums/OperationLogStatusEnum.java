@@ -6,10 +6,8 @@ import org.chobit.knot.common.error.ErrorCode;
 import java.util.List;
 
 /**
- * 操作日志执行结果：从 ks_enum_configs 的通用 status 字典中拆分出来的领域枚举，
- * 通过 /api/enum-options 以 OperationLogStatusEnum 键下发前端。
- *
- * <p>执行结果是运行时状态，与启用/停用的实体生命周期是不同领域的状态，不能混用。</p>
+ * 操作日志执行结果：通过 {@code /api/enum-options} 以 {@code OperationLogStatusEnum} 键下发前端。
+ * 运行时状态，与启用/停用的实体生命周期状态不混用。
  */
 public enum OperationLogStatusEnum implements NumericEnumOption {
     SUCCESS(1, "成功"),

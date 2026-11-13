@@ -9,10 +9,8 @@ import java.util.Map;
 
 /**
  * 网关 DECISIONS 端点的真实调用实现（dogfooding：复用网关鉴权 / 路由 / 计费）。
- *
- * <p>与被测调用同实例：基地址由管理端 {@code GatewayRuntimeProperties.normalizedBaseUrl()} 透传。
- * 裁判凭据仅写入 {@code Authorization: Bearer <secretKey>} 头；请求体只放 state / questions /
- * provider / session_id / trace——凭据不进请求体、不进日志、不下前端（v7 §6.1 纪律）。</p>
+ * 与被测调用同实例，基地址由管理端 {@code GatewayRuntimeProperties.normalizedBaseUrl()} 透传；
+ * 裁判凭据仅写入 {@code Authorization: Bearer <secretKey>} 头，请求体只放 state / questions / provider / session_id / trace，凭据不进请求体、不进日志、不下前端。
  */
 @Service
 public class RestClientDecisionsTransport implements DecisionsTransport {

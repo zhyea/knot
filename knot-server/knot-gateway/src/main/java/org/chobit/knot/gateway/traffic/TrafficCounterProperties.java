@@ -8,13 +8,8 @@ import java.time.ZoneId;
 
 /**
  * 频控 / 额度计数配置（{@code knot.traffic.*}）。
- *
- * <p>{@code store} 决定用哪种存储实现：单节点 {@code caffeine}（默认），
- * 多节点 {@code redis}（全局口径）。两种实现共用同一套键与判定逻辑，切换只改这一项配置。</p>
- *
- * <p><b>故障口径：redis 档一律 fail-hard</b>，无fail-open 开关、无降级档
- * （2026-10-15 决策）——频控承载全局额度口径，静默按「计 0」放行会让多节点实际限额
- * 悄悄涨到「配置值 × 节点数」，超发且无感知。Redis 不可用时抛异常 → 网关 503 + ERROR 报警。</p>
+ * {@code store} 决定用哪种存储实现：单节点 {@code caffeine}（默认），多节点 {@code redis}（全局口径）；两种实现共用同一套键与判定逻辑，切换只改这一项配置。
+ * 故障口径：redis 档一律 fail-hard，无 fail-open 开关、无降级档；Redis 不可用时抛异常 → 网关 503 + ERROR 报警。
  */
 @Getter
 @Setter
@@ -23,9 +18,7 @@ public class TrafficCounterProperties {
 
     /**
      * 计数存储实现：{@code caffeine}（单节点，默认）/ {@code redis}（多节点全局）。
-     *
-     * <p>⚠ <b>必须保持 {@code null} 默认值</b>：null 表示「未显式设置」，
-     * 归一时回落 {@code caffeine}；给了默认值就分不清显式配置与未配置。</p>
+     * 默认值保持 {@code null}（表示「未显式设置」），归一时回落 {@code caffeine}。
      */
     private String store;
 
@@ -36,7 +29,7 @@ public class TrafficCounterProperties {
     private String keyPrefix = "knot:traffic";
 
     /**
-     * 日 / 月额度窗口换算所用时区；多节点必须配置成同一个值，否则窗口边界不一致。
+     * 日 / 月额度窗口换算所用时区；多节点必须配置成同一个值。
      */
     private String zone = "Asia/Shanghai";
 

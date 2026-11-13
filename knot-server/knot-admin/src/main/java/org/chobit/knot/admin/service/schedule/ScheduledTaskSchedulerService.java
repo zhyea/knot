@@ -15,11 +15,7 @@ import java.util.Date;
 
 /**
  * 把任务定义装进 Quartz，并在触发后回写「下一次触发时间」。
- *
- * <p>⭐ <b>为什么留在 admin</b>：本类依赖 Quartz 的 {@link Scheduler}。
- * knot-service 是 admin 与 gateway 共用的层，把 Quartz 装配塞进去会让网关也去装配一个
- * 它根本不用的调度器（网关没有 Quartz 配置，缺 bean 会直接起不来）。
- * 数据访问已收进 svc 的 {@link ScheduledTaskService}，本类只负责调度语义。</p>
+ * 本类依赖 Quartz 的 {@link Scheduler}，数据访问经 {@link ScheduledTaskService}，只负责调度语义。
  */
 @Slf4j
 @Service

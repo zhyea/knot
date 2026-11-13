@@ -13,19 +13,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 单节点在途计量：Caffeine。
- *
- * <p>三条实现要点：</p>
- * <ol>
- *   <li><b>原子性</b>：走 {@code cache.asMap().compute}，Caffeine 对同一 key 的计算是排他的，
- *       并发 enter/leave 不会丢计数。</li>
- *   <li><b>逐键过期</b>：用 {@link Expiry} 按条目自身携带的过期时刻计算 TTL；leave 不推后过期时刻，
- *       泄漏的计数最多存活一个 TTL。</li>
- *   <li><b>归零即删</b>：leave 把在途减到 0 时直接移除条目，避免零值条目长期占堆；
- *       递减时条目已不存在（过期）则不做任何事，返回 0——迟到递减不得压出负在途。</li>
- * </ol>
- *
- * <p>局限：只统计本进程内的在途请求，多节点部署下各节点各算一份，是<b>近似</b>负载；
- * 需要全局口径切到 {@code RedisModelLoadStore}。</p>
+ * 走 {@code cache.asMap().compute} 保证并发 {@code enter}/{@code leave} 原子性；用 {@link Expiry} 按条目携带的过期时刻逐键计算 TTL，{@code leave} 不推后过期时刻。
+ * {@code leave} 减到 0 时移除条目；条目已过期时递减不做任何事并返回 0，不压出负在途。
+ * 只统计本进程内请求，多节点下为近似负载；全局口径用 {@code RedisModelLoadStore}。
  */
 public class CaffeineModelLoadStore implements ModelLoadStore {
 
@@ -109,9 +99,7 @@ public class CaffeineModelLoadStore implements ModelLoadStore {
         return result;
     }
 
-    /**
-     * 可变 gauge 条目：存活期间只在其上加减，避免频繁替换缓存条目。
-     */
+    /** 可变 gauge 条目：存活期间只在其上加减。 */
     private static final class Gauge {
 
         private volatile long value;

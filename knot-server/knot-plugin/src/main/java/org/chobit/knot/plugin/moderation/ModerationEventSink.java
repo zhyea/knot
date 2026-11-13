@@ -4,12 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.chobit.knot.common.util.JsonKit;
 /**
- * 命中事件出口。<b>已确认：不必等 Kafka 就绪</b> —— 本期结构化日志先行，运维侧采集即用；
- * Kafka 配齐后在本类内切到 {@code ${prefix}.moderation.hits} topic，主链路无感。
+ * 敏感词命中事件出口：当前输出结构化日志，事件只带元数据、不含原文。
  *
- * <p>与 {@code PluginLogWriter} 的分工：后者是<b>链路日志</b>（请求/响应/错误的原始载荷，
- * payload 受 {@code PluginLogPayload} sealed 约束）；本类是<b>业务事件</b>，面向数仓，
- * 只带元数据、不含原文，故不并入 sealed 契约。</p>
+ * 与 {@code PluginLogWriter} 的分工：后者是链路日志（原始载荷，payload 受 {@code PluginLogPayload} sealed 约束），
+ * 本类是面向数仓的业务事件，不并入 sealed 契约。
  */
 @Slf4j
 public class ModerationEventSink {

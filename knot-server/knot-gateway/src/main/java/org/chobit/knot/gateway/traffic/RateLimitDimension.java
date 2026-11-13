@@ -8,12 +8,7 @@ import java.util.List;
 /**
  * 限流维度：与 {@code kb_rate_limit_policies} 的 {@code rpm} / {@code tpm} 一一对应，
  * 两者都是分钟级固定窗口（窗口序号 = {@code epochMillis / 60000}，与时区无关，多节点一致）。
- *
- * <p>两者的记账时机不同，这是由「请求前拿不到 token 数」决定的：</p>
- * <ul>
- *   <li>{@link #RPM}：请求进入即 +1，不管上游成败，超出即拒；</li>
- *   <li>{@link #TPM}：请求成功后按真实用量累加，超限只能在<b>后续请求</b>上拦住。</li>
- * </ul>
+ * {@link #RPM} 请求进入即 +1，不管上游成败，超出即拒；{@link #TPM} 请求成功后按真实用量累加，超限只能在后续请求上拦住。
  */
 public enum RateLimitDimension {
 
@@ -72,10 +67,8 @@ public enum RateLimitDimension {
     }
 
     /**
-     * 计数键的 TTL：比窗口结束时刻多留一个窗口长度余量，避免节点间时钟偏差导致翻页抖动。
-     *
-     * <p>这是<b>存储层</b>的过期时间，不是业务上的重置时刻——后者取 {@link #windowEndMillis}，
-     * 否则 {@code Retry-After} 会凭空多报一分钟。</p>
+     * 计数键的 TTL：比窗口结束时刻多留一个窗口长度余量，容忍节点间时钟偏差。
+     * 这是存储层的过期时间，不是业务上的重置时刻——后者取 {@link #windowEndMillis}。
      */
     public long expireAtMillis(long nowMillis) {
         return (nowMillis / WINDOW_MILLIS + 2) * WINDOW_MILLIS;

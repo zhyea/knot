@@ -13,13 +13,7 @@ import java.util.List;
 
 /**
  * 一次请求的上游调用轨迹：候选循环里逐次写入，请求终态时快照成响应层的 {@code attempts[]}。
- *
- * <p>存在 {@code GatewayRequestContext} 的属性里（键 {ATTRIBUTE}）：候选循环在
- * {@code GatewayRequestHandler} 内部，而发布点在父类模板，两者只能通过上下文传递。</p>
- *
- * <p>为什么要把每次上游调用都留下来：一次客户端请求可能顺延多个候选、每个候选可能重投多次，
- * 只有 kept 到 attempt 粒度才算得出「单个模型的失败率」。请求层/响应层两级粒度做统计，
- * attempt 明细又不独立成表，靠的就是这个内嵌轨迹。</p>
+ * 存于 {@code GatewayRequestContext} 的属性中。
  */
 public final class CallTraceContext {
 
@@ -65,7 +59,7 @@ public final class CallTraceContext {
     }
 
     /**
-     * 因异常摘除被跳过的候选数：<b>不是限流拒绝</b>，统计时勿混为一谈。
+     * 因异常摘除被跳过的候选数：不是限流拒绝，统计时勿混为一谈。
      */
     public int ejectedSkipped() {
         int count = 0;

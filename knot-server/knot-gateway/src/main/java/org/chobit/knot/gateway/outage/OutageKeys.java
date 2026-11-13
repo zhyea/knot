@@ -2,12 +2,7 @@ package org.chobit.knot.gateway.outage;
 
 /**
  * 摘除状态键的拼装入口。
- *
- * <p>键格式：{@code <prefix>:RULE:<ruleCode>:MODEL:<modelCode>}，
- * 例如 {@code knot:outage:RULE:gpt4o-default:MODEL:gpt-4o}。</p>
- *
- * <p>作用域是<b>规则 × 模型</b>：同一个供应商模型在不同路由规则下独立累计、独立恢复。
- * 模型池目标在候选展开阶段已摊平为具体模型码，故池内单模型异常不会误伤同池其他模型。</p>
+ * 键格式 {@code <prefix>:RULE:<ruleCode>:MODEL:<modelCode>}（如 {@code knot:outage:RULE:gpt4o-default:MODEL:gpt-4o}），作用域为「规则 × 模型」，同一模型在不同规则下独立累计、独立恢复；池目标在候选展开阶段摊平为具体模型码。
  */
 public final class OutageKeys {
 

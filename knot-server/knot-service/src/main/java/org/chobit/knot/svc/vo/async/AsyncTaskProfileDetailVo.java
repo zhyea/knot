@@ -3,13 +3,7 @@ package org.chobit.knot.svc.vo.async;
 import java.time.LocalDateTime;
 
 /**
- * 异步任务档案的管理面视图：在运行时载体 {@code AsyncTaskProfileDto} 之外，补上
- * 「管理面才关心」的四类信息。
- *
- * <p>⭐ <b>为什么运行时载体不直接加这些字段</b>：{@code AsyncTaskProfileDto} 是网关轮询时的输入，
- * 它刻意不含启用状态与管理字段（见其类注释）。管理面要判断「这条档案现在能不能用、
- * 被谁用着、什么时候改过」，加的正是那三样。两者分居不是重复，而是<b>两种视角</b>：
- * 一个是「怎么查上游」，一个是「这条配置的生命周期」。</p>
+ * 异步任务档案的管理面视图：在运行时载体 {@code AsyncTaskProfileDto} 之外，补上「管理面才关心」的四类信息。
  *
  * @param bindingCount 当前引用该档案的模型绑定行数；删除前的占用信号（0 才可删）
  * @param createdAt    创建时刻

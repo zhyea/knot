@@ -9,14 +9,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 在途计量存储装配：模式由 {@code knot.load.store} 决定（默认 {@code caffeine}），
- * 两种模式共用同一个 {@link ModelLoadStore} 抽象，同一时刻只注册一个实现。
- *
- * <p>模式值统一由 {@link StoreModeResolver} 归一，与频控同一套读法。</p>
- *
- * <p><b>故障口径：Redis 档fail-hard。</b>在途数是 {@code LEAST_LOAD} 选路的唯一数据源，
- * 静默按 0 处理会让所有模型被看成「不拥塞」，负载均衡退化成权重序——已过载的模型继续被加压。
- * 因此 Redis 不可用时直接抛 {@code RedisUnavailableException} → 网关 503 + ERROR 日志报警。</p>
+ * 在途计量存储装配：模式由 {@code knot.load.store} 决定（默认 {@code caffeine}），两种模式共用 {@link ModelLoadStore} 抽象，同一时刻只注册一个实现。
+ * 模式值由 {@link StoreModeResolver} 归一；{@code redis} 档 fail-hard，Redis 不可用时抛 {@code RedisUnavailableException} → 网关 503 + ERROR 报警。
  */
 @Slf4j
 @Configuration
@@ -35,9 +29,8 @@ public class ModelLoadStoreConfiguration {
 
     /**
      * 在途计量存储实现。
-     *
-     * <p>{@code caffeine} 只统计本节点在途，集群部署下是近似口径；
-     * {@code redis} 为全局口径，Redis 故障时 fail-hard。</p>
+     * {@code caffeine} 只统计本节点在途，集群部署下是近似口径；
+     * {@code redis} 为全局口径，Redis 故障时 fail-hard。
      */
     @Bean
     public ModelLoadStore modelLoadStore(ModelLoadProperties properties,

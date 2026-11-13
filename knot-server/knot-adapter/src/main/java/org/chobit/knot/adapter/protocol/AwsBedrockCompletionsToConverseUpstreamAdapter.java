@@ -13,11 +13,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * AWS Bedrock Converse 适配器：OpenAI Completions → Converse。
- *
- * <p><b>只服务 {@code COMPLETIONS} 一种入协议</b>：{@code prompt} 折成单条 user 消息、
- * 移除 Completions 专有字段，再走 {@link AwsBedrockConverseSupport} 折成 Converse 请求。
- * 只服务 {@code bedrock-runtime} 端点。</p>
+ * AWS Bedrock Converse 适配器：OpenAI Completions → Converse，只服务 {@code COMPLETIONS} 入协议与 {@code bedrock-runtime} 端点。
+ * {@code prompt} 折成单条 user 消息、移除 Completions 专有字段，再走 {@link AwsBedrockConverseSupport} 折成 Converse 请求。
  */
 @Component
 @Order(30)

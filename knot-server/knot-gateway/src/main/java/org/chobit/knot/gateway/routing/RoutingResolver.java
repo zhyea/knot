@@ -68,8 +68,8 @@ public class RoutingResolver {
     }
 
     /**
-     * <p>候选只保留「声明了当前请求协议」的模型：协议能力取池内模型的<b>并集</b>（与调试面板一致），
-     * 但真正承接请求的候选必须自己支持该协议，避免把请求打到不具备该能力的上游。</p>
+     * 候选只保留「声明了当前请求协议」的模型：协议能力取池内模型的并集（与调试面板一致），
+     * 承接请求的候选必须自己支持该协议。
      *
      * @param stickyKey 粘性路由键（请求头原值，未传为 null）；仅当目标模型池开启粘性路由时参与池内首选的选择
      * @param protocol  本次请求的接口协议；为 null（未识别协议）时不作过滤，沿用原有候选链
@@ -106,9 +106,7 @@ public class RoutingResolver {
 
     /**
      * 校验「API Key × 规则编码」是否是一对可用组合；不解析候选模型、不做池内选择。
-     *
-     * <p>供不发起上游调用、但需要同一个鉴权口径的端点使用（异步任务查询端点）。</p>
-     *
+     * 供不发起上游调用、但需要同一个鉴权口径的端点使用（异步任务查询端点）。
      * @throws GatewayAuthException        键无效、消费者不可用、或该消费者无权使用这条规则
      * @throws GatewayInvalidRequestException 规则编码为空
      */
@@ -117,11 +115,8 @@ public class RoutingResolver {
     }
 
     /**
-     * 「API Key × 规则」鉴权的<b>唯一实现</b>。
-     *
-     * <p>⭐ 抽成单一方法而不是两处各写一遍：这份判定的任何一条
-     * （key 形态 / 消费者存在且启用 / 规则属于该消费者 / 规则绑定了应用 / 应用存在且启用）漏在另一处，
-     * 就等于开了一个绕开鉴权的旁路，而编译期完全看不出来。</p>
+     * 「API Key × 规则」鉴权的唯一实现：key 形态、消费者存在且启用、规则属于该消费者、
+     * 规则绑定了应用、应用存在且启用。
      */
     private RuleAccess resolveAccess(String secretKey, String ruleCode) {
         if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey)) {
@@ -207,10 +202,8 @@ public class RoutingResolver {
 
     /**
      * 规则目标的选中顺序：主目标恒钉首位，其余按规则策略排序。
-     *
-     * <p>{@code PRIORITY}（默认）：按 priority 降序，与存量行为一致。
-     * {@code LEAST_LOAD}：按目标<b>在途并发</b>升序（最空闲优先），在途相同再回落到 priority 序——
-     * 主目标不参与负载重排，保留「主目标」运维契约（见 §7 子决策 1）。</p>
+     * {@code PRIORITY}（默认）：按 priority 降序；{@code LEAST_LOAD}：按目标在途并发升序，相同时回落 priority 序。
+     * 主目标不参与负载重排。
      */
     private List<RoutingRuleTargetDto> orderTargets(String ruleCode, String strategyCode) {
         List<RoutingRuleTargetDto> targets = listTargets(ruleCode);
@@ -255,8 +248,8 @@ public class RoutingResolver {
     }
 
     /**
-     * 单个规则目标的在途并发：模型目标取自身；模型池目标取池内启用条目之和（整池压力）。
-     * 在途值从预取的 {@code inflightByModelCode} 读取（P8 批量预取，避免 N 次串行 GET）。
+     * 单个规则目标的在途并发：模型目标取自身，模型池目标取池内启用条目之和。
+     * 在途值从预取的 {@code inflightByModelCode} 读取。
      */
     private long targetLoad(RoutingRuleTargetDto target, Map<String, Long> inflightByModelCode) {
         if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
@@ -294,9 +287,8 @@ public class RoutingResolver {
     }
 
     /**
-     * 身份去重：同一路由目标（存储主键 targetCode + 目标类型）只保留一条。
-     * 用存储主键而非派生的 targetId，对齐「跨模块绑定存 code 不存 id」口径。
-     * 不手写整对象字段比对——那是字段清单的第二份真相，加字段必漏且编译器不报。
+     * 身份去重：同一路由目标（存储主键 {@code targetCode} + 目标类型）只保留一条。
+     * 用存储主键而非派生的 {@code targetId}（跨模块绑定存 code 不存 id）。
      */
     private boolean sameTarget(RoutingRuleTargetDto left, RoutingRuleTargetDto right) {
         if (left == null || right == null) {
@@ -408,12 +400,8 @@ public class RoutingResolver {
     }
 
     /**
-     * 按池级粘性策略把一致性 hash 命中的候选置顶为首选。
-     *
-     * <p>只改首选，不改 failover 链：其余候选仍按 {@code selection_strategy} 的原顺序排列，
-     * 因此首选被频控拒绝或上游失败时照常顺延，请求不会因粘性而失败。</p>
-     *
-     * <p>策略关闭、粘性键为空、候选不足两个时原样返回——粘性是显式 opt-in 的能力。</p>
+     * 按池级粘性策略把一致性 hash 命中的候选置顶为首选：只改首选，其余候选仍按 {@code selection_strategy} 原顺序作为 failover 链。
+     * 策略关闭、粘性键为空、候选不足两个时原样返回。
      */
     private List<PoolItemCandidate> applySticky(List<PoolItemCandidate> ordered,
                                                 String stickyPolicyJson,

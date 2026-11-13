@@ -7,15 +7,8 @@ import java.util.Map;
 
 /**
  * Decisions 协议请求（OpenRouter AlphaDecisions：{@code POST /api/alpha/decisions}）。
- *
- * <p>协议形态与对话类完全不同：入参是「待评估内容 {@code state}」+「一组待判定问题
- * {@code questions}」，出参是问题名到答案的一一映射，不做文本生成。</p>
- *
- * <p>{@code questions} 的值是四类多态变体（{@code noul} / {@code choice} / {@code score} /
- * {@code box}），判别键为 {@code type}，且 {@code criteria} 是开放键结构（choice 为任意选项名
- * 到说明的映射，score 为有序说明数组）。网关只做转发与用量提取、不消费问题语义，
- * 因此此处不做变体强类型建模，原样承载避免丢字段；未知字段由基类
- * {@link GatewayModelRequest} 的 {@code extra} 兜底透传。</p>
+ * 入参是待评估内容 {@code state} 与一组待判定问题 {@code questions}，出参是问题名到答案的映射，不做文本生成。
+ * {@code questions} 为四类变体（{@code noul} / {@code choice} / {@code score} / {@code box}），判别键 {@code type}，{@code criteria} 为开放键结构；原样承载，未知字段由 {@link GatewayModelRequest} 的 {@code extra} 透传。
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DecisionsRequest extends GatewayModelRequest {

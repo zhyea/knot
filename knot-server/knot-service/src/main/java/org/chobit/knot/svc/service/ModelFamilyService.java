@@ -20,14 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 
 /**
- * 模型族维护服务。
- *
- * <p>模型族是模型域概念，但主数据仍落在枚举表 {@code ks_enum_configs}
- * （category={@value #CATEGORY}），与「系统管理 / 枚举管理」同源；本服务只是把它按模型域
- * 单独暴露一套受权限控制的接口，避免为了维护模型族而开放全量枚举的读写权限。</p>
- *
- * <p>⭐ 对外只吐 {@link ModelFamilyItem}。实体仍在内部用（{@code EnumConfigEntity} 出现在
- * <b>私有逻辑</b>里是正常的）：红线管的是「跨模块出去的那一刻」，不是「svc 里能不能出现 entity」。</p>
+ * 模型族维护服务。主数据落在枚举表 {@code ks_enum_configs}（category={@value #CATEGORY}），
+ * 本服务按模型域单独暴露一套受权限控制的接口；对外只吐 {@link ModelFamilyItem}。
  */
 @Service
 public class ModelFamilyService {

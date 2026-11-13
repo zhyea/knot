@@ -38,8 +38,7 @@ public interface BillingRuleMapper {
 
     /**
      * 计费路径回退：模型未显式绑定规则时按模型族取当前生效规则。
-     *
-     * <p>族精确匹配优先，其次回退 {@code model_family} 为空的默认规则（覆盖所有族）。</p>
+     * 族精确匹配优先，其次回退 {@code model_family} 为空的默认规则（覆盖所有族）。
      */
     BillingRuleEntity getActiveByModelFamily(@Param("modelFamilyCode") String modelFamilyCode,
                                              @Param("effectiveAt") LocalDateTime effectiveAt);

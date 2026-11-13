@@ -17,29 +17,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Anthropic Messages 响应形状的双向转换（协议级，不隶属单一供应商）。
- *
- * <p>四个泛化适配器的响应侧收口在此：{@code ChatCompletions/Completions/Responses → Messages}
- * 三个方向的入协议响应都要从 Messages 形状翻回客户端协议形状，{@code Messages →
- * ChatCompletions} 反向亦然。请求侧形状知识在 {@link AnthropicMessagesRequestSupport}。</p>
- *
- * <p>约定（与 {@code AwsBedrockConverseSupport.handleConverseResponse} 同构）：</p>
- * <ul>
- *   <li><b>非目标形状原样返回</b>——上游错误体（{@code type:error}）、非 JSON、缺 {@code choices}
- *       等情况一律透传，绝不把错误响应改写成「看起来成功」的形状；</li>
- *   <li><b>usage 双向换算</b>：Messages 侧 {@code input_tokens/output_tokens} ↔ OpenAI 侧
- *       {@code prompt_tokens/completion_tokens/total_tokens}。转换产物同时是计费侧的输入
- *       （整包里 {@code handleResponse} 的产物就是提取器吃的数据），故两个方向都必须带 usage；</li>
- *   <li><b>缓存口径待实测（R2）</b>：Messages→OpenAI 方向把 {@code input_tokens} 原样作为
- *       {@code prompt_tokens}、缓存读写以独立键携带（Anthropic 的 input 不含缓存写，配
- *       {@code ANTHROPIC} 提取器加回后口径正确）；反向不带缓存键——OpenAI 的
- *       {@code prompt_tokens} 已含 {@code cached_tokens}，再携带会被加回提取器二次计入。
- *       真实环境实测后再统一两侧口径；</li>
- *   <li><b>文本与工具块都转</b>：文本走 {@link PayloadTextSupport#textOf}，
- *       {@code tool_use} 块 ↔ {@code tool_calls} / {@code function_call} 走
- *       {@link AnthropicToolSupport}（工具语义的唯一所有者）；本类只负责把它们装进各协议的
- *       响应外壳里（{@code chat.completion} / {@code text_completion} / {@code response}）。</li>
- * </ul>
+ * Anthropic Messages 响应形状的双向转换（协议级，不隶属单一供应商）；请求侧形状见
+ * {@link AnthropicMessagesRequestSupport}。非目标形状（错误体 / 非 JSON / 缺 {@code choices}）原样透传。
+ * usage 双向换算 {@code input_tokens/output_tokens} ↔ {@code prompt_tokens/completion_tokens}；
+ * Messages→OpenAI 的缓存读写以独立键携带，反向不带缓存键。
  */
 public final class AnthropicMessagesResponseSupport {
 
@@ -72,11 +53,8 @@ public final class AnthropicMessagesResponseSupport {
     private static final String RESPONSE = "response";
 
     /**
-     * Anthropic {@code stop_reason} → OpenAI {@code finish_reason}。
-     *
-     * <p>与 {@code AwsBedrockConverseSupport.FINISH_REASONS} 刻意不共用：那张表映射的是 Converse
-     * 自己的词表（含 {@code content_filtered} / {@code guardrail_intervened}），本表只认 Anthropic
-     * 的 {@code pause_turn} / {@code refusal}——两张表服务两个协议的枚举，合并会把词表混成一批。</p>
+     * Anthropic {@code stop_reason} → OpenAI {@code finish_reason}，只认 Anthropic 词表
+     * （含 {@code pause_turn} / {@code refusal}）。
      */
     private static final Map<String, String> FINISH_REASONS = Map.of(
             "end_turn", "stop",
@@ -240,9 +218,8 @@ public final class AnthropicMessagesResponseSupport {
     }
 
     /**
-     * Messages 响应的识别：{@code type=message} 且 {@code content} 是块列表。
-     *
-     * <p>错误体（{@code type:error}）与任何异形体都判否——响应适配绝不改写错误响应。</p>
+     * Messages 响应的识别：{@code type=message} 且 {@code content} 是块列表；
+     * 错误体（{@code type:error}）与任何异形体判否。
      */
     private static Map<String, Object> messagesResponse(String responseBody) {
         if (StringUtils.isBlank(responseBody)) {
@@ -331,10 +308,8 @@ public final class AnthropicMessagesResponseSupport {
     }
 
     /**
-     * OpenAI 口径 usage → Messages 口径：{@code prompt→input}、{@code completion→output}。
-     *
-     * <p>刻意不带缓存键：OpenAI 的 {@code prompt_tokens} 已含 {@code cached_tokens}，
-     * 再以 Messages 缓存键携带会被加回型提取器二次计入（与类注释 R2 同一决策点）。</p>
+     * OpenAI 口径 usage → Messages 口径：{@code prompt→input}、{@code completion→output}，
+     * 不带缓存键。
      */
     private static Map<String, Object> anthropicUsage(Object usageNode) {
         Map<String, Object> source = usageOf(usageNode);
@@ -361,10 +336,8 @@ public final class AnthropicMessagesResponseSupport {
     }
 
     /**
-     * Anthropic {@code stop_reason} → OpenAI {@code finish_reason}。
-     *
-     * <p>公开给流式转换复用（{@code AnthropicStreamSupport}）：同一张词表只能有一个所有者——
-     * 流式与整包各抄一份是「跨类逐字重复」的直接来源。</p>
+     * Anthropic {@code stop_reason} → OpenAI {@code finish_reason}，公开给流式转换
+     * （{@code AnthropicStreamSupport}）复用。
      */
     public static String finishReason(Object stopReason) {
         String raw = StringUtils.trimToEmpty(PayloadMapSupport.stringOf(stopReason));

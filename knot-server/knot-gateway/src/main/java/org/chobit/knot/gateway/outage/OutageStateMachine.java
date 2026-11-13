@@ -4,9 +4,7 @@ import org.chobit.knot.common.model.EjectionPolicy;
 
 /**
  * 摘除状态机：所有状态转换的纯函数实现，不碰任何存储。
- *
- * <p>抽成纯函数是为了让 Caffeine 与 Redis 两种实现共享同一套语义，且可以脱离存储做单测——
- * 存储层只负责「原子地读-改-写」，判定逻辑全部在这里。</p>
+ * 判定逻辑全部在这里，存储层只负责原子地「读-改-写」。
  */
 public final class OutageStateMachine {
 
@@ -15,13 +13,7 @@ public final class OutageStateMachine {
 
     /**
      * 记录一次异常并给出新状态。
-     *
-     * <p>口径：</p>
-     * <ul>
-     *   <li>窗口已过期 → 开新窗口，计数从本次重新起算；</li>
-     *   <li>处于探活中 → 判为探活失败：租约释放，冷却按倍数增长（封顶）后重新摘除；</li>
-     *   <li>其余 → 计数 +1，达阈值即摘除（首次摘除用策略的基础冷却）。</li>
-     * </ul>
+     * 窗口已过期则开新窗口、计数从本次起算；探活中判为探活失败，释放租约、冷却按倍数增长（封顶）后重新摘除；其余计数 +1，达阈值即摘除（首次用策略基础冷却）。
      */
     public static OutageState recordAnomaly(OutageState current, EjectionPolicy policy, AnomalyKind kind, long nowMillis) {
         OutageState state = current == null ? OutageState.HEALTHY : current;
@@ -55,15 +47,8 @@ public final class OutageStateMachine {
 
     /**
      * 记录一次成功。
-     *
-     * <p>探活请求成功 → 整条状态清除（恢复健康）；普通成功 → 只清零<b>失败</b>计数，
-     * <b>保留慢计数</b>，不动摘除状态（解除摘除只能靠冷却 + 探活）。</p>
-     *
-     * <p>为什么不清慢计数：成功只能证明「这次没失败」，不能证明「不慢」——流式请求的
-     * 慢信号（{@code recordSlow}）在首 token 回调里产生，天然晚于请求线程的
-     * {@code recordSuccess}；若成功同时清零慢计数，慢信号会在「清零 → +1」循环里
-     * 永远无法累积到阈值。慢计数的清除路径：窗口过期自然重开、探活成功整条清除、
-     * 手动 release。</p>
+     * 探活请求成功则整条状态清除（恢复健康）；普通成功只清零失败计数、保留慢计数，不动摘除状态（解除摘除只能靠冷却 + 探活）。
+     * 慢计数的清除路径：窗口过期重开、探活成功整条清除、手动 {@code release}。
      */
     public static OutageState recordSuccess(OutageState current, boolean probing, long nowMillis) {
         OutageState state = current == null ? OutageState.HEALTHY : current;

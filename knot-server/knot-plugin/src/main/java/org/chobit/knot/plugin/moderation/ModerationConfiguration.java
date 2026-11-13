@@ -6,12 +6,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 敏感词审核装配：全局唯一一份策略，无资源级绑定解析。
+ * 敏感词审核装配：全局唯一一份策略，无资源级绑定解析；只装配审核运行时（事件 sink + 守卫）。
  *
- * <p>只装配审核运行时：事件 sink + 守卫。词库编译缓存（{@link ModerationWordCache}）与
- * 本配置类均为 {@code @Component} / {@code @EnableConfigurationProperties} 自注册，
- * 无需在此显式声明。词库数据由网关每请求经 {@code GatewayPluginContext.words} 下发
- * （网关只提供资源），守卫经 IOC 取缓存编译快照——本模块不碰持久层。</p>
+ * {@link ModerationWordCache} 与本配置类自注册；词库数据由网关每请求经 {@code GatewayPluginContext.words} 下发，
+ * 本模块不碰持久层。
  */
 @Configuration
 @EnableConfigurationProperties(PluginProperties.class)

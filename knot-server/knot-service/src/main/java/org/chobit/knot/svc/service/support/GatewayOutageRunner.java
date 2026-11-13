@@ -18,24 +18,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 网关摘除管理面的转发执行器：把 admin 后端的查询 / 恢复 / 手动摘除请求透传到网关
- * {@code /_admin/outages*}，网关自带令牌 / loopback 准入（见网关侧 {@code OutageAdminController}）。
- *
- * <p>2026-10-24 改进清单 3.3：本类原为 {@code service} 包下的 {@code GatewayOutageService}——
- * 它没有业务编排，只是「建 RestClient + 发三个请求 + 翻译异常」，挂在 {@code @Service} 上
- * 既违反「Service 层只做编排」也把自建外部客户端固化进了业务类。现按
- * {@code RestClientDecisionsTransport} 的同款形态收进 {@code service.support}，
- * 以 {@code Runner} 后缀标识「执行器」角色。</p>
- *
- * <p>网关基地址由 admin 侧 {@code GatewayRuntimeProperties.normalizedBaseUrl()} 透传；
- * 可选 {@code adminToken} 作为 {@code X-Knot-Admin-Token} 头下发，与网关侧
- * {@code knot.outage.admin-api.token} 同源（同一部署共享 {@code KNOT_GATEWAY_ADMIN_TOKEN}）。</p>
+ * 网关摘除管理面的转发执行器：把 admin 后端的查询 / 恢复 / 手动摘除请求透传到网关 {@code /_admin/outages*}，网关自带令牌 / loopback 准入（网关侧 {@code OutageAdminController}）。
+ * 网关基地址由 admin 侧 {@code GatewayRuntimeProperties.normalizedBaseUrl()} 透传；
+ * 可选 {@code adminToken} 作为 {@code X-Knot-Admin-Token} 头下发，与网关侧 {@code knot.outage.admin-api.token} 同源（同一部署共享 {@code KNOT_GATEWAY_ADMIN_TOKEN}）。
  */
 @Component
 public class GatewayOutageRunner {
 
     /**
-     * 网关管理面准入令牌头（与网关侧 {@code GatewayHeaders.X_KNOT_ADMIN_TOKEN} 一致；此处硬编码避免反向依赖网关模块）。
+     * 网关管理面准入令牌头，与网关侧 {@code GatewayHeaders.X_KNOT_ADMIN_TOKEN} 一致。
      */
     private static final String ADMIN_TOKEN_HEADER = "X-Knot-Admin-Token";
     /**

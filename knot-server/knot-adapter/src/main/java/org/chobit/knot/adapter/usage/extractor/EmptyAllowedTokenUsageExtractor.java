@@ -14,17 +14,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 容忍空用量的 token 提取器：取量口径与 {@link DefaultTokenUsageExtractor} <b>完全一致</b>
- * （同一出口 {@code TokenBillingUsage.fromResponse}），唯一差别是显式声明
- * {@link #allowsEmptyUsage()} 为 {@code true}。
- *
- * <p>适用对象：上游 {@code usage} 里会带本提取器不消费的正数字段，导致 token 分项被读成全零的供应商。
- * 典型如只回了 {@code completion_tokens_details.reasoning_tokens} 或媒体时长、
- * 而 {@code prompt_tokens} / {@code completion_tokens} 均为 0 的响应。
- * 这类响应在默认提取器下会被判成「口径错配」并让请求失败，绑到本提取器即放行。</p>
- *
- * <p><b>这是显式配置，不是兜底</b>：它不解析新协议、不猜测字段语义，只向注册表声明
- * 「我这个模型允许全零」。是否真的缺量，仍可由 WARN 日志与对账侧观察。</p>
+ * 容忍空用量的 token 提取器：取量口径与 {@link DefaultTokenUsageExtractor} 完全一致（同一出口 {@code TokenBillingUsage.fromResponse}），
+ * 唯一差别是把 {@link #allowsEmptyUsage()} 显式声明为 {@code true}。
+ * 适用于 {@code prompt_tokens} / {@code completion_tokens} 均为 0、只带本提取器不消费的正数字段（如 {@code reasoning_tokens} 或媒体时长）的响应；
+ * 该类响应在默认提取器下会因「口径错配」让请求失败，绑定本提取器即放行。
  */
 @Component
 @Order(1)

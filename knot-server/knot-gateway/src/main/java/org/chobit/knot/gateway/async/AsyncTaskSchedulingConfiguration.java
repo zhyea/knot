@@ -6,15 +6,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 /**
- * 异步任务轮询调度：启用 {@code @Scheduled} 并提供专用 {@code TaskScheduler}。
- *
- * <p><b>为什么必须自定义</b>：Spring 默认的任务调度器是<b>单线程</b>的，
- * 一个卡住的 tick 会连带停掉所有 {@code @Scheduled} 方法。这里给一个小线程池
- * （轮询的并发由 {@code AsyncTaskProperties#concurrency} 与 boundedElastic 承载，
- * 本池只负责「发起这一轮」，不需要大）。</p>
- *
- * <p>Bean 名取 {@code taskScheduler}：{@code @Scheduled} 按类型查找调度器，
- * 命名为默认名可覆盖 Boot 的自动配置，避免出现「两个调度器、行为随容器而变」。</p>
+ * 异步任务轮询调度：启用 {@code @Scheduled} 并提供专用 {@code TaskScheduler}（小线程池，只负责「发起这一轮」）。
+ * Bean 名取 {@code taskScheduler}，{@code @Scheduled} 按类型查找调度器，命名为默认名可覆盖 Boot 的自动配置。
  */
 @Configuration(proxyBeanMethods = false)
 @EnableScheduling

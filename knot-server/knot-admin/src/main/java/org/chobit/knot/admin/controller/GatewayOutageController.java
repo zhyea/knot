@@ -19,16 +19,9 @@ import java.util.List;
 
 /**
  * 网关摘除管理面（admin 侧）：把管理端操作透传到网关 {@code /_admin/outages*}。
- *
- * <p>三个端点：</p>
- * <ul>
- *   <li>{@code GET /api/gateway/outages?ruleCode=&modelCode=}：当前非健康条目列表；</li>
- *   <li>{@code POST /api/gateway/outages/release}：手动恢复；</li>
- *   <li>{@code POST /api/gateway/outages/eject}：手动摘除（可带冷却与人工原因）。</li>
- * </ul>
- *
- * <p>实际 HTTP 调用在 {@link GatewayOutageRunner} 完成，本控制器只负责鉴权（接口级授权）、
- * 参数校验与操作日志。网关基地址 / 令牌由 {@link GatewayRuntimeProperties} 透传。</p>
+ * 端点：{@code GET /api/gateway/outages?ruleCode=&modelCode=} 列当前非健康条目、{@code POST /api/gateway/outages/release} 手动恢复、
+ * {@code POST /api/gateway/outages/eject} 手动摘除（可带冷却与人工原因）。
+ * 实际 HTTP 调用在 {@link GatewayOutageRunner} 完成；本控制器只负责鉴权、参数校验与操作日志，网关基地址 / 令牌由 {@link GatewayRuntimeProperties} 透传。
  */
 @RestController
 @RequestMapping("/api/gateway/outages")

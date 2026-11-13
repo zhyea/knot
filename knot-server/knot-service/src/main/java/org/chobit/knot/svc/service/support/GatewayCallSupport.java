@@ -7,13 +7,6 @@ import org.springframework.web.client.HttpStatusCodeException;
 
 /**
  * 网关调用异常翻译的唯一出口：4xx 复用既有错误码，连接失败 / 5xx 归为网关不可用（503）。
- *
- * <p>此前 svc 的 {@code GatewayOutageRunner} 与 admin 的 {@code GatewayAsyncTaskRunner}
- * 各写一份逐字相同的实现（含 400/401/403/404 映射表）。任一侧改错误语义，另一侧不会跟上，
- * 两个 app 对同一次网关故障会给出不同的对外错误码——而这类漂移在编译与单测里都看不见。</p>
- *
- * <p>放在 svc 而不是 common：唯一两处消费方分属 svc 与 admin，而 admin 已依赖 svc；
- * 挪到 common 会把 Spring Web 的异常类型带进最底层模块。</p>
  */
 public final class GatewayCallSupport {
 

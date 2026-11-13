@@ -8,14 +8,7 @@ import org.chobit.knot.common.util.JsonKit;
 import java.util.Set;
 
 /**
- * 审计快照脱敏的唯一出口。
- *
- * <p>此前 {@code OperationLogAspect}（写侧）与 {@code OperationLogService}（读侧）各存一份
- * 忽略字段名单、各写一份逐字相同的递归实现——内容目前一致，但没有任何东西钉住它们。
- * 任一侧增删字段，审计快照的口径就会静默分叉：写进去的与读出来的不是同一份数据视图，
- * 且编译与单测全绿。收口到一处后，名单只有一份事实。</p>
- *
- * <p>忽略的是「更新时间」这类高噪音、无审计价值的字段。</p>
+ * 审计快照脱敏的唯一出口；忽略「更新时间」这类高噪音、无审计价值的字段。
  */
 public final class OperationLogSnapshotSupport {
 

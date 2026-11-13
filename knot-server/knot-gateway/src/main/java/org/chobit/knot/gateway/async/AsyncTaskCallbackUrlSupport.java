@@ -7,25 +7,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * {@code callback_url} 的入口守卫：只放行<b>可安全出站</b>的地址。
- *
- * <p>⭐⭐ <b>为什么必须有这一层</b>：{@code callback_url} 是<b>客户端指定、由网关发起</b>的
- * 出站目标。不加限制时，任何人只要提交一条带 {@code callback_url=http://10.0.0.5/admin}
- * 的视频任务，就能让网关带着业务数据向内部服务发 POST —— 这是典型的 SSRF。
- * 原先这段地址被整体剥掉，安全问题不存在；现在要支持回调，就必须把它当成一条安全边界守。</p>
- *
- * <p>守卫分两层：</p>
- * <ol>
- *   <li><b>一律拦截</b>回环 / 私网 / 链路本地 / CGNAT / 保留地址（含明文 IPv4 与 IPv6）；
- *       跳过它等于允许任意内网访问；</li>
- *   <li><b>可选主机白名单</b>（{@code callback-allowed-hosts}，后缀匹配）：
- *       配了就只允许这些域，适合「只允许合作方回调域」的部署。</li>
- * </ol>
- *
- * <p>⚠ <b>残余风险如实登记</b>：本类只做字符串层面的地址判定，<b>不做 DNS 解析后的 IP 复核</b>，
- * 因此攻击者若控制一个公网域名、把 A 记录指向内网（DNS rebinding），仍可绕过。
- * 要彻底收口需要「解析 → 判 IP → 用解析结果直连并锁 Host」，代价是引入自定义 HTTP 传输层。
- * 当前选择：默认拦截字面内网地址 + 提供白名单配置；对公网开放回调的场景，运维应配白名单。</p>
+ * {@code callback_url} 的入口守卫：只放行可安全出站的地址。
+ * 一律拦截回环 / 私网 / 链路本地 / CGNAT / 保留地址（含明文 IPv4 与 IPv6）。
+ * 可选主机白名单 {@code callback-allowed-hosts}（后缀匹配），配了就只允许这些域。
  */
 public final class AsyncTaskCallbackUrlSupport {
 

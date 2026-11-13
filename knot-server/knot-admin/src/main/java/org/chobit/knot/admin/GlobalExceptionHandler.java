@@ -19,7 +19,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.util.UUID;
 
 /**
- * 全局异常处理器，统一返回 {@link ApiResponse}，避免再被
+ * 全局异常处理器，统一返回 {@link ApiResponse}，不经
  * {@link org.chobit.knot.admin.rw.ApiResponseWrapperAdvice} 二次包装。
  */
 @Slf4j
@@ -96,10 +96,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 未匹配到任何 handler（含不存在的路径 / 被删除的端点）。
-     *
-     * <p>Spring 6.1+ 对未匹配路径抛 {@link NoResourceFoundException}，若不拦截会落到
-     * {@code handleException} 变成 500；此处显式返回 404，便于前端区分「接口不存在」与「服务端故障」。</p>
+     * 未匹配到任何 handler（含不存在的路径 / 被删除的端点），显式返回 404。
+     * Spring 6.1+ 对未匹配路径抛 {@link NoResourceFoundException}，不拦截会落到 {@code handleException} 变成 500。
      */
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)

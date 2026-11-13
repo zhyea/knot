@@ -2,9 +2,7 @@ package org.chobit.knot.svc.dto.outage;
 
 /**
  * 手动摘除 / 恢复的动作回执（镜像网关侧 {@code OutageAdminAck}）。
- *
- * <p>网关在执行完动作后把生效状态快照回传，admin 后端原样透传给前端，前端无需再查一次列表。</p>
- *
+ * 网关在执行完动作后把生效状态快照回传，admin 后端原样透传给前端，前端无需再查一次列表。
  * @param ruleCode     路由规则业务码
  * @param modelCode    供应商模型业务码
  * @param action       动作标识（{@code eject} / {@code release}）

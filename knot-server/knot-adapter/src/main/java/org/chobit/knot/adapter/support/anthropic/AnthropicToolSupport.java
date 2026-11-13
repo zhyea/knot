@@ -11,26 +11,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 工具语义的 Anthropic Messages ↔ OpenAI 系双向转换（协议级，不隶属单一供应商）。
- *
- * <p>工具调用是<b>跨三类载体的同一份语义</b>，本类把三处一次性收齐，避免各适配器各写一份：
- * <ol>
- *   <li><b>请求侧声明</b>：{@code tools} / {@code tool_choice} 的形状；
- *   <li><b>消息载体</b>：OpenAI 用 {@code assistant.tool_calls} + {@code role:tool} 消息，
- *       Anthropic 用 {@code assistant.content[].tool_use} + {@code user.content[].tool_result}；
- *   <li><b>响应侧产物</b>：整包 {@code tool_calls} / {@code tool_use} 块、流式 {@code tool_calls} 增量。
- * </ol>
- *
- * <p>三条约定（与 {@code AnthropicMessagesResponseSupport} 同风格）：</p>
- * <ul>
- *   <li><b>形状不认识就不动</b>：入参不是预期的 OpenAI/Anthropic 形状时返回 {@code null}
- *       （调用方据此保留原值），绝不把第三方自定义形状猜着改；</li>
- *   <li><b>不丢内容</b>：消息里出现未知 content 块类型（{@code image} 等）时整条消息原样保留，
- *       不做块级重写——半懂比不懂更危险；</li>
- *   <li><b>参数两侧编码不同</b>：Anthropic 的 {@code input} 是对象，OpenAI 的 {@code arguments}
- *       是 JSON 文本。对象→文本用 {@link JsonKit#toJson}，文本→对象解析失败退化为空对象
- *       （Anthropic 要求 {@code input} 必须是对象，退化成空对象好过整个请求 400）。</li>
- * </ul>
+ * 工具语义的 Anthropic Messages ↔ OpenAI 系双向转换（协议级），覆盖请求侧 {@code tools} /
+ * {@code tool_choice}、消息载体（{@code assistant.tool_calls} + {@code role:tool} ↔
+ * {@code tool_use} + {@code tool_result}）与响应侧 {@code tool_calls} 产物。
+ * 形状不认识时返回 {@code null}（调用方保留原值）；未知 content 块整条消息原样保留；
+ * 参数侧 Anthropic {@code input} 是对象、OpenAI {@code arguments} 是 JSON 文本，解析失败退化为空对象。
  */
 public final class AnthropicToolSupport {
 
@@ -50,14 +35,10 @@ public final class AnthropicToolSupport {
     // ============================ 请求侧：OpenAI → Anthropic ============================
 
     /**
-     * OpenAI 系 {@code tools} → Anthropic {@code tools}：{@code parameters} 改名为 {@code input_schema}，
-     * 剥掉 chat 形状的 {@code function} 外层包装。
-     *
-     * <p>同时吃 OpenAI 的两种规范形状——chat.completions 的
-     * {@code [{type:function, function:{name,description,parameters}}]} 与 Responses 的
-     * 扁平 {@code [{type:function, name, description, parameters}]}。识别判据是「读得到
-     * {@code name}」：有 {@code function} 对象就下钻一层，否则视自身为函数体。
-     * 已经是 Anthropic 形状时本方法幂等（{@code input_schema} 原样保留）。</p>
+     * OpenAI 系 {@code tools} → Anthropic {@code tools}：{@code parameters} 改名 {@code input_schema}，
+     * 剥掉 chat 形状的 {@code function} 外层包装。同时吃 chat.completions 的
+     * {@code [{type:function, function:{...}}]} 与 Responses 的扁平 {@code [{type:function, name, ...}]}，
+     * 判据是「读得到 {@code name}」；已是 Anthropic 形状时幂等。
      *
      * @return 转换结果；一个 {@code name} 都读不到时返回 {@code null}（形状不认识，调用方保留原值）
      */
@@ -114,12 +95,9 @@ public final class AnthropicToolSupport {
     }
 
     /**
-     * OpenAI 消息数组 → Anthropic 消息数组，只重写<b>带工具语义</b>的两类消息：
-     * {@code assistant.tool_calls} 折成 {@code tool_use} 块；{@code role:tool} 折成
-     * {@code user} 消息里的 {@code tool_result} 块（连续多条 tool 结果合并进同一条 user 消息，
-     * 对齐 Anthropic「tool_use 之后紧跟 tool_result」的配对要求）。
-     *
-     * <p>其余消息与无法识别的形状原样保留——本方法只回答工具载体怎么换，不重排普通会话。</p>
+     * OpenAI 消息数组 → Anthropic 消息数组，只重写带工具语义的两类消息：{@code assistant.tool_calls}
+     * 折成 {@code tool_use} 块；{@code role:tool} 折成 {@code user} 消息里的 {@code tool_result} 块
+     * （连续多条 tool 结果合并进同一条 user 消息）。其余消息与无法识别的形状原样保留。
      */
     public static List<Map<String, Object>> messagesToAnthropic(List<?> messages) {
         List<Map<String, Object>> converted = new ArrayList<>(messages.size());
@@ -203,11 +181,9 @@ public final class AnthropicToolSupport {
     }
 
     /**
-     * Anthropic 消息数组 → OpenAI 消息数组。{@code tool_use} 块折成
-     * {@code assistant.tool_calls}；{@code tool_result} 块拆成独立的 {@code role:tool} 消息
-     * （一条 Anthropic user 消息可能因此产出多条 OpenAI 消息，故返回列表长度不固定）。
-     *
-     * <p>content 里出现未知块类型时整条消息原样保留（不丢内容），见类注释第二条约定。</p>
+     * Anthropic 消息数组 → OpenAI 消息数组：{@code tool_use} 块折成 {@code assistant.tool_calls}；
+     * {@code tool_result} 块拆成独立的 {@code role:tool} 消息（返回列表长度不固定）。
+     * content 里出现未知块类型时整条消息原样保留。
      */
     public static List<Map<String, Object>> messagesToOpenAi(List<?> messages) {
         List<Map<String, Object>> converted = new ArrayList<>(messages.size());

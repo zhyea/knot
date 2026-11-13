@@ -11,9 +11,7 @@ import org.springframework.stereotype.Component;
 import java.util.Set;
 
 /**
- * Anthropic 鉴权：{@code x-api-key: <apiKey>} + 固定协议头 {@code anthropic-version}。
- * anthropic-version 是 Anthropic 协议常量、不是凭据，但属于「该供应商怎么被访问」的
- * 固有知识，故随鉴权策略一起收口在这里，不放进请求适配器。
+ * Anthropic 鉴权：写 {@code x-api-key: <apiKey>} 与协议固定头 {@code anthropic-version}。
  */
 @Component
 @Order(20)

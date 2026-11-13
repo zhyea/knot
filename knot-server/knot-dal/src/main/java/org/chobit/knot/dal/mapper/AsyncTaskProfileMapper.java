@@ -13,20 +13,15 @@ public interface AsyncTaskProfileMapper {
     AsyncTaskProfileEntity getByProfileCode(@Param("profileCode") String profileCode);
 
     /**
-     * 按编码读取<b>启用</b>档案（运行时唯一入口）。
-     *
-     * <p>⚠ 停用档案也要能被管理面读到（否则无法重新启用），所以这里和
-     * {@link #getByProfileCode} 是两个方法，而不是给后者加一个 status 条件。</p>
+     * 按编码读取启用档案（运行时唯一入口）；含停用档案的读取走 {@link #getByProfileCode}。
      */
     AsyncTaskProfileEntity getEnabledByProfileCode(@Param("profileCode") String profileCode);
 
     List<AsyncTaskProfileEntity> listEnabled();
 
     /**
-     * 管理面检索（条件为 null 表示不限）。
-     *
-     * <p>⚠ {@code status} 判空用 {@code != null}，不能写 {@code status != ''}：
-     * 前者是本表唯一正确的写法，后者在整型列上会被 MyBatis 的 OGNL 当成与 0 比较。</p>
+     * 管理面检索（条件为 {@code null} 表示不限）。{@code status} 判空必须用 {@code != null}：
+     * 整型列上写 {@code status != ''} 会被 MyBatis 的 OGNL 当成与 0 比较。
      */
     List<AsyncTaskProfileEntity> search(@Param("keyword") String keyword,
                                         @Param("protocol") String protocol,

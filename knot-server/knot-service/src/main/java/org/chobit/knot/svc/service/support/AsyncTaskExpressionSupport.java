@@ -11,42 +11,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 异步任务档案的表达式求值（MVEL）：<b>取值</b>与<b>终态判定</b>两类。
- *
- * <p><b>为什么用 MVEL 而不是自带的 JSON 路径语法</b>（2026-10-28 robin 定，原
- * {@code AsyncTaskJsonPath} 已删）：路径语法只能「下钻」，而真实档案需要的是
- * <b>表达式</b>——终态判定本身就不是「取值相等」，而是「这个状态算不算成功」；
- * 各家还会出现「成功态在 {@code data[0].status}、失败原因在 {@code data[0].error.code}」
- * 这类条件取值。路径语法每加一种写法就要改一次 Java 代码，表达式则只改档案配置。</p>
- *
- * <p><b>两类求值的失败口径不同，这是刻意的</b>：</p>
- * <ul>
- *   <li><b>取值（{@link #text}）</b>：取不到 = {@code null}，由调用方解释成「还没出结果」。
- *       上游响应尚未成形、字段暂时缺失都会走这里——判成 null 比判死任务安全。
- *       语法错误仍然抛（配置错必须响）。</li>
- *   <li><b>严格取值（{@link #requireText}）</b>：取不到必抛，只有「创建响应里的上游任务 ID」用它
- *       （2026-11-01 定）。它不是「还没出结果」，而是「这次有没有建成异步任务」的唯一判据——
- *       回 null 会让调用方回退同步，把上游已建任务的响应当成最终结果交出去，钱花了却什么都没记。</li>
- *   <li><b>判定（{@link #test}）</b>：<b>必须返回布尔</b>，返回别的（字符串 / 数字 / null）
- *       一律抛 {@link IllegalStateException}。这一条是本次改造最要紧的护栏：
- *       旧档案里 {@code succeeded,failed} 这类逗号列表在 MVEL 下是「变量名」，
- *       求值会抛「unresolvable property」；若这里宽容成 false，任务会永远 RUNNING，
- *       直到超时才结单——配置错被伪装成上游慢，是最难查的一类事故。</li>
- * </ul>
- *
- * <p><b>⚠ 表达式来自哪里</b>：{@code kb_async_task_profiles}，只由管理端 / 运维脚本写入，
- * 与 SQL 同权限级别。求值时<b>只绑定数据</b>（响应体 Map + {@code status} 字符串），
- * 不绑定任何服务 bean 或类加载器。表达式里只应写取值与比较，不要写方法调用/构造对象。</p>
+ * 异步任务档案的表达式求值（MVEL）：取值与终态判定两类。
+ * {@link #text} 取不到回 {@code null}、语法错抛；{@link #requireText} 取不到必抛（用于创建响应里的上游任务 ID）；{@link #test} 必须返回布尔，否则抛 {@link IllegalStateException}。
+ * 表达式取自 {@code kb_async_task_profiles}，只由管理端 / 运维脚本写入；求值时只绑定数据（响应体 Map + {@code status} 字符串），不绑定服务 bean 或类加载器，只写取值与比较。
  */
 @Slf4j
 public final class AsyncTaskExpressionSupport {
 
     /**
-     * 编译缓存：表达式文本 → 编译结果。
-     *
-     * <p>轮询线程每拍都要对每条任务求值若干次，不缓存等于每次都解析一遍字符串。
-     * key 用表达式原文，因此改档案（换表达式）自然过期，不存在失效逻辑。
-     * 规模上限就是档案行数 × 6，无需淘汰。</p>
+     * 编译缓存：表达式文本 → 编译结果；key 用表达式原文，改档案自然过期，无需失效逻辑，规模上限为档案行数 × 6。
      */
     private static final Map<String, Serializable> COMPILED = new ConcurrentHashMap<>();
 
@@ -84,12 +57,6 @@ public final class AsyncTaskExpressionSupport {
     /**
      * 取值（对象）：按表达式从响应体取一个 {@code Map}，供结算读取上游嵌在 {@code data.*} 的 usage。
      *
-     * <p>⭐⭐ <b>为什么不能复用 {@link #text}</b>：{@code text} 的结果要过 {@code scalar}，
-     * 而 {@code scalar} 明确把 {@code Map} / {@code Iterable} 判成「取不到」回 {@code null}
-     * —— {@code AsyncTaskExpressionSupportTest#structureIsNotAScalar} 钉死了这条行为，不能为了取 usage
-     * 去改它，否则 {@code result_path} 填错时就会把整段 JSON 当产物地址交出去。取对象要的正是「结构本身」，
-     * 与取标量是两种相反的结果口径。</p>
-     *
      * @param root       响应体
      * @param expression 取值表达式，如 {@code data.usage}
      * @return 取到的 {@code Map}；root / 表达式为空、取不到、结果不是 Map（标量 / 数组 / null）时回 {@code null}
@@ -117,18 +84,7 @@ public final class AsyncTaskExpressionSupport {
     }
 
     /**
-     * 取值（严格）：取不到就是配置或上游契约出了问题，<b>必须抛</b>。
-     *
-     * <p>⭐⭐ <b>与 {@link #text} 的分工</b>（2026-11-01 robin 定）：{@code text} 服务轮询期读
-     * 状态 / 产物 / 失败原因——「这次还没出」是常态，回 {@code null} 由调用方解释成「还没出结果」。
-     * 但<b>「创建响应里取上游任务 ID」不属于这一类</b>：它不是「还没出结果」，而是
-     * 「这次到底有没有建成异步任务」的唯一判据。取不到就没有东西可轮询，回 {@code null}
-     * 会让调用方回退同步、把「任务已创建」的响应当成最终结果交给客户端——
-     * 上游的钱已经花了，本地却什么都没记下来，是这个能力里最坏的一种结局。所以这一处必须响。</p>
-     *
-     * <p>⚠ 编译 / 求值 / 非标量三条分支都不能并成「取不到」：它们分别对应
-     * 「表达式写错」「上游少了字段或结构变了」「填的是整包 JSON」，
-     * 处置方案完全不同（改档案 / 找上游 / 改表达式），合并后只剩一条无从下手的信息。</p>
+     * 取值（严格）：取不到就是配置或上游契约出了问题，必须抛。
      *
      * @param root       响应体
      * @param expression 取值表达式（档案列，如 {@code data.id}）
@@ -192,10 +148,7 @@ public final class AsyncTaskExpressionSupport {
     }
 
     /**
-     * 编译并缓存。
-     *
-     * <p>语法错在这里抛（{@code CompileException} → 本类包成 {@link IllegalStateException}），
-     * 于是「档案写错」在第一次用到时就炸，而不是求值到一半才发现。</p>
+     * 编译并缓存；语法错在这里抛（{@code CompileException} → 本类包成 {@link IllegalStateException}）。
      */
     private static Serializable compiled(String expression) {
         return COMPILED.computeIfAbsent(expression, key -> {
@@ -209,33 +162,15 @@ public final class AsyncTaskExpressionSupport {
 
     /**
      * 取值（多值）：表达式返回标量时得到单元素列表，返回数组时逐个取标量，其余一律空列表。
-     *
-     * <p>⭐ <b>为什么需要它</b>（2026-10-29）：视频协议一次生成 N 个产物（可灵
-     * {@code data.task_result.videos[*].url}、即梦 {@code content.videos[*]}），而
-     * {@link #text} 只认标量、遇数组回 {@code null}。让「一条表达式既能表达单产物也能表达多产物」
-     * 比再加一列 {@code result_paths} 更省：档案作者只学一种写法。</p>
-     *
-     * <p>与 {@link #text} 同一套失败口径：语法错抛、取不到回空列表；列表里的非标量元素
-     * （嵌套对象）直接跳过，不把整段 JSON 当 URL。</p>
+     * 与 {@link #text} 同一套失败口径：语法错抛、取不到回空列表；列表里的非标量元素（嵌套对象）直接跳过。
      */
     public static List<String> texts(Map<String, Object> root, String expression) {
         return texts(root, expression, null);
     }
 
     /**
-     * 取值（多值，带元素字段名）：数组元素是对象时，按 {@code itemField} 取每个对象的那个字段。
-     *
-     * <p>⭐⭐ <b>为什么需要 {@code itemField} 而不是一条纯表达式</b>（2026-10-29 实测）：MVEL 2.5.2
-     * 在本项目的求值路径下<b>不支持投影/选择</b>——{@code videos.![url]} 抛
-     * {@code could not access: !}、{@code videos.?[url != null]} 抛 {@code could not access: [url}、
-     * lambda 与 {@code stream().map(...)} 全部 {@code CompileException}。而视频协议恰好都是
-     * 「数组里套对象」（可灵 {@code data.task_result.videos[].url}、即梦 {@code content.videos[].url}），
-     * 纯表达式只能取到 {@code [0]}，n>1 的产物会被静默丢掉。</p>
-     *
-     * <p>所以把它拆成两个<b>都能试跑验证</b>的事实：{@code result_path} 指向数组
-     * （{@code data.task_result.videos}），{@code result_url_field} 指定字段名（{@code url}）。
-     * 这比在 Java 里猜字段名（尝试 url/video_url/file_url…）可解释得多——猜错的后果是
-     * 「产物为空 → RESULT_MISSING → 不计费」。</p>
+     * 取值（多值，带元素字段名）：数组元素是对象时，按 {@code itemField} 取每个对象的那个字段；
+     * {@code result_path} 指向数组（{@code data.task_result.videos}），{@code result_url_field} 指定字段名（{@code url}）。
      */
     public static List<String> texts(Map<String, Object> root, String expression, String itemField) {
         if (root == null || StringUtils.isBlank(expression)) {
@@ -266,11 +201,8 @@ public final class AsyncTaskExpressionSupport {
     }
 
     /**
-     * 只做编译校验，不求值（管理面保存档案 / 试跑前的静态检查）。
-     *
-     * <p>⚠ <b>能编译 ≠ 能求值</b>：裸标识符（{@code succeed}）编译通过、求值才抛，判定表达式
-     * 返回非布尔也是求值期才发现。所以保存时用它挡语法错，语义错必须靠试跑
-     * （{@code AsyncTaskProfileService#dryRun}）暴露。</p>
+     * 只做编译校验，不求值（管理面保存档案 / 试跑前的静态检查）；能编译 ≠ 能求值，
+     * 保存时挡语法错，语义错靠试跑（{@code AsyncTaskProfileService#dryRun}）暴露。
      */
     public static void validate(String expression) {
         if (StringUtils.isNotBlank(expression)) {

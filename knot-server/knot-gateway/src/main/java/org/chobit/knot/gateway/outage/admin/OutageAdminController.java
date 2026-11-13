@@ -19,22 +19,10 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import java.util.List;
 
 /**
- * 摘除管理面 API（网关侧，路径前缀 {@code /_admin}，避开 OpenAI 兼容路径）。
- *
- * <p>三个端点：</p>
- * <ul>
- *   <li>{@code GET /_admin/outages?ruleCode=&modelCode=}：当前非健康条目（摘除中 + 探活中）；</li>
- *   <li>{@code POST /_admin/outages/release}：手动恢复；</li>
- *   <li>{@code POST /_admin/outages/eject}：手动摘除（可带冷却时长与人工原因）。</li>
- * </ul>
- *
- * <p><b>准入</b>：网关没有全局鉴权拦截器（鉴权在请求 handler 内按 key/rule 做），故本控制器
- * 自带保护——配置了令牌时校验请求头 {@code X-Knot-Admin-Token}；未配置时仅放行 loopback。
- * {@code knot.outage.admin-api.enabled=false} 时整体不注册（404）。</p>
- *
- * <p><b>多节点口径</b>：摘除状态一律存进程内 Caffeine，因此本控制器的列表
- * <b>只反映被轮询到的那个实例</b>——各节点各摘各的。这是 2026-10-15 的有意取舍：
- * 摘除是本节点自己的异常观察，放 Redis 会让 Redis 故障同时打掉网关的自我保护能力。</p>
+ * 摘除管理面 API（网关侧，路径前缀 {@code /_admin}）。
+ * 端点：{@code GET /_admin/outages?ruleCode=&modelCode=} 列当前非健康条目（摘除中 + 探活中）；{@code POST /_admin/outages/release} 手动恢复；{@code POST /_admin/outages/eject} 手动摘除（可带冷却时长与人工原因）。
+ * 准入：配置令牌时校验请求头 {@code X-Knot-Admin-Token}，未配置时仅放行 loopback；{@code knot.outage.admin-api.enabled=false} 时整体不注册（404）。
+ * 摘除状态存进程内 Caffeine，列表只反映被轮询到的那个实例，多节点下各节点各摘各的。
  */
 @Slf4j
 @RestController
@@ -108,9 +96,7 @@ public class OutageAdminController {
 
     /**
      * 准入：配了令牌就比对请求头；没配只放行 loopback。
-     *
-     * <p>判定本身在 {@link GatewayAdminAccessSupport}——{@code /_admin/**} 的准入是安全边界，
-     * 不允许每个控制器各写一遍（异步任务管理面用的是同一份实现）。</p>
+     * 判定集中在 {@link GatewayAdminAccessSupport}，异步任务管理面共用同一份实现。
      */
     private void authorize(ServerHttpRequest request) {
         GatewayAdminAccessSupport.requireAccess(request, properties.getToken());

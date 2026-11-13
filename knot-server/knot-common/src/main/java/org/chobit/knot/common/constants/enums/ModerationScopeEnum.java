@@ -1,9 +1,7 @@
 package org.chobit.knot.common.constants.enums;
 
 /**
- * 敏感词审核作用方向：只审入站 / 只审出站 / 双向。
- *
- * <p>本期只建枚举 + 单测，<b>不注册 {@code EnumOptionRegistry}</b>（同 {@link ModerationActionEnum} 口径）。</p>
+ * 敏感词审核作用方向：只审入站 / 只审出站 / 双向；不注册 {@code EnumOptionRegistry}，不下发前端选项。
  */
 public enum ModerationScopeEnum implements EnumOption {
     REQUEST("REQUEST", "仅入站请求"),

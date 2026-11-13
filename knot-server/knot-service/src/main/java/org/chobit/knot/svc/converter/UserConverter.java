@@ -40,8 +40,7 @@ public interface UserConverter {
 
     /**
      * 更新入参：主键来自路径；{@code password} 不走更新通道（改密见 reset-password）。
-     *
-     * <p>登录名允许随更新一起改（未绑定引用时），所以 {@code username} 照常透传。</p>
+     * 登录名允许随更新一起改（未绑定引用时），所以 {@code username} 照常透传。
      */
     @Mapping(target = "id", source = "id")
     @Mapping(target = "password", ignore = true)

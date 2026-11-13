@@ -37,9 +37,7 @@ public class RwProperties {
     private List<String> tags = new ArrayList<>();
 
     /**
-     * Updates the default tags.
-     *
-     * <p>手写保留：null 入参归一为空列表， Lombok 生成的 setter 会原样置 null。
+     * Updates the default tags：null 入参归一为空列表（Lombok 生成的 setter 会原样置 null）。
      */
     public void setTags(List<String> tags) {
         this.tags = tags == null ? new ArrayList<>() : tags;

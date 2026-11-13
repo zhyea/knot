@@ -13,10 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Api permission binding management service for authorization administration.
- *
- * <p>⭐ 对外只吐 {@link AdminApiBindingItem}，实体不出本层（规范 §3.1：「边界在跨模块出去的那一刻」）。
- * 入参同样是 Item——{@code @OperationLog} 的 {@code oldValueSpel} 会调
- * {@link #apiBindingAuditSnapshot}，新旧快照必须是同一种载体，否则审计里两个 JSON 的字段集会不一致。</p>
+ * 对外只吐 {@link AdminApiBindingItem}，实体不出本层；入参同为 Item，
+ * 供 {@code @OperationLog} 的 {@code oldValueSpel} 取同载体的新老快照。
  */
 @Service
 public class AuthorizationApiBindingService {
@@ -89,9 +87,7 @@ public class AuthorizationApiBindingService {
 
     /**
      * Returns an api permission binding snapshot for operation log auditing.
-     *
-     * <p>仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @authorizationApiBindingService.apiBindingAuditSnapshot(#p0)}）
-     * 反射调用，Java 侧无直接引用，IDE 会误报 unused。</p>
+     * 仅由 {@code @OperationLog} 的 SpEL 表达式反射调用，Java 侧无直接引用。
      */
     @SuppressWarnings("unused")
     public AdminApiBindingItem apiBindingAuditSnapshot(Long id) {

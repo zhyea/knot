@@ -18,10 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 模型族维护。
- *
- * <p>数据仍存枚举表 {@code ks_enum_configs}（category='model_family'），这里只是按模型域
- * 单独开一套接口，使权限可以只授予「模型族」而不必开放全量枚举读写。</p>
+ * 模型族维护。数据存枚举表 {@code ks_enum_configs}（category='model_family'），按模型域单独开一套接口，权限可只授予「模型族」。
  */
 @RestController
 @RequestMapping("/api/model-families")

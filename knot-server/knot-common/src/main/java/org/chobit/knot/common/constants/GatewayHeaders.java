@@ -6,18 +6,9 @@ public final class GatewayHeaders {
     public static final String RULE = "Rule";
     public static final String TRACEPARENT = "traceparent";
     /**
-     * 网关自生成的请求标识：请求进入网关时生成 32 位小写 hex，随请求头透传给上游，
-     * 让供应商侧日志里能直接检索到我方 id（提工单时双侧对得上）。
-     *
-     * <p><b>与 {@code upstream_request_id} 严格区分</b>：本头是我方<b>发出去的</b> id；
-     * {@code upstream_request_id} 是上游<b>回来的</b> id（见 {@code UpstreamRequestIdResolver}）。
-     * 二者是不同系统的两套 id，不可互相替代，也不可混为一列。</p>
-     *
-     * <p>选择通用头名而非 {@code X-Knot-Request-Id}：多数供应商与反代（nginx 等）会把它记进
-     * 访问日志，可检索性最好。代价是少数上游会原样回显，故采集上游 id 时必须排除本值
-     * （否则我方 id 会冒充上游 id 污染 {@code upstream_request_id}）。</p>
-     *
-     * <p>客户端传入的同名请求头<b>一律忽略</b>：网关是唯一权威，防伪造与串号。</p>
+     * 网关自生成的请求标识：请求进入网关时生成 32 位小写 hex，随请求头透传给上游，供应商侧日志可直接检索。
+     * 与 {@code upstream_request_id} 严格区分——本头是我方发出去的 id，后者是上游回来的 id，不可互相替代。
+     * 客户端传入的同名请求头一律忽略（网关是唯一权威）。
      */
     public static final String X_REQUEST_ID = "X-Request-Id";
     /**
@@ -27,12 +18,9 @@ public final class GatewayHeaders {
      */
     public static final String X_KNOT_STICKY_KEY = "X-Knot-Sticky-Key";
     /**
-     * 管理面路由规则测试专用：请求头携带 {@code true} 时，本次调用临时开启「返回消费详情」
+     * 管理面路由规则测试专用：请求头携带 {@code true} 时，本次调用临时开启返回消费详情
      * （{@code knot_extend} 注入），无视该消费者 {@code return_usage_detail} 的关闭配置。
-     *
-     * <p>生效范围即「持有该消费者 secretKey 的请求方」：响应只多出本次调用自己的用量与
-     * 网关账目，不越权读取他人数据；正式流量的响应形态不受影响（不带头即维持原配置）。
-     * 与 {@link #X_KNOT_STICKY_KEY} 同为请求头先例，管理端调试抽屉勾选后随请求发送。</p>
+     * 响应只多出本次调用自己的用量与网关账目，不带头即维持原配置。
      */
     public static final String X_KNOT_TEST_RETURN_USAGE = "X-Knot-Test-Return-Usage";
     /**
@@ -56,11 +44,6 @@ public final class GatewayHeaders {
 
     /**
      * {@link #X_KNOT_TEST_RETURN_USAGE} 的取值解析：仅 {@code true}（忽略大小写与首尾空白）生效。
-     *
-     * <p>⭐ <b>解析口径必须只有一份</b>：同步响应注入（{@code GatewayRequestHandler}）与
-     * 异步任务查询端点（{@code AsyncTaskLookupRunner}）用的是同一个开关，两处各写一次
-     * {@code Boolean.parseBoolean} 迟早出现「同步认 TRUE、异步不认」这种只在调试时暴露的差异。
-     * 语义归头的定义处，调用方只问结论。</p>
      */
     public static boolean testReturnUsageRequested(String headerValue) {
         return headerValue != null && Boolean.parseBoolean(headerValue.trim());

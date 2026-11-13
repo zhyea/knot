@@ -9,20 +9,9 @@ import java.util.Arrays;
 
 /**
  * 供应商认证字段定义常量：{@code ProviderCredentialTypeEnum#requiredFields()} 的唯一数据源。
- *
- * <p>为什么单独一个类维护：字段是**数据**而不是逻辑，且同名字段会被多个认证类型复用
- * （{@code accessKey}/{@code secretKey} 同时属于 AWS_AUTH 与 AK_SK）。散在枚举里改一处就得记得
- * 改另一处；集中到这里后，枚举只保留 code / label 与「类型 → 字段集合」的引用关系。
- *
- * <p>组织方式分两段：先声明单字段常量（{@code *_FIELD}），再声明各认证类型的字段集合
- * （{@code *_FIELDS}）。节点结构（与前端契约一致）：
- * <pre>
- * {"name":"region", "label":"Region", "type":"select", "required":true,
- *  "default":"us-east-1", "placeholder":"...", "options":[{"value":"us-east-1","label":"..."}]}
- * </pre>
- *
- * <p>⚠ {@link JsonNode} 是可变对象：本类的常量**不得被调用方修改**，
- * 对外一律经 {@code ProviderCredentialTypeEnum#requiredFields()} 取深拷贝。
+ * 先声明单字段常量（{@code *_FIELD}），再声明各认证类型的字段集合（{@code *_FIELDS}）；
+ * 节点结构为 {@code {name, label, type, required, default, placeholder, options}}，与前端契约一致。
+ * {@link JsonNode} 是可变对象，本类常量不得被调用方修改，对外一律取深拷贝。
  */
 public final class ProviderCredentialFields {
 

@@ -20,14 +20,9 @@ import java.util.stream.Collectors;
 
 /**
  * 任务执行引擎：抢锁 → 调 handler → 记流水。
- *
- * <p>⭐ <b>为什么留在 admin</b>：它要收集 {@link ScheduledTaskHandler} 的实现
- * （{@code OPENROUTER_MODEL_SYNC} 等），这些实现只存在于管理端。数据访问已收进 svc 的
- * {@link ScheduledTaskService}。</p>
- *
- * <p>⚠ <b>SINGLE 模式的互斥靠 DB 会话锁</b>（{@code GET_LOCK}），不是进程内锁：
- * 多节点同时到点时只有一个节点能拿到锁，其余直接跳过（不排队、不补跑）。
- * {@code BROADCAST} 模式刻意<b>不加锁</b>——它的语义就是「每个节点各跑一次」。</p>
+ * 收集 {@link ScheduledTaskHandler} 的实现（{@code OPENROUTER_MODEL_SYNC} 等），数据访问经 {@link ScheduledTaskService}。
+ * SINGLE 模式靠 DB 会话锁（{@code GET_LOCK}）互斥：多节点同时到点只有一个节点能拿到锁，其余直接跳过（不排队、不补跑）。
+ * {@code BROADCAST} 模式不加锁，每个节点各跑一次。
  */
 @Slf4j
 @Service

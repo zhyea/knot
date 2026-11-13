@@ -8,20 +8,10 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Supported provider credential types. The code is persisted as a string,
- * while the enum keeps the supported values and references the credential
- * field definitions.
- *
- * <p>{@code requiredFields} 不是一串字段名，而是**认证字段定义数组**（Jackson {@link JsonNode}），
- * 一处定义同时喂给两侧：
- * <ul>
- *   <li>前端 → 动态渲染表单（label 作标签、type 决定控件、options 作下拉选项、default 预填）；</li>
- *   <li>后端 → 保存校验（{@link #requiredFieldNames()} 取 required=true 的字段名）。</li>
- * </ul>
- *
- * <p><b>字段定义本身不在本枚举维护</b>：常量集中在 {@link ProviderCredentialFields}，
- * 同名字段（accessKey/secretKey）可被多个认证类型复用；本枚举只声明 code / label 与
- * 「类型 → 字段集合」的引用关系。
+ * Supported provider credential types. The code is persisted as a string; the enum declares the
+ * supported values, their labels and the reference to each type's credential field definitions.
+ * {@code requiredFields} 是认证字段定义数组（{@link JsonNode}），一处定义同时喂前端动态渲染表单
+ * 与后端保存校验（{@link #requiredFieldNames()}）；字段定义本体集中在 {@link ProviderCredentialFields}。
  */
 public enum ProviderCredentialTypeEnum {
     API_KEY("api-key", "ApiKey", ProviderCredentialFields.API_KEY_FIELDS),
@@ -49,9 +39,8 @@ public enum ProviderCredentialTypeEnum {
     }
 
     /**
-     * 认证字段定义数组（节点结构见 {@link ProviderCredentialFields}）；CUSTOM 返回空数组。
-     *
-     * <p>返回深拷贝：常量被多个认证类型共享，调用方改坏了会影响全局。
+     * 认证字段定义数组（节点结构见 {@link ProviderCredentialFields}）；{@code CUSTOM} 返回空数组，
+     * 且一律返回深拷贝，调用方修改不影响共享常量。
      */
     public JsonNode requiredFields() {
         return requiredFields.deepCopy();

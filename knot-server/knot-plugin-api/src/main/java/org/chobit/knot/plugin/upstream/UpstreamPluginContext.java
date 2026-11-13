@@ -21,9 +21,9 @@ public class UpstreamPluginContext extends PluginDispatchContext {
     private final Map<String, Object> responseSnapshot;
     private final Throwable error;
     /**
-     * 供应商侧请求 id（上游响应头白名单归一）：UPSTREAM_REQUEST 阶段恒为 null（上游未回），
+     * 供应商侧请求 id（上游响应头白名单归一）：UPSTREAM_REQUEST 阶段恒为 null，
      * UPSTREAM_RESPONSE / UPSTREAM_ERROR 阶段有值；无命中为 null。供日志插件输出，
-     * 用途是网关与供应商联合排查（不透客户端，见 §1.1 设计）。
+     * 用于网关与供应商联合排查，不透客户端。
      */
     private final String upstreamRequestId;
     /**
@@ -34,16 +34,11 @@ public class UpstreamPluginContext extends PluginDispatchContext {
     /**
      * 上游 HTTP 状态码：仅 UPSTREAM_ERROR 阶段且失败来自上游响应时有值；超时 / 连接失败等
      * 未拿到响应的失败为 null。
-     *
-     * <p>⭐ 由网关侧从 {@code GatewayUpstreamException} 解出后以普通值传入，<b>不让插件认识网关的异常类型</b>：
-     * knot-plugin 不能反向依赖 knot-gateway（会成环），故取「谁有类型谁解值」。</p>
      */
     private final Integer httpStatus;
     /**
      * 上游错误响应体原文：仅 UPSTREAM_ERROR 阶段且上游给了响应体时有值；其余为 null。
-     *
-     * <p>⭐ 与成功路径 {@code responseSnapshot.responseBody} <b>语义不同</b>：后者是
-     * {@code adapter.handleResponse} 之后的适配结果，本字段是供应商 wire 原文——错误排障要的正是后者。</p>
+     * 与成功路径 {@code responseSnapshot.responseBody}（{@code adapter.handleResponse} 适配结果）语义不同，本字段是供应商 wire 原文。
      */
     private final String upstreamResponseBody;
 
@@ -88,10 +83,6 @@ public class UpstreamPluginContext extends PluginDispatchContext {
 
     /**
      * 完整构造：额外带上「上游错误证据」（HTTP 状态码 + 错误体原文）。
-     *
-     * <p>⭐ 为什么要显式加参数而不是让插件自己去异常里取：knot-plugin 不能反向依赖
-     * knot-gateway，插件侧看不到 {@code GatewayUpstreamException}。网关侧解值、插件侧读值，
-     * 是唯一不破坏模块依赖方向的写法（见 {@code UpstreamPluginContextSupport}）。</p>
      */
     public UpstreamPluginContext(String traceId,
                                  String traceparent,
@@ -191,7 +182,7 @@ public class UpstreamPluginContext extends PluginDispatchContext {
     }
 
     /**
-     * 上游错误响应体<b>原文</b>；仅 UPSTREAM_ERROR 且上游给了响应体时有值，否则 null。
+     * 上游错误响应体原文；仅 UPSTREAM_ERROR 且上游给了响应体时有值，否则 null。
      */
     public String upstreamResponseBody() {
         return upstreamResponseBody;

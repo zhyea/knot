@@ -6,10 +6,8 @@ import java.time.LocalDateTime;
 
 /**
  * 敏感词条：Aho-Corasick 自动机的数据源。
- *
- * <p>分类（{@code category_code}）指向 {@code ks_enum_configs.item_code}，仅作<b>标签维度</b>：
- * 是否参与匹配只看本行 {@code status} / {@code is_deleted}，不因分类停用而失效。
- * 严重度挂在词条上而非分类：同一分类下不同词严重度不同。</p>
+ * 分类（{@code category_code}）指向 {@code ks_enum_configs.item_code}，仅作标签维度：
+ * 是否参与匹配只看本行 {@code status} / {@code is_deleted}。严重度挂在词条上而非分类。
  */
 @Data
 public class ModerationWordEntity {

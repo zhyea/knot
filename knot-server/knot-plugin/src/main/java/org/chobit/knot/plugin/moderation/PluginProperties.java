@@ -7,12 +7,9 @@ import org.chobit.knot.common.constants.enums.ModerationScopeEnum;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 敏感词插件配置：绑定 {@code knot.plugin.*} 前缀，随插件落在 knot-plugin
- * （2026-10-14 由 knot-gateway 迁入——配置消费方只剩守卫）。
+ * 敏感词插件配置：绑定 {@code knot.plugin.*} 前缀，action / scope 归到 {@code knot.plugin.moderation.*} 下。
  *
- * <p>敏感词插件的 action / scope 归到 {@code knot.plugin.moderation.*} 下。
- * 是否拦截由插件实例启停控制，不在此配置；词库时序参数（网关侧缓存刷新）
- * 随 {@link ModerationWordResource} 内联，不走配置。</p>
+ * 是否拦截由插件实例启停控制，不在此配置；词库时序参数随 {@link ModerationWordResource} 内联，不走配置。
  */
 @Data
 @ConfigurationProperties(prefix = "knot.plugin")
@@ -21,10 +18,7 @@ public class PluginProperties {
     private Moderation moderation = new Moderation();
 
     /**
-     * 启动期校验：{@code action} 必须是已知动作，否则直接失败。
-     *
-     * <p>不兜底、不降级——配置写错（含拼写错误、已移除的 MASK）必须在启动时暴露，
-     * 而不是等到请求进来按默认值静默跑（2026-10-24 MASK 移除后确立）。</p>
+     * 启动期校验：{@code action} 必须是已知动作，否则直接失败；不兜底、不降级。
      */
     @PostConstruct
     private void validateAction() {

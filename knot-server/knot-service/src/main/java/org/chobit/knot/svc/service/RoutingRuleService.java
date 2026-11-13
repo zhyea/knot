@@ -254,11 +254,9 @@ public class RoutingRuleService {
     }
 
     /**
-     * 规则编码的绑定处数：路由目标行（kb_routing_rule_targets.rule_code）+ 限流行（限流只落
-     * kb_resource_traffic_policies 聚合行，resource_type='ROUTING_RULE'，无额度子表）。
-     *
-     * <p>展示侧由已加载的行直接派生，不再单独发 count 查询（列表批量装配时避免 N+1）；
-     * 写路径的拦截以 {@link #countCodeBindings(String)} 的库内计数为准。</p>
+     * 规则编码的绑定处数：路由目标行（kb_routing_rule_targets.rule_code）+ 限流行
+     * （限流只落 kb_resource_traffic_policies 聚合行，resource_type='ROUTING_RULE'，无额度子表）。
+     * 展示侧由已加载的行直接派生，不单独发 count 查询；写路径拦截以 {@link #countCodeBindings(String)} 的库内计数为准。
      */
     private static long codeBoundCount(List<RoutingRuleTargetDto> targets, RateLimitPolicy rate) {
         long targetCount = targets == null ? 0L : targets.size();
@@ -275,9 +273,7 @@ public class RoutingRuleService {
 
     /**
      * 目标选择策略归一：未知 / 空白一律抛错，不做静默回退。
-     *
-     * <p>{@code kb_routing_rules.selection_strategy} 为 NOT NULL DEFAULT 'PRIORITY'，
-     * 写入入口已强校验，库中值保证合法；与模型池的 WEIGHTED 默认由各自 schema 默认值表达。</p>
+     * {@code kb_routing_rules.selection_strategy} 为 NOT NULL DEFAULT 'PRIORITY'，写入入口已强校验，库中值保证合法；与模型池的 WEIGHTED 默认由各自 schema 默认值表达。
      */
     private static String normalizeSelectionStrategy(String code) {
         return ModelPoolSelectionStrategyEnum.requireCode(code, "unsupported selection strategy: " + code);
@@ -311,12 +307,6 @@ public class RoutingRuleService {
 
     /**
      * 路由目标整表替换：按 {@code ruleCode} 先删后插。
-     *
-     * <p><b>刻意与 {@code ModelService#saveApiBindings} 的「按 id 增量 diff」不同，不要统一</b>
-     * （改进清单 4.7 决议）：目标列表的提交顺序不承载语义、行本身也没被按 id 外部引用，
-     * 全量替换一次落地最省心；反观 API 绑定的行 id 会进操作日志与后续引用，整批换 id 是噪音。
-     * 两者共用的是「编码改码守卫」这一份能力（{@link CodeBindingSupport}），
-     * 而不是明细保存策略。</p>
      */
     private void saveTargets(Long ruleId, List<RoutingRuleTargetDto> targets) {
         RoutingRuleEntity rule = routingRuleMapper.getById(ruleId);
@@ -478,7 +468,7 @@ public class RoutingRuleService {
     }
 
     /**
-     * 目标类型 code：空白/未知按 {@link RouteTargetTypeEnum#MODEL} 处理（历史数据与前端缺省同口径）。
+     * 目标类型 code：空白 / 未知按 {@link RouteTargetTypeEnum#MODEL} 处理。
      */
     private static String targetTypeCodeOf(RoutingRuleTargetDto target) {
         return RouteTargetTypeEnum.ofOrDefault(target.targetType(), RouteTargetTypeEnum.MODEL).code();

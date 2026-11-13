@@ -5,11 +5,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /**
- * 模型池下拉候选查询。value 语义=poolCode。资源专属过滤：按统一模型过滤。
- * 约定见 options-refactor-constraints.md 第 0 节（R5 强类型，禁止 Map 透传）。
+ * 模型池下拉候选查询，value 语义为 {@code poolCode}。资源专属过滤：按统一模型。
  *
- * <p>{@code logicalModelCode} 为硬过滤；{@code preferredLogicalModelCode} 为纯排序
- * （命中项置前，其余项仍可出现，路由规则目标选择器场景），两者语义分离。</p>
+ * {@code logicalModelCode} 为硬过滤；{@code preferredLogicalModelCode} 为纯排序（命中项置前，其余项仍可出现）。
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ModelPoolOptionQuery(

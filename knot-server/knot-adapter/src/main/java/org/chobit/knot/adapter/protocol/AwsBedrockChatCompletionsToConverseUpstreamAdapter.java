@@ -9,12 +9,8 @@ import org.springframework.stereotype.Component;
 import java.util.Set;
 
 /**
- * AWS Bedrock Converse 适配器：OpenAI ChatCompletions → Converse（请求侧原形状即 OpenAI chat，
- * 归一为空操作；响应侧与 Converse 目标形状构造走 {@link AwsBedrockConverseSupport}）。
- *
- * <p><b>只服务 {@code CHAT_COMPLETIONS} 一种入协议</b>，且<b>只服务 {@code bedrock-runtime} 端点</b>：
- * mantle 端点不支持 Converse（只暴露 OpenAI 兼容与 Anthropic Messages），mantle 模型直接绑定
- * {@link PassthroughUpstreamAdapter}。</p>
+ * AWS Bedrock Converse 适配器：OpenAI ChatCompletions → Converse，只服务 {@code CHAT_COMPLETIONS} 入协议与 {@code bedrock-runtime} 端点。
+ * 请求侧原形状即 OpenAI chat（归一为空操作）；响应侧与 Converse 目标形状构造走 {@link AwsBedrockConverseSupport}。
  */
 @Component
 @Order(30)

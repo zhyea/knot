@@ -81,9 +81,8 @@ public class GatewayUpstreamException extends GatewayRequestException {
 
     /**
      * 上游建议的重试等待时长（毫秒）；未给出或无法解析时为 null。
-     *
-     * <p>只有 429/503 这类明确限流响应才会携带；重试退避在策略开启
-     * {@code respectRetryAfter} 时取该值与指数退避的较大者。</p>
+     * 只有 429/503 这类明确限流响应才会携带；重试退避在策略开启
+     * {@code respectRetryAfter} 时取该值与指数退避的较大者。
      */
     public Long retryAfterMs() {
         return retryAfterMs;

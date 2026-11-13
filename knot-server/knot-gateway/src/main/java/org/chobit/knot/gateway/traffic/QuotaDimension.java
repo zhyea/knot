@@ -10,22 +10,8 @@ import java.util.List;
 
 /**
  * 限额维度：与 {@code kb_quota_policies} 的 {@code max_tokens} / {@code cost_limit} 一一对应。
- *
- * <p>两者都按策略指定的
- * {@link org.chobit.knot.common.constants.enums.QuotaWindowEnum 统计窗口}累计、窗口结束清零，
- * 且都在请求成功后才记账——上游失败与 failover 重试不消耗额度。</p>
- *
- * <p>成本维度以「1e-12」为单位存成整数计数：计费侧的成本字符串已不再限定小数位
- * （见 {@code NormalizedBillingAmount}），计数侧若仍卡在 8 位，6 位小数单价下的极限小额
- * （1 token × 0.000001 ÷ 1e6 = 1e-12）会被抹成 0，表现为「明明花超了却一直不超限」。
- * 用 {@code long} 缩放值累加既避开浮点误差，也与 Redis {@code INCRBY} 的语义天然契合。</p>
- *
- * <p><b>配置精度与计数精度是两回事，别一起改</b>：用户配置成本上限只要求 4 位小数
- * （{@code cost_limit DECIMAL(18,4)}、前端 {@code precision=4}），那是「预算能配到多细」的诉求；
- * 内部计数精度由单次成本的最小量级决定，与配置精度无关。</p>
- *
- * <p>取值上界：{@code long} 计数约 9.2e18，12 位缩放对应金额上限约 9.2e6（920 万）。
- * 超出这个范围由 {@link #toScaledAmount(BigDecimal)} 明确报错，不静默溢出。</p>
+ * 两者都按策略指定的 {@link org.chobit.knot.common.constants.enums.QuotaWindowEnum 统计窗口}累计、窗口结束清零，且只在请求成功后才记账——上游失败与 failover 重试不消耗额度。
+ * 成本维度以 1e-12 为单位存成 {@code long} 整数计数；12 位缩放对应的金额上界约 9.2e6（920 万），超出由 {@link #toScaledAmount(BigDecimal)} 显式报错，不静默溢出。
  */
 public enum QuotaDimension {
 
@@ -34,12 +20,7 @@ public enum QuotaDimension {
 
     /**
      * 成本的计数单位：1 元 = 10^12 计数。
-     *
-     * <p>这是**计数器自己的**截断口径，与对外金额字符串的小数位无关（后者已不设上限）。
-     * 取 12 位是为了兜住计费侧的最小单次成本：6 位小数单价 × 1 token ÷ 1e6 = 1e-12，
-     * 8 位缩放会把它抹成 0，配额永远不累加。</p>
-     *
-     * <p><b>不要因为成本上限只配 4 位小数就把它降到 4</b>——那是配置精度，不是计数精度。</p>
+     * 这是计数器自己的截断口径，与对外金额字符串的小数位、与成本上限的配置精度（4 位小数）都无关。
      */
     public static final int COST_SCALE = 12;
 
@@ -66,8 +47,7 @@ public enum QuotaDimension {
 
     /**
      * 该维度在给定策略下的限额（成本维度已换算成 1e-12 计数）；{@code <= 0} 表示这一维度不限。
-     *
-     * <p>成本维度缺币种时视为未配置——不做汇率换算，币种不明就不累加。</p>
+     * 成本维度缺币种时视为未配置——不做汇率换算，币种不明就不累加。
      */
     public long limitOf(QuotaPolicy policy) {
         if (policy == null) {
@@ -84,17 +64,8 @@ public enum QuotaDimension {
 
     /**
      * 金额 → 计数（金额 × 10^12）。
-     *
-     * <p>注意是<b>乘</b> 10^12 而不是 {@code setScale(12, …)}：{@code setScale} 只改小数位数，
-     * {@code new BigDecimal("10.00").setScale(12, HALF_UP)} 仍是 {@code 10.000000000000}（{@code longValue}=10），
-     * 不是 10^12 —— 那样写会把 6.00 这种正常金额当成 6 个计数单位，额度完全失效。</p>
-     *
-     * <p>{@code setScale(0, HALF_UP)} 收尾是为了让超过 12 位小数的输入按四舍五入收敛到整数计数，
-     * 而不是静默截断（截断会让「已超限」判定偏松）。</p>
-     *
-     * <p>超过 long 可表示范围（金额 > 约 920 万）时明确报错：这是配置错误，
-     * 静默截断会让配额形同虚设，而 {@code longValueExact()} 裸抛的
-     * {@link ArithmeticException} 在热路径上只会变成 500，看不出是配额配大了。</p>
+     * 用 {@code movePointRight(COST_SCALE)} 乘 10^12，再 {@code setScale(0, HALF_UP)} 四舍五入收敛到整数计数，不用 {@code setScale(12, …)}（它只改小数位数）。
+     * 超过 {@code long} 可表示范围（金额 > 约 920 万）抛 {@link BusinessException}，不静默溢出。
      */
     public static long toScaledAmount(BigDecimal amount) {
         if (amount == null) {

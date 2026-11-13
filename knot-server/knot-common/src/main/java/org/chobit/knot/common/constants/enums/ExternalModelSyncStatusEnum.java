@@ -4,9 +4,7 @@ import java.util.List;
 
 /**
  * 外部模型同步状态（{@code kx_model_items.sync_status}）。
- *
- * <p>FAILED 必须真实写入：同步失败时若只累加计数而不落库，记录会永远停在 PENDING，
- * 运维无法区分「待同步」与「同步失败」。</p>
+ * 同步失败必须真实写入 {@code FAILED}；记录停在 {@code PENDING} 即表示待同步。
  */
 public enum ExternalModelSyncStatusEnum implements NumericEnumOption {
     PENDING(1, "待同步"),

@@ -2,31 +2,9 @@ package org.chobit.knot.gateway.async;
 
 /**
  * 异步任务的默认值（唯一出处）：档案级（单个任务怎么查）与扫描级（多久扫一次表）两层。
- *
- * <p><b>为什么要抽出来</b>：这些数原本散在 {@link AsyncTaskSpec#of} 的兜底实参与
- * {@link AsyncTaskProperties} 的字段初始化里，读代码时得在两类之间来回跳；更要紧的是<b>改错没有编译期信号</b>
- * ——例如把退避上限调大、忘了档案侧还有一份，同一个任务在不同节点会按不同节奏查。</p>
- *
- * <p>⭐⭐ <b>同名常量必须按「一个事实」拆开，禁止按数值合并</b>。这里有两处数值巧合，都是陷阱：</p>
- * <ul>
- *   <li>{@link #POLL_BACKOFF_MAX_MS} 与 {@link #QUERY_TIMEOUT_MS} 都是 30000——
- *       一个是「两次查询间隔的封顶」，一个是「一次 HTTP 查询等多久」。合并后调退避上限会顺带改掉查询超时，
- *       而查询超时又牵连占位预算链（{@code claim-ttl-ms}），表现是「偶发少算上游调用数」。</li>
- *   <li>{@link #CLAIM_TTL_MS}（180 000 <b>毫秒</b>，3 分钟）与 {@link #TASK_TIMEOUT_MINUTES}（30 <b>分钟</b>）——
- *       两者都叫「超时」，单位却不同（2026-11-02 起任务寿命改按分钟存）。前者是节点宕机后的占位回收窗口，
- *       后者是 knot 侧任务寿命；把两者写成同一单位，任务寿命就会被当成 30 毫秒。</li>
- * </ul>
- *
- * <p>⚠ <b>cron 的两处写法合并不了</b>：{@link AsyncTaskScheduledPoller} 的 {@code @Scheduled} 为了支持 yml 覆盖，
- * 写的是 {@code ${key:默认值}} 占位符，而占位符里只能是字面量。于是 {@link #TICK_CRON} /
- * {@link #CLEANUP_CRON} 与本类之间天然存在第二份拷贝，由 {@code AsyncTaskPropertiesTest} 比对守门。</p>
- *
- * <p>⚠ <b>还有第三份在 DDL 里</b>：{@code kb_async_task_profiles} 的列默认值
- * （{@code poll_interval_ms DEFAULT 5000} 等）。档案行取到的是列值，本类的兜底只在列值缺失/非正时才生效，
- * 所以<b>改这里的档案级默认值要同步迁移脚本</b>，否则「代码说 5s、库里存 5s、新档案却按别的数落库」。</p>
- *
- * <p>⚠ 测试里<b>故意</b>再写一遍字面量（见 {@code AsyncTaskSpecTest} / {@code AsyncTaskPropertiesTest}）：
- * 那是探针，不是重复。若测试改成引用本类常量，改常量就不会有任何一处变红，等于把护栏拆了。</p>
+ * {@link #CLAIM_TTL_MS}（180000 毫秒）与 {@link #TASK_TIMEOUT_MINUTES}（30 分钟）单位不同；同名常量按语义拆开，禁止按数值合并。
+ * {@link #TICK_CRON} / {@link #CLEANUP_CRON} 在 {@link AsyncTaskScheduledPoller} 的 {@code @Scheduled} 占位符中另有一份拷贝。
+ * 改档案级默认值需同步迁移脚本（DDL 列默认值）。
  */
 public final class AsyncTaskDefaults {
 
@@ -97,10 +75,8 @@ public final class AsyncTaskDefaults {
     public static final int DELIVERY_BATCH_SIZE = 100;
 
     /**
-     * 交付最大尝试次数（含首次）。
-     *
-     * <p>⭐ 对齐业界 webhook 惯例（3 次）。到上限后落 {@code delivery_status=FAILED}，
-     * 但<b>不代表任务失败</b>——客户仍可用任务句柄轮询到真实结果。</p>
+     * 交付最大尝试次数（含首次，3 次）。到上限后落 {@code delivery_status=FAILED}，
+     * 但不代表任务失败，客户仍可用任务句柄轮询到真实结果。
      */
     public static final int DELIVERY_MAX_ATTEMPTS = 3;
 

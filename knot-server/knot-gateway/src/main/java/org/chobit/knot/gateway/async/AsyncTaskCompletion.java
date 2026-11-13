@@ -35,12 +35,8 @@ import java.util.Map;
 import java.util.List;
 
 /**
- * 异步任务终态的计费与事件：把「查询响应体」交给<b>既有</b>提取与计费管线。
- *
- * <p>⭐ 本类没有任何计价逻辑：用量仍由绑定上的 {@code usage_extractor} 决定、
- * 金额仍由对应 {@code BillingModeCalculator} 决定。异步只是把触发点从请求线程挪到轮询线程、
- * 把输入体从创建响应换成查询响应——<b>计费口径一行不改</b>。
- * 在轮询侧另写一份字段解析是本项目明令禁止的漂移源。</p>
+ * 异步任务终态的计费与事件：把「查询响应体」交给既有提取与计费管线。
+ * 用量由绑定上的 {@code usage_extractor} 决定，金额由对应 {@code BillingModeCalculator} 决定，本类不含计价逻辑。
  */
 @Slf4j
 @Component
@@ -69,9 +65,7 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
 
     /**
      * 用查询响应体跑一遍既有的提取与计费。
-     *
-     * <p>请求体取自任务快照（<b>客户端原始体</b>）——提取器读的就是这一份，
-     * 与同步链路完全一致（转换后的上游体只用于发请求，从不回灌给提取器）。</p>
+     * 请求体取自任务快照（客户端原始体）；转换后的上游体只用于发请求，从不回灌给提取器。
      */
     @Override
     public UsageAccounting charge(AsyncTaskDto task, AsyncTaskContext context, String queryBody) {
@@ -97,12 +91,9 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
 
     /**
      * 把查询响应里「按档案 usagePath 取到的 usage」补到顶层，供既有提取器读取。
-     *
-     * <p>⚠ 加工的是<b>交给提取器的输入</b>，不是落库证据：{@code AsyncTaskRunner#finish} 落
-     * {@code terminal_body} 的仍是 {@code polling.rawBody()} 原文，证据不失真；配了 {@code usage_path}
-     * 时以配置为准，会覆盖上游顶层同名 {@code usage} 键。</p>
-     *
-     * <p>包级可见，仅供单测验证「加工后的 body 顶层 usage 带 cost」，不对外暴露。</p>
+     * 加工的是交给提取器的输入，不是落库证据：{@code AsyncTaskRunner#finish} 落 {@code terminal_body} 的仍是 {@code polling.rawBody()} 原文；
+     * 配了 {@code usage_path} 时以配置为准，覆盖上游顶层同名 {@code usage} 键。
+     * 包级可见，仅供单测验证「加工后的 body 顶层 usage 带 cost」，不对外暴露。
      */
     static String queryBodyForUsage(String queryBody, String pollSpecJson) {
         Map<String, Object> body = JsonKit.fromJson(queryBody,
@@ -120,9 +111,8 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
 
     /**
      * 终态成功后的限额记账：只使用任务快照里预存的资源主键，不重新解析 API key。
-     *
-     * <p>提交阶段已经跳过记账，这里补上真实用量；终态 CAS 保证一条任务只到这里一次。
-     * 旧的上下文 JSON 没有资源主键时，对应维度自然跳过，不会把 id 猜错。</p>
+     * 提交阶段跳过记账，这里补上真实用量；终态 CAS 保证一条任务只到这里一次。
+     * 旧的上下文 JSON 没有资源主键时，对应维度跳过。
      */
     @Override
     public void recordUsage(AsyncTaskDto task, AsyncTaskContext context, UsageAccounting usage) {
@@ -134,11 +124,7 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
     }
 
     /**
-     * 发布<b>一次查询</b>的流量事件（中间过程，不是终态）。
-     *
-     * <p>⭐ 为什么中间查询也要发：一次异步调用在上游是「1 次提交 + N 次查询」，N 可达数百。
-     * 只发终态那条等于把 N-1 次上游调用从数仓里抹掉——上游成本算不出、产物延迟分布算不出、
-     * 「重试 5 次才成功」会被压平成「1 次成功」。这些事实只能靠每次查询各发一条来保留。</p>
+     * 发布一次查询的流量事件（中间过程，不是终态）；每次查询各发一条。
      *
      * @param querySeq  第几次查询（从 1 开始，对应行上的 {@code attempts}）
      * @param errorCode 本次查询是否出错（{@code QUERY_ERROR} 时为错误码；拿到有效响应时为 null）
@@ -151,12 +137,8 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
 
     /**
      * 发布终态流量事件（一条任务一条）。
-     *
-     * <p>路由维度（app / consumer / dept）在本轮为 {@code null}：重建 {@code ResolvedRouting}
-     * 需要 API key 重新解析，而「不把调用方密钥写进任务表」优先。缺口已在方案文档登记。</p>
-     *
-     * <p>与 {@link #publishQuery} 是<b>同一条事件流</b>里的最后一环：{@code task_terminal=true}
-     * 是它唯一与众不同之处，计费与失败率统计都以这一个字段为准。</p>
+     * 路由维度（app / consumer / dept）为 {@code null}。
+     * 与 {@link #publishQuery} 同一条事件流，以 {@code task_terminal=true} 区分，计费与失败率统计都以该字段为准。
      *
      * @param error 失败/超时原因；成功路径为 {@code null}
      */
@@ -168,10 +150,8 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
     }
 
     /**
-     * 重试轮次：库里的 {@code retry_round} 可能是 null（历史行在加列前就已存在，
-     * 加列时默认 0，但手工插入的测试数据仍可能为 null）→ 归一成 0。
-     *
-     * <p>⚠ 不要在这里做「第一次查询」之类的推断：轮次只有一个来源，就是行上的值。</p>
+     * 重试轮次：库里的 {@code retry_round} 可能为 null，归一成 0。
+     * 轮次只取行上的值，不做「第一次查询」之类的推断。
      */
     private static int roundOf(AsyncTaskDto task) {
         return task.retryRound() == null ? 0 : task.retryRound();
@@ -197,10 +177,7 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
     }
 
     /**
-     * 查询与终态两个入口共用的装配逻辑。
-     *
-     * <p>路由维度与 hit 快照的重建只在<b>这一处</b>：两份实现必然漂移，而漂移的表现是
-     * 「终态事件有模型、中间查询事件没有」，数仓 join 时静默丢行。</p>
+     * 查询与终态两个入口共用的装配逻辑；路由维度与 hit 快照的重建只在这一处。
      */
     private void publish(AsyncTaskDto task, AsyncTaskContext context, TaskTrace trace,
                          UsageAccounting usage, String errorCode, String errorMessage) {
@@ -231,11 +208,8 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
     }
 
     /**
-     * 构造一个可下发的异常：中间查询的失败可能连上游响应都没有（超时 / 连接重置），
-     * 但事件里必须有 {@code error.stage} 才能被数仓归因。
-     *
-     * <p>调用方传的是「码 + 话术」而不是一个现成的异常：编排层（svc）不该为了发一条事件
-     * 去 import 网关的异常类型——那是把两个 app 的类型系统绑在一起。</p>
+     * 构造一个可下发的异常：中间查询的失败可能连上游响应都没有（超时 / 连接重置），事件里必须带 {@code error.stage} 供数仓归因。
+     * 调用方传「码 + 话术」，不传现成的异常。
      */
     private static Throwable errorOf(String errorCode, String errorMessage) {
         if (errorCode == null && errorMessage == null) {

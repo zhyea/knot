@@ -5,16 +5,9 @@ import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 
 /**
  * 一次上游用量提取的双视图结果：计费输入（强类型 sealed）+ 对外统一用量视图。
- *
- * <p>这是「双视图一次提取」的载体（2026-10-23 方案）：提取器在解析协议字段时同时产出
- * {@link #billing()} 与 {@link #usage()}，输出层直接消费，不再二次解析原始 usage。</p>
- *
- * <p>约束：</p>
- * <ul>
- *   <li>{@code billing} 恒非空；无用量时用对应模式的 {@code empty()}，不用 {@code null}；</li>
- *   <li>{@code usage} 可为 {@code null}，表示上游没有可归一化的用量；</li>
- *   <li>不放原始 JSON：原始 usage 仍由 {@code UsageAccounting.rawUsage/rawBody} 保留。</li>
- * </ul>
+ * 提取器解析协议字段时同时产出 {@link #billing()} 与 {@link #usage()}，输出层直接消费。
+ * {@code billing} 恒非空，无用量时用对应模式的 {@code empty()}；{@code usage} 可为 {@code null}。
+ * 不放原始 JSON，原始 usage 由 {@code UsageAccounting.rawUsage/rawBody} 保留。
  *
  * @param billing 计费输入（{@code T extends BillingUsage}）
  * @param usage   对外统一用量视图，可为 {@code null}
@@ -38,8 +31,7 @@ public record UsageExtractItem<T extends BillingUsage>(T billing, ModelUsage usa
 
     /**
      * 本次提取的 token 总量：计费视图优先，缺失时退回用量视图。
-     *
-     * <p>用于 SSE 逐事件挑选「信息量最大」的一份，与 {@code UsageAccounting.totalTokens()} 口径一致。</p>
+     * 用于 SSE 逐事件挑选「信息量最大」的一份，与 {@code UsageAccounting.totalTokens()} 口径一致。
      */
     public long totalTokens() {
         if (billing != null) {
@@ -58,14 +50,8 @@ public record UsageExtractItem<T extends BillingUsage>(T billing, ModelUsage usa
     }
 
     /**
-     * SSE 逐事件合并：{@code billing} 与 {@code usage} 都按分量取最大 / 取先出现的非空值。
-     *
-     * <p>同一提取器跨事件产出的 {@code T} 类型必然一致，故 {@code billing.mergeMax} 的返回值可安全还原为 {@code T}。</p>
-     *
-     * <p>⚠ {@code usage} 不能用「挑 token 总量更大的一整份」：纯媒体用量 {@code totalTokens} 恒为 0，
-     * 严格大于永不成立，结果永远是第一个事件的快照，而 {@code billing} 已经逐字段合并——
-     * 两个视图就此分叉（计费 5 秒、展示 0 秒）。故同样逐字段合并，规则见
-     * {@link ModelUsage#mergeMax}。</p>
+     * SSE 逐事件合并：{@code billing} 与 {@code usage} 都按分量取最大 / 取先出现的非空值，合并规则见 {@link ModelUsage#mergeMax}。
+     * 同一提取器跨事件产出的 {@code T} 类型必然一致，故 {@code billing.mergeMax} 的返回值可安全还原为 {@code T}。
      */
     @SuppressWarnings("unchecked")
     public UsageExtractItem<T> mergeMax(UsageExtractItem<T> other) {

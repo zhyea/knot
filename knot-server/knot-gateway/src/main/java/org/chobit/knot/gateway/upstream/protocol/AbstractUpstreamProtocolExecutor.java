@@ -45,9 +45,8 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * <p>2026-10-20：上游客户端由 {@code RestClient}（Apache HttpClient 5）迁到
- * {@link WebClient}（reactor-netty）。两条路径的<b>阻塞边界不变</b>——仍然阻塞到「响应头就绪」
- * 才返回，这样首字节之前的上游失败依旧能被 failover 捕获。</p>
+ * 上游协议执行器基类：整包与流式两条路径都阻塞到「响应头就绪」才返回，
+ * 首字节之前的上游失败仍能被 failover 捕获。
  */
 public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtocolExecutor {
 
@@ -114,9 +113,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
     /**
      * 单次上游请求的目标。
-     *
-     * <p>URL 只在这里算一次，请求构造与签名共用同一个字符串——签名覆盖的路径与
-     * 实际发出的路径必须逐字符一致（SigV4 的第二雷区）。</p>
+     * URL 只在这里算一次，请求构造与签名共用同一个字符串——签名覆盖的路径与实际发出的路径必须逐字符一致。
      *
      * @param baseUrl     接入策略产出的生效 base URL
      * @param path        已拼上模型 base_path 的最终路径
@@ -141,8 +138,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
     /**
      * 整包缓冲：把上游响应完整读成字符串后返回。适用于非流式请求。
-     *
-     * <p>非 2xx 读掉错误体后抛 {@link GatewayUpstreamException}（带头），与流式路径同构。</p>
+     * 非 2xx 读掉错误体后抛 {@link GatewayUpstreamException}（带头），与流式路径同构。
      */
     private ProxyResult executeBuffered(UpstreamRequestContext context,
                                         UpstreamAdapter adapter,
@@ -169,15 +165,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
     /**
      * 读整包响应：响应体字符串 + 上游响应头白名单快照（归一 request-id）。
-     *
-     * <p>非 2xx 读掉错误体后抛 {@link GatewayUpstreamException}：失败场景的供应商 id
-     * 恰恰是排障工单里最关键的检索键（详见设计文档 §4.2 捕获点三）。</p>
-     *
-     * <p>返回 {@link Mono} 而不是直接读：本方法运行在 reactor-netty 的 event loop 线程上，
-     * 在这里 {@code block()} 会把 event loop 卡死。</p>
-     *
-     * <p>包级可见供单测直接驱动（{@code ClientResponse.create(...)}），
-     * 不经端到端 WebClient——那要拖 UsageExtractorRegistry 整条依赖链。</p>
+     * 非 2xx 读掉错误体后抛 {@link GatewayUpstreamException}，异常里带上供应商 id。
      *
      * @param ownRequestId 我方本次请求的 request_id：用于排除上游把我方
      *                     {@code X-Request-Id} 回显回来的情况，防止它冒充
@@ -209,12 +197,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
     /**
      * 流式转发：只阻塞等到响应头就绪，响应体交给 {@link UpstreamStreamResponse} 边收边发。
-     *
-     * <p>首字节之前的状态码错误、连接超时、读超时都会在这里抛出，
-     * 因此 failover 仍然有效；一旦开始转发则无法再切换目标。</p>
-     *
-     * <p>{@code toEntityFlux} 是这里唯一可用的入口：{@code exchangeToMono} 会在转换函数
-     * 返回后调用 {@code releaseBody()}，把尚未消费的响应体整个吞掉。</p>
+     * 首字节之前的状态码错误、连接超时、读超时都在这里抛出，failover 仍然有效；一旦开始转发则无法再切换目标。
+     * 响应体只能经 {@code toEntityFlux} 取，不用 {@code exchangeToMono}。
      */
     private ProxyResult executeStreaming(UpstreamRequestContext context,
                                         UpstreamAdapter adapter,
@@ -286,12 +270,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     }
 
     /**
-     * 上游 HTTP 成功但响应体为空：确定性失败，不重试也不 failover
-     * （判据见 {@code RetryableClassifier#terminal}）。
-     *
-     * <p><b>不把上游状态码塞进 httpStatus</b>：2xx 是「成功」信号，塞进去会让
-     * {@code RetryableClassifier} 按 status 分流、{@code OutageClassifier} 按 status 判「不计摘除」，
-     * 两个结论都与本意相反。真实状态码只作为证据写进消息文本。</p>
+     * 上游 HTTP 成功但响应体为空：确定性失败，不重试也不 failover。
+     * {@code httpStatus} 置 {@code null}（2xx 是成功信号，不能塞进去），真实状态码只写进消息文本。
      */
     private static GatewayUpstreamException emptyResponse(HttpStatusCode statusCode,
                                                           HttpHeaders headers,
@@ -308,9 +288,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         );
     }
 
-    /**
-     * 释放未消费的响应体：零长度流没有数据，但连接仍要归还，否则 reactor-netty 要等到超时才回收。
-     */
+    /** 释放未消费的响应体：零长度流没有数据，但连接仍需归还。 */
     private static void releaseQuietly(Flux<DataBuffer> body) {
         if (body != null) {
             body.subscribe(DataBufferUtils::release, ignored -> {
@@ -320,19 +298,15 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
     /**
      * 读取上游 {@code Retry-After} 响应头，换算成毫秒供重试退避参考。
-     *
-     * <p>只有 429/503 这类明确限流响应才会携带；拿不到就返回 null，
-     * 退避退化为纯指数退避，不影响主流程。</p>
+     * 只有 429/503 这类明确限流响应才会携带；拿不到返回 {@code null}，退避退化为纯指数退避。
      */
     private static Long retryAfterMs(HttpHeaders headers) {
         return headers == null ? null : parseRetryAfter(headers.getFirst("Retry-After"));
     }
 
     /**
-     * 解析 {@code Retry-After}：优先按「秒数」解释，其次按 HTTP 日期（RFC 1123）解释。
-     *
-     * <p>两种都解析不了返回 null。秒数为负或日期已过统一按 0 处理（立即重试由退避策略决定），
-     * 并做上界收敛避免异常大的值溢出。</p>
+     * 解析 {@code Retry-After}：优先按「秒数」解释，其次按 HTTP 日期（RFC 1123）解释；两种都解析不了返回 {@code null}。
+     * 秒数为负或日期已过统一按 0 处理，并做上界收敛。
      */
     static Long parseRetryAfter(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -446,12 +420,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     }
 
     /**
-     * 组装 multipart 请求体。
-     *
-     * <p>2026-10-20（WebFlux 批2）：入参从 {@code MultipartFile}（Servlet 类型）换成
-     * {@link FilePart}。文件部分走 {@code asyncPart}——直接把上游收到的
-     * {@code Flux<DataBuffer>} 转给上游，<b>不落内存也不落盘</b>，
-     * 与旧实现里「读完整包再当 Resource 发」相比省掉一次全量复制。</p>
+     * 组装 multipart 请求体：文件部分走 {@code asyncPart}，把 {@link FilePart} 的 {@code Flux<DataBuffer>} 直接转给上游，不落内存也不落盘。
      */
     private MultiValueMap<String, HttpEntity<?>> toMultipartBody(Map<String, Object> source) {
         MultipartBodyBuilder builder = new MultipartBodyBuilder();

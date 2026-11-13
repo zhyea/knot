@@ -76,9 +76,7 @@ public class ProviderProfileService {
 
     /**
      * 删除供应商档案：档案下只要还挂着账户，或账户下仍有凭据 / 折扣策略 / 模型 / 映射，就拒绝删除。
-     *
-     * <p>引用检查一律按「档案 code → 账户 → 账户下的资源」这条链查（跨模块绑定存 code 不存 id）。
-     * 计费规则不按供应商关联，不在引用检查范围内。</p>
+     * 引用检查按「档案 code → 账户 → 账户下的资源」这条链查（跨模块绑定存 code 不存 id）；计费规则不按供应商关联，不在引用检查范围内。
      */
     @Transactional
     public void delete(Long id) {
@@ -113,7 +111,7 @@ public class ProviderProfileService {
     }
 
     /**
-     * 备注归一化：去首尾空白，纯空白按"无备注"存 NULL，避免库里堆积空串。
+     * 备注归一化：去首尾空白，纯空白按「无备注」存 NULL。
      */
     private String normalizeRemark(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -123,7 +121,7 @@ public class ProviderProfileService {
     }
 
     /**
-     * 供应商分类可多选：输入以逗号分隔，这里做 trim、去空、去重，避免存进空项或重复项。
+     * 供应商分类可多选：输入以逗号分隔，做 trim、去空、去重。
      */
     private String normalizeTag(String raw) {
         if (raw == null || raw.isBlank()) {

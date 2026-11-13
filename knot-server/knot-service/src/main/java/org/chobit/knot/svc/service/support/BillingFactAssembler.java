@@ -28,14 +28,9 @@ import java.util.Map;
 
 /**
  * 计费影子链组装器（管理端离线）：复用生产链路口径产出 {@link BillingFact}。
- *
- * <p>与生产链路 {@code UsageExtractorRegistry.extract} 同构：提取器取量 → 三级回退取规则 → 归一化计价。
- * 关键差异：本组装器是「离线复算」，不污染网关响应热路径，且把命中层级、用量视图、被告账一并结构化，
- * 供 {@link BillingFactChecks} 做同口径对照。</p>
- *
- * <p>设计纪律（v7 §5）：影子链与生产读同一份 {@code kb_billing_rules}，配置级错误两边同错，
- * 故 {@code GATEWAY_RECOMPUTE_MATCH} 只抓「当次调用算错」（规则取错 / 单价版本错），
- * 配置错配交给 JEV 语义层——这是双盲判定的分工。</p>
+ * 与生产链路 {@code UsageExtractorRegistry.extract} 同构：提取器取量 → 三级回退取规则 → 归一化计价；离线复算，不污染网关响应热路径，
+ * 并把命中层级、用量视图、被告账一并结构化，供 {@link BillingFactChecks} 做同口径对照。
+ * 影子链与生产读同一份 {@code kb_billing_rules}；{@code GATEWAY_RECOMPUTE_MATCH} 只抓「当次调用算错」（规则取错 / 单价版本错），配置错配交给 JEV 语义层。
  */
 @Component
 public class BillingFactAssembler {
@@ -122,8 +117,7 @@ public class BillingFactAssembler {
     }
 
     /**
-     * 计费规则实体 → 适配层投影（改进清单 2.5）：与 {@link #toRuleRef} 是两份不同投影——
-     * 本份供计价计算器解析价格（必须带 configJson），那份供被告链结构化展示。
+     * 计费规则实体 → 适配层投影：与 {@link #toRuleRef} 是两份不同投影——本份供计价计算器解析价格（必须带 configJson），那份供被告链结构化展示。
      */
     private static BillingRuleRef toBillingRuleRef(BillingRuleEntity rule) {
         return new BillingRuleRef(rule.getBillingMode(), rule.getConfigJson(), rule.getCurrency(),

@@ -3,11 +3,8 @@ package org.chobit.knot.adapter.upstream;
 import org.chobit.knot.adapter.support.aws.AwsSigV4Support;
 
 /**
- * 交给鉴权策略签名的请求摘要：只有「签名需要知道的三件事」。
- *
- * <p>刻意做成纯值类型且不引任何 HTTP 客户端类型：鉴权策略属于协议知识，
- * 不该被绑在 WebClient 上（与 {@code UpstreamAuthApplier#apply} 只碰 {@code HttpHeaders}
- * 是同一条边界）。</p>
+ * 交给鉴权策略签名的请求摘要：HTTP 方法、完整 URL、请求体哈希三项，
+ * 纯值类型，不依赖任何 HTTP 客户端类型。
  *
  * @param httpMethod  HTTP 方法（Bedrock 恒为 {@code POST}）
  * @param url        完整请求 URL（路径须已完成 RFC3986 编码，签名与实际发出必须是同一个串）

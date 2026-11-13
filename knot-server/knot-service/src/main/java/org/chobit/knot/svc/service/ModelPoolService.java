@@ -162,10 +162,8 @@ public class ModelPoolService {
 
     /**
      * Restores a logically deleted model pool.
-     *
-     * <p>编码唯一性按物理行判定（uk_model_pools_code 不区分 is_deleted），所以逻辑删除后同
-     * {@code pool_code} 无法新建，只能恢复。恢复时校验绑定的统一模型仍存在且未删除，
-     * 避免恢复出一个指向已删除统一模型的池。
+     * 编码唯一性按物理行判定（{@code uk_model_pools_code} 不区分 {@code is_deleted}），逻辑删除后同
+     * {@code pool_code} 无法新建，只能恢复；恢复时校验绑定的统一模型仍存在且未删除。
      */
     @Transactional
     public ModelPoolDto restore(Long id) {

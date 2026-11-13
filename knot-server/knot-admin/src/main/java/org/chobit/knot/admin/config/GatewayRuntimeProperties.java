@@ -6,10 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * 管理端调试链路使用的网关运行时地址。
- *
- * <p>消费方只有管理端路由规则调试（{@code RoutingRuleController} → {@code RoutingRuleService}
- * 的测试转发）：网关基地址由 controller 读取本属性后作为参数透传，knot-service 不持有该配置，
- * 调试 API 与网关部署细节解耦。</p>
+ * 消费方只有管理端路由规则调试（{@code RoutingRuleController} → {@code RoutingRuleService}）。
+ * 网关基地址由 controller 读取后作为参数透传，knot-service 不持有该配置。
  */
 @Getter
 @Setter

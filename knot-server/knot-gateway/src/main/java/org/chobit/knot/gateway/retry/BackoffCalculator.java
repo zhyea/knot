@@ -6,18 +6,9 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 重试退避时长的唯一出口。
- *
- * <p>默认指数退避 + 抖动：{@code delay = min(cap, base * multiplier^(n-1))}，
- * 开启 jitter 时在 {@code [0, delay)} 内随机取值以打散重试尖峰。
- * 若策略开启 {@code respectRetryAfter} 且上游给了 {@code Retry-After}，取两者较大值，
- * 但仍受 {@code backoffMaxMs} 约束——不把上游建议值无上限地转嫁给调用方。</p>
- *
- * <p>退避时长仅由本方法计算并返回（毫秒）。实际的等待由调用方以
- * {@code Mono.delay}（Reactor 定时调度器）承载——退避期间<b>不占用任何线程</b>，
- * 定时器到期后重试动作才继续。批1 时代用的是
- * {@link java.util.concurrent.CompletableFuture#delayedExecutor}，批1-B 链路 Reactor 化后
- * 一并换成 {@code Mono.delay}。因此 {@code backoffMaxMs}
- * 约束的是单次重试的最大退避，而非线程占用。</p>
+ * 默认指数退避 + 抖动：{@code delay = min(cap, base * multiplier^(n-1))}，开启 jitter 时在 {@code [0, delay)} 内随机取值。
+ * 策略开启 {@code respectRetryAfter} 且上游给了 {@code Retry-After} 时取两者较大值，仍受 {@code backoffMaxMs} 约束。
+ * 本类只计算毫秒数，等待由调用方以 {@code Mono.delay} 承载（不占用线程）；{@code backoffMaxMs} 约束单次重试的最大退避。
  */
 public final class BackoffCalculator {
 

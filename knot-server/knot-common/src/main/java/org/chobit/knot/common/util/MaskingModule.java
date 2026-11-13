@@ -9,17 +9,10 @@ import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 import java.util.List;
 
 /**
- * 审计快照专用 Jackson 模块。通过 {@link BeanSerializerModifier#changeProperties} 将敏感属性
- * 替换为 {@link SensitiveSerializer}，实现字段级脱敏。
- *
- * <p>判定两种方式，确保不同实体形态都能覆盖：
- * <ul>
- *   <li>带 {@link Sensitive} 注解的属性（record 组件、手写 getter 等注解可达场景）；</li>
- *   <li>名称命中兜底清单（Lombok {@code @Data} 等经由 getter 序列化、字段注解未必被 Jackson
- *       识别的场景，例如 {@code UserEntity.passwordHash}）。</li>
- * </ul>
- *
- * <p>仅在 {@link JsonKit} 的审计专用 mapper 上注册，绝不影响普通 MVC 序列化。
+ * 审计快照专用 Jackson 模块：通过 {@link BeanSerializerModifier#changeProperties} 把敏感属性
+ * 替换为 {@link SensitiveSerializer}。判定有两种：带 {@link Sensitive} 注解的属性，或名称命中
+ * 兜底清单（Lombok {@code @Data} 等经 getter 序列化、字段注解不可达，如 {@code UserEntity.passwordHash}）。
+ * 仅在 {@link JsonKit} 的审计专用 mapper 上注册，不影响普通 MVC 序列化。
  */
 public class MaskingModule extends SimpleModule {
 

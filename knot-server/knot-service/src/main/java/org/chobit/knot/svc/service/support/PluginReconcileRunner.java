@@ -18,33 +18,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 启动期插件 reconcile：把 IOC 中的 {@link PluginHandler} 元数据物化进 {@code kb_plugin_instances}，
- * 并校正孤儿标记。
- *
- * <p><b>权威边界</b>（2026-10-25 重构）：这张表里只有两类东西，边界必须清晰——</p>
- * <ul>
- *   <li><b>代码权威</b>（{@link PluginDescriptor} 的投影）：{@code instance_code} / {@code instance_name} /
- *       {@code capability_code} / {@code extension_point} / {@code stage_code} / {@code order_no} /
- *       {@code timeout_ms} / {@code version} / {@code plugin_type}。每次启动<b>全覆盖写</b>，
- *       代码改了重启即跟随。</li>
- *   <li><b>运维权威</b>：{@code status}（启停）、{@code is_deleted}（逻辑删除）。
- *       <b>永不覆盖</b>——用户停用过的插件不能被重启重新打开。</li>
- *   <li>{@code orphaned} 是派生标记，每次启动重算。</li>
- * </ul>
- *
- * <p><b>为什么用 upsert 而不是「先查再决定插不插」</b>：旧实现只在「DB 里找不到该 entrypoint」
- * 时插入，从不更新派生列。于是插件实现类改包名/改名后，旧行永远匹配不上新类名 → 全部判成
- * 「代码新增」→ 重复插入 + 旧行全标孤儿。{@code data.sql} 那边的种子也补不了，因为它是
- * {@code INSERT IGNORE} + 显式主键，既有库主键冲突即静默跳过。
- * 改成以 {@code entrypoint} 为唯一键的幂等 upsert 后，「DB 里存着需要人工迁移的 FQCN」
- * 这个风险类型彻底不存在——派生值每次启动重写一遍。</p>
- *
- * <p><b>为什么在写库前做校验</b>：{@code code} 为空 / 重复 / 超列宽这三类错误原先只能等插库时
- * 由 MySQL 报出来（判例：派生码 65 字符超过 {@code VARCHAR(64)}，上下文直接起不来）。
- * 提前到启动第二秒指名报错，报错信息带 entrypoint，排查不用再翻 SQL 日志。</p>
- *
- * <p>仅处理 SYNC handler（其 {@link PluginDescriptor} 提供 capability/extension/stage 用于分发匹配）；
- * dispatcher 仅按 SYNC 分发，异步 sink 能力已移除。</p>
+ * 启动期插件 reconcile：把 IOC 中的 {@link PluginHandler} 元数据物化进 {@code kb_plugin_instances}，并校正孤儿标记。
+ * 代码权威列（{@link PluginDescriptor} 投影：{@code instance_code} / {@code instance_name} / {@code capability_code} / {@code extension_point} / {@code stage_code} / {@code order_no} / {@code timeout_ms} / {@code version} / {@code plugin_type}）每次启动全覆盖写；
+ * 运维权威列（{@code status} / {@code is_deleted}）永不覆盖，{@code orphaned} 每次启动重算；以 {@code entrypoint} 为唯一键幂等 upsert，写库前校验 {@code code} 为空 / 重复 / 超列宽。
+ * 仅处理 SYNC handler（{@link PluginDescriptor} 提供 capability / extension / stage 用于分发匹配），dispatcher 仅按 SYNC 分发。
  */
 @Slf4j
 @Component
@@ -79,10 +56,8 @@ public class PluginReconcileRunner implements ApplicationRunner {
     }
 
     /**
-     * 以 entrypoint（实现类全限定名）为键收集 descriptor，并完成三项写库前的校验。
-     *
-     * <p>用 {@link LinkedHashMap} 而非 {@link HashSet}：遍历顺序与 IOC 注入顺序一致，
-     * 出问题时日志里看到的是稳定顺序，不是哈希顺序。</p>
+     * 以 entrypoint（实现类全限定名）为键收集 descriptor，并完成三项写库前的校验；
+     * 用 {@link LinkedHashMap} 而非 {@link HashSet}，遍历顺序与 IOC 注入顺序一致。
      */
     private Map<String, PluginDescriptor> declaredDescriptors() {
         Map<String, PluginDescriptor> declared = new LinkedHashMap<>();
@@ -126,9 +101,7 @@ public class PluginReconcileRunner implements ApplicationRunner {
 
     /**
      * 把「DB 里存在、IOC 里没有」的存量行标 orphaned=1；返回本次标记的行数。
-     *
-     * <p>同一 entrypoint 出现多行只打一条告警——历史上的重复行会各自被标记，
-     * 但告警没必要重复刷屏。</p>
+     * 同一 entrypoint 出现多行只打一条告警。
      */
     private int markOrphans(Set<String> declaredEntrypoints) {
         Set<String> warned = new HashSet<>();

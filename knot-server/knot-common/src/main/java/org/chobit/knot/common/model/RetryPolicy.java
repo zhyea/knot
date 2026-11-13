@@ -8,20 +8,10 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * 路由规则级「失败重试」策略。
- *
- * <p>重试位于<b>跨候选 failover 之前</b>：对同一路由目标（同一 {@code upstream_model}）原地重投，
- * 次数耗尽仍失败才切到规则内的下一个候选。降级顺序为「retry → failover」。</p>
- *
- * <p>各字段在<b>紧凑构造器中即归一化</b>——缺省值填充、越界收敛、状态集过滤非法项。
- * 因此任何 {@code RetryPolicy} 实例（含 Jackson 反序列化出来的）拿到的都是可直接使用的有效值，
- * 调用方不需要再做空值兜底。</p>
- *
- * <p>配置分两种模式：{@code simple}（仅尝试次数 + 判定方式 + 状态码，其余走内置默认）
- * 与 {@code professional}（全字段可调）。默认 {@code simple}。</p>
- *
- * <p>存储为 {@code kb_routing_rules.retry_policy}（TEXT/JSON）；该列为空表示未显式配置，
- * 运行时解析为 {@link #DEFAULT}（默认开启、简单模式）。</p>
+ * 路由规则级「失败重试」策略：对同一路由目标原地重投，次数耗尽后才切到规则内下一个候选
+ * （顺序 retry → failover）。字段在紧凑构造器中即归一化（缺省填充、越界收敛、状态集过滤），
+ * 实例可直接使用。模式分 {@code simple} / {@code professional}，默认 {@code simple}；存储为
+ * {@code kb_routing_rules.retry_policy}，列为空时解析为 {@link #DEFAULT}（默认开启）。
  */
 public record RetryPolicy(
         /** 是否启用重试；关闭等价于「每个目标只试一次」，直接走 failover */
@@ -82,10 +72,7 @@ public record RetryPolicy(
     );
 
     /**
-     * 归一化：缺省值填充、越界收敛、状态集过滤非法项。
-     *
-     * <p>写成紧凑构造器而非静态工厂，是为了让 Jackson 反序列化出的实例同样是归一化的，
-     * 避免出现「字段为 null 的策略实例」流到运行时。</p>
+     * 归一化：缺省值填充、越界收敛、状态集过滤非法项；由紧凑构造器执行，Jackson 反序列化的实例同样生效。
      */
     public RetryPolicy {
         enabled = enabled == null ? Boolean.TRUE : enabled;

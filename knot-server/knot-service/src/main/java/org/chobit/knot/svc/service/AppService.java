@@ -129,8 +129,7 @@ public class AppService {
 
     /**
      * 应用编码改码：未被路由规则引用时可改，已绑定直接 409；改码前做唯一性校验。
-     *
-     * <p>入参 appCode 为空表示「不修改」，沿用库中现值。</p>
+     * 入参 appCode 为空表示「不修改」，沿用库中现值。
      */
     private String resolveAppCodeForUpdate(AppEntity existing, String requested) {
         String appCode = CodeBindingSupport.normalize(requested);

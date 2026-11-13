@@ -18,23 +18,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 网关流量守卫：限流 + 限额。
- *
- * <h3>分层</h3>
- * <ul>
- *   <li>本类只负责<b>业务判定</b>：哪些资源要检查、限额是多少、超了算什么原因；</li>
- *   <li>策略来源 {@link TrafficPolicySource} 与计数存储 {@link TrafficCounterStore}
- *       都是可替换依赖，单节点 / 多节点只是换实现，判定代码不动。</li>
- * </ul>
- *
- * <h3>口径</h3>
- * <ul>
- *   <li><b>限流</b>（模型 / 路由规则）：RPM 请求进入即 +1，超出即拒；
- *       TPM 只能事后累加——请求前拿不到 token 数，超限在<b>后续请求</b>上拦住。</li>
- *   <li><b>限额</b>（应用 / 供应商账户 / 消费者）：窗口内 token 与成本上限，
- *       窗口由策略指定（分钟 / 小时 / 天 / 周 / 月），请求成功后才记账，
- *       上游失败与 failover 重试不消耗额度。</li>
- * </ul>
+ * 网关流量守卫：限流 + 限额。本类只做业务判定，策略来源 {@link TrafficPolicySource} 与计数存储 {@link TrafficCounterStore} 是可替换依赖。
+ * 限流（模型 / 路由规则）：RPM 请求进入即 +1，超出即拒；TPM 事后累加，超限在后续请求上拦住。
+ * 限额（应用 / 供应商账户 / 消费者）：窗口内 token 与成本上限，窗口由策略指定（分钟 / 小时 / 天 / 周 / 月），请求成功后才记账，上游失败与 failover 重试不消耗额度。
  */
 @Component
 @RequiredArgsConstructor

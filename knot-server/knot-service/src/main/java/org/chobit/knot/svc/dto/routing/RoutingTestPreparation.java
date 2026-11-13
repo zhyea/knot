@@ -5,11 +5,8 @@ import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import java.util.Map;
 
 /**
- * 路由规则测试的「一次性准备结果」。
- *
- * <p>同步测试（{@code testInvoke}）与流式测试（{@code openTestStream}）共用同一套校验与
- * 请求体构造逻辑，全部收敛到 {@link RoutingRuleService#prepareTestInvocation}，
- * 避免两条链路出现校验差异。</p>
+ * 路由规则测试的一次性准备结果：同步测试（{@code testInvoke}）与流式测试（{@code openTestStream}）共用，
+ * 统一由 {@link RoutingRuleService#prepareTestInvocation} 构造。
  *
  * @param rule       命中的路由规则
  * @param secretKey  消费者 API Key（仅用于转发与 curl 展示，不写入日志）

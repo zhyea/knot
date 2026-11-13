@@ -15,9 +15,8 @@ import reactor.core.publisher.Mono;
 
 /**
  * Decisions 协议入口（{@code POST /v1/decisions}）。
- *
- * <p>与对话类协议形态不同：入参是 state + questions，出参是 answers 映射，
- * 上游侧路径由绑定配置的 {@code api_path} 决定（默认走协议默认路径）。</p>
+ * 与对话类协议形态不同：入参是 state + questions，出参是 answers 映射，
+ * 上游侧路径由绑定配置的 {@code api_path} 决定（默认走协议默认路径）。
  */
 @RestController
 @RequestMapping("/v1")

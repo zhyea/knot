@@ -2,10 +2,7 @@ package org.chobit.knot.adapter.model.usage;
 
 /**
  * Token 计费明细行的类型标识：每条明细描述一类 token 用量的计费结果。
- *
- * <p>取值与历史出账字段一一对应（{@link #key()} 即对外序列化字符串），下游对账 / 报表按这些 key 聚合，
- * 不允许随意改名。集中为枚举是为了消除 {@code TokenBillingModeCalculator.assemble()} 里重复的魔法串，
- * 而非新增概念。</p>
+ * {@link #key()} 即对外序列化字符串，下游对账 / 报表按其聚合，不允许随意改名。
  */
 public enum TokenUsageDetailKind {
 

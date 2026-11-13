@@ -9,18 +9,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 多节点在途计量：Redis。
- *
- * <p>与 {@link CaffeineModelLoadStore} 实现同一个 {@link ModelLoadStore} 抽象。
- * 各脚本都是单段 Lua：多节点并发下的「读-改-写」必须是原子的，
- * 且 {@code INCRBY} 与 {@code PEXPIRE} 必须在同一脚本里——拆成两条命令时进程在中间崩掉会留下
- * 永不过期的键。</p>
- *
- * <p>所有 Redis 访问经统一门面 {@link RedisCache}，本类只剩「脚本 + 在途语义」。</p>
- *
- * <p><b>故障口径：fail-hard。</b>Redis 不可用时抛 {@code RedisUnavailableException}
- * → 网关 503。在途数是 {@code LEAST_LOAD} 选路的唯一数据源，静默按 0 处理会让所有模型
- * 被看成「不拥塞」，负载均衡退化成权重序，已过载的模型继续被加压。</p>
+ * 多节点在途计量：Redis，与 {@link CaffeineModelLoadStore} 实现同一 {@link ModelLoadStore} 抽象。
+ * 脚本均为单段 Lua，保证「读-改-写」原子，{@code INCRBY} 与 {@code PEXPIRE} 在同一脚本内；所有 Redis 访问经 {@link RedisCache}。
+ * 故障口径 fail-hard：Redis 不可用抛 {@code RedisUnavailableException} → 网关 503。
  */
 public class RedisModelLoadStore implements ModelLoadStore {
 

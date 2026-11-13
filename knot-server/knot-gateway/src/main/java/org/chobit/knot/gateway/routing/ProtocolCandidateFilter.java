@@ -9,15 +9,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 按请求协议过滤路由候选：只保留声明了「启用且协议匹配」绑定的模型。
- *
- * <p>与调试面板的协议可选项（模型池取<b>并集</b>）配套：面板按池内并集提供协议，
- * 网关只让真正支持该协议的模型进入 failover 链，避免把请求打到不具备该能力的上游。
- * 过滤后为空由调用方决定处置（{@code RoutingResolver} 抛 NO_ROUTING_TARGET）。</p>
- *
- * <p>判定口径只认显式声明：{@code kb_model_api_bindings} 中有「启用」且协议归一后匹配的绑定。
- * 无绑定即视为不支持任何协议——不回落到模型类型推导：未声明的模型不应被推测为可用，
- * 配置缺失应当显式暴露。</p>
+ * 按请求协议过滤路由候选：只保留在 {@code kb_model_api_bindings} 中声明了「启用且协议归一后匹配」绑定的模型。
+ * 无绑定即视为不支持任何协议，不回落模型类型推导；过滤后为空由调用方处置（{@code RoutingResolver} 抛 NO_ROUTING_TARGET）。
  */
 public class ProtocolCandidateFilter {
 

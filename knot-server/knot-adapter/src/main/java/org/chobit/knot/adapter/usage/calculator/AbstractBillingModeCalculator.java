@@ -20,14 +20,9 @@ import java.math.MathContext;
 public abstract class AbstractBillingModeCalculator implements BillingModeCalculator {
 
     /**
-     * 金额除法的精度兜底：{@link BillingUnitEnum#unitSize()} 的基数目前全是 10 的幂
-     * （1 / 1e3 / 1e6），「用量 × 单价 ÷ 基数」恒定除尽，本上下文不会实际参与计算。
-     * 保留它是为了未来：一旦新增非 10 的幂基数（如按小时 = 3600），除法可能不终止，
-     * 无精度上下文的 {@code divide} 会直接抛 {@link ArithmeticException} 打断计费链路。
-     *
-     * <p>取 128 位十进制：对任何真实单价与用量都等于不设限，远大于「6 位小数单价 ÷ 1e6」
-     * 所需的 12 位。PER_MINUTE（60 秒）曾是唯一的非 10 的幂基数，已于 2026-10-17 退役——
-     * 按分钟计费必须在配置期把单价折成每秒价，不允许 60 进金额公式。</p>
+     * 金额除法的精度兜底（128 位十进制）：单位基数出现非 10 的幂时除法可能不终止，
+     * 无精度上下文的 {@code divide} 会抛 {@link ArithmeticException}。
+     * 按分钟计费必须在配置期把单价折成每秒价，不允许 60 进金额公式。
      */
     protected static final MathContext MONEY_DIVISION = MathContext.DECIMAL128;
 
@@ -36,16 +31,12 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
     }
 
     /**
-     * 金额公式的分母：单位基数。
-     *
-     * <p>单位归一化一律经 {@link BillingModeEnum#normalizeUnit(String)}：
-     * 基数是分母，1K_TOKENS(1000) 与 PER_SECOND(1) 差 1000 倍，
-     * 「兜底成 1K_TOKENS」这种写法一旦脱离模式口径就是静默的 1000 倍错价。
-     * 各计算器必须传自己的 {@link BillingModeEnum#mode()}，不要用规则列的空值兜底。</p>
+     * 金额公式的分母：单位基数，一律经 {@link BillingModeEnum#normalizeUnit(String)} 归一。
+     * 各计算器必须传自己的 {@link BillingModeEnum#mode()}，不用规则列的空值兜底。
      */
     /**
      * 量纲唯一出口：归一后的计费单位编码。明细行的 {@code unit} 一律从这里取，
-     * 不允许与 {@link #unitSize} 各推一份——两处推导必然漂移。
+     * 不与 {@link #unitSize} 各推一份。
      */
     protected String unitCode(BillingRuleRef rule, BillingModeEnum mode) {
         return mode.normalizeUnit(rule == null ? null : rule.unit());
@@ -60,10 +51,7 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
     }
 
     /**
-     * 单项金额 = 用量 × 单价 ÷ 单位基数。
-     *
-     * <p>不再定标 8 位小数：单价常见 6 位小数，除单位基数后可能需要 12 位以上才不归零，
-     * 8 位会把小额真实成本抹成 0（如 1M_TOKENS 下 1000 × 0.0000015 ÷ 1e6 = 1.5e-9）。</p>
+     * 单项金额 = 用量 × 单价 ÷ 单位基数，结果不定标小数位数。
      */
     protected BigDecimal cost(long amount, BigDecimal unitPrice, int unitSize) {
         if (amount <= 0 || unitPrice == null || unitPrice.signum() == 0) {
@@ -76,13 +64,9 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
 
     /**
      * 明细行唯一构造出口：量与单位必须同行给出，{@code unitSize} 由 {@code unitCode} 派生，
-     * 调用处不许再传裸基数（否则量纲与金额分母可能各说一套）。
-     *
-     * <p>{@code price} 是规则配置的<b>原始单价</b>，基准由同行 {@code unit} 声明
-     * （{@code PER_SECOND} = 每秒价、{@code 1M_TOKENS} = 每百万 Token 价），不再折算成每百万单位：
-     * 折算会把它放大 1e6 倍，与 {@code unit} 的语义直接冲突，下游也拿不回配置价。
-     * 复算式 {@code cost = quantity × price ÷ unitSize(unit)}，分母由 {@code unit} 推导，
-     * 契约里不另发 {@code unit_size}（同一事实不写两遍）。</p>
+     * 调用处不传裸基数。{@code price} 是规则配置的原始单价，基准由同行 {@code unit} 声明
+     * （{@code PER_SECOND} = 每秒价、{@code 1M_TOKENS} = 每百万 Token 价），
+     * 复算式 {@code cost = quantity × price ÷ unitSize(unit)}，契约里不另发 {@code unit_size}。
      */
     protected NormalizedUsageDetail detail(String type,
                                            long quantity,
@@ -120,13 +104,8 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
 
     /**
      * 本次是否按 token 计量：由规则单位声明（{@link BillingUnitEnum#tokenBased()}）。
-     *
-     * <p>单位一律先过 {@link BillingModeEnum#normalizeUnit(String)}——空白 / 非法 / 本模式不支持时
-     * 取模式默认（VIDEO → PER_SECOND），与管理端表单同源，计算器里不另写一套兜底。</p>
-     *
-     * <p>⭐ 必须由<b>所有</b>计算器共用：VIDEO 规则绑 VideoBillingModeCalculator
-     * 与走通用兜底（SimpleBillingModeCalculator）是两条并存的路径，
-     * 各写一份判断就会漂移——同一条规则换个提取器绑定即换一套量纲，且编译与单测全绿。</p>
+     * 单位先过 {@link BillingModeEnum#normalizeUnit(String)}，空白 / 非法 / 本模式不支持时取模式默认
+     * （VIDEO → {@code PER_SECOND}）；所有计算器共用本判断。
      */
     protected boolean tokenQuantity(BillingRuleRef rule, BillingModeEnum mode) {
         String unitCode = mode == null ? null : mode.normalizeUnit(rule == null ? null : rule.unit());
@@ -135,24 +114,16 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
     }
 
     /**
-     * token 计费量：总量优先，其次输出量——与 {@code TokenBillingModeCalculator} 同口径。
-     *
-     * <p>视频模型上报的 token 语义由协议侧决定，这里不做启发式猜测（见 60-business-rules §8.2）；
-     * 总量缺失时回落<b>输出</b>而非输入——「出了多少内容」比「喂了多少」更接近所有已知厂商口径。</p>
+     * token 计费量：总量优先，缺失时回落输出量（不回落输入量），与
+     * {@code TokenBillingModeCalculator} 同口径；不按视频模型上报的 token 语义做启发式猜测。
      */
     protected long tokenAmount(TokenBillingUsage tokens) {
         return firstAmount(tokens.totalTokens(), tokens.outputTokens());
     }
 
     /**
-     * 规则定价配置解析：<b>非法 config_json 必须抛，不许静默按 0 出账</b>
-     * （60-business-rules §8 红线：静默记零账 = 静默资损）。
-     *
-     * <p>旧实现 {@code BillingConfig.fromJsonOrNull} 把非法 JSON 吞成 null，各分项价随即按 0 计算，
-     * 没有日志也没有标记——历史脏数据、直接改库、迁移错误、模式与提取器错配都会走到这里。
-     * 现在一律上抛 {@link BusinessException}，让调用链显式失败。</p>
-     *
-     * <p>空 / 空白仍返回 null：「未配置价格」是合法的规则状态，各计算器按既有语义出账。</p>
+     * 规则定价配置解析：非法 {@code config_json} 一律抛 {@link BusinessException}，不静默按 0 出账；
+     * 空 / 空白返回 {@code null}（「未配置价格」是合法的规则状态）。
      */
     protected static BillingConfig configOf(BillingRuleRef rule) {
         String json = rule == null ? null : rule.configJson();

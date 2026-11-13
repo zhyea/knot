@@ -34,16 +34,10 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 /**
- * 异步任务的<b>提交侧</b>：读绑定 → 读档案 → 落一条待轮询任务，并给出 202 信封。
- *
- * <p>⚠ <b>判定与退避不在本类了</b>（2026-10-29 拆到同包的 {@link AsyncTaskSpecRules}）：
- * 「什么算成功、多久再看一眼」是纯函数，输入只有响应 {@code Map} 与快照，
- * 与「读绑定、读档案、建任务行」不是同一抽象层。本类留下的都是<b>提交那一刻</b>才需要的东西——
- * 模型/绑定/计费规则这些实体与本地缓存，以及判定链本身。⭐ 回执体的形状<b>不在这里</b>，
- * 归 {@link AsyncTaskAcceptedResponse}（对外契约住 {@code model.vo.response}）。</p>
- *
- * <p>本类不含任何厂商名称：查询路径、终态取值、产物位置全部来自档案
- * （{@code kb_async_task_profiles}）的配置值，新增一家异步上游 = 加一行档案，<b>不改本类</b>。</p>
+ * 异步任务的提交侧：读绑定 → 读档案 → 落一条待轮询任务，并给出 202 信封。
+ * 判定与退避在 {@link AsyncTaskSpecRules}（纯函数）；本类只留提交那一刻需要的模型/绑定/计费规则实体与本地缓存。
+ * 回执体形状归 {@link AsyncTaskAcceptedResponse}（对外契约住 {@code model.vo.response}）。
+ * 本类不含厂商名称：查询路径、终态取值、产物位置全部来自档案（{@code kb_async_task_profiles}）配置值，新增一家异步上游 = 加一行档案。
  */
 @Slf4j
 @Component
@@ -59,10 +53,7 @@ public class AsyncTaskSupport {
 
     /**
      * 该绑定是否为异步任务模型：只看绑定上的 {@code async_profile_code} 有没有值。
-     *
-     * <p>⭐ 异步与否是「绑定」的属性而不是协议的属性：同为 {@code VIDEO_GENERATIONS}，
-     * 可灵 / MiniMax 是「提交 + 轮询」，其它模型可能同步返回。因此判定一律落在绑定上，
-     * 不能按协议枚举猜（那会让既有同步视频一起被改造成异步）。</p>
+     * 异步与否是「绑定」的属性而非协议的属性（同为 {@code VIDEO_GENERATIONS}，可灵 / MiniMax 是「提交 + 轮询」，其它模型可能同步返回）；判定落在绑定上，不按协议枚举猜。
      */
     public String profileCodeOf(ModelApiBindingConfigVo binding) {
         return binding == null ? null : StringUtils.trimToNull(binding.asyncProfileCode());
@@ -85,16 +76,9 @@ public class AsyncTaskSupport {
     }
 
     /**
-     * 读档案并投影为不可变快照；档案不可用时返回 null（由调用方判为「配置不完整」→ 回落同步）。
-     *
-     * <p>⭐ <b>运行时两道防线</b>（{@code 任务协议绑定方案 §4.6}）：管理面保存绑定时会校验
-     * 「档案存在且启用、协议一致、协议非流式」，但<b>迁移脚本与手写 SQL 是合法写入路径</b>，
-     * 所以运行时必须再判一次，且四条判据与保存期同源。判据不同：管理面回答「能不能存」，
-     * 这里回答「现在能不能用」。</p>
-     *
-     * <p>⚠ 回落而不是抛错：请求本身没坏（上游已成功、响应体在手上），只是这次不计费为异步。
-     * 抛 500 会把一个纯配置错误变成用户可见故障；但日志必须是 {@code error} 且带齐三方信息，
-     * 否则运维只能猜。</p>
+     * 读档案并投影为不可变快照；档案不可用时返回 {@code null}（由调用方判为「配置不完整」→ 回落同步）。
+     * 运行时再判一次「档案存在且启用、协议一致、协议非流式」，四条判据与保存期同源（迁移脚本与手写 SQL 是合法写入路径）。
+     * 档案不可用回落而不抛错，日志记 {@code error} 且带齐三方信息。
      *
      * @param protocol 绑定行上的协议；用于与档案所属协议比对（{@code null} 表示不做比对）
      */
@@ -135,10 +119,7 @@ public class AsyncTaskSupport {
 
     /**
      * 本次命中目标是否为异步任务（用于请求成功后的限额记账判定）。
-     *
-     * <p>与 {@link #submitIfAsync} 的前两环同口径：绑定上有档案编码，且档案可用。
-     * 不在这里读创建响应——调用发生在代理成功之后、提交落库之前，缓冲区里还没有 task 标记；
-     * 这里回答的是「该模型 × 协议是否走异步」，而不是「这次创建是否成功」。</p>
+     * 与 {@link #submitIfAsync} 的前两环同口径：绑定上有档案编码且档案可用；不读创建响应（调用发生在代理成功之后、提交落库之前）。
      */
     public boolean isAsync(RoutingRuleTargetDto target, ModelApiProtocolEnum protocol) {
         ModelApiBindingConfigVo binding = bindingOf(target == null ? null : target.targetId(), protocol);
@@ -175,11 +156,7 @@ public class AsyncTaskSupport {
     }
 
     /**
-     * 落库字段序列化：<b>失败必须抛</b>。
-     *
-     * <p>旧实现用 {@code JsonKit.toJson}（失败只 log 后返回 null），requestBody / spec / context
-     * 会以 NULL 落库，界面照样显示「已提交」，轮询时却无从重建上下文。
-     * 宁可拒绝提交，也不能留下一个假任务。</p>
+     * 落库字段序列化：失败必须抛。
      */
     private static String jsonOrThrow(Object value) {
         try {
@@ -197,18 +174,8 @@ public class AsyncTaskSupport {
 
     /**
      * 判定本次上游结果是否为「异步任务创建成功」，是则落一条待轮询任务并给出 202 回执。
-     *
-     * <p>判定链（前两环不成立即返回 {@code null}，回退同步链路）：</p>
-     * <ol>
-     *   <li>命中目标存在 → 取该模型 × 协议的绑定；</li>
-     *   <li>绑定上 {@code async_profile_code} 有值 → 读档案；</li>
-     *   <li>按档案的 {@code task_id_path} 从创建响应取出上游任务 ID。</li>
-     * </ol>
-     *
-     * <p>⭐⭐ <b>第 3 步取不到 ID 是抛而不是回退</b>（2026-11-01 robin 定）：前两环是「这次压根没打算走异步」，
-     * 回 {@code null} 成立；第 3 步已经确定「该建成异步任务」，此时没有 ID 就没有东西可轮询，
-     * 回退同步等于把上游「任务已创建」的响应当成最终结果交给客户端——本地无任务行，
-     * 结果既查不到也不计费。详见 {@link #requireUpstreamTaskId}。</p>
+     * 判定链（前两环不成立即返回 {@code null}，回退同步链路）：命中目标存在 → 取该模型 × 协议的绑定；绑定上 {@code async_profile_code} 有值 → 读档案；按档案的 {@code task_id_path} 从创建响应取出上游任务 ID。
+     * 第 3 步取不到 ID 是抛而不是回退，详见 {@link #requireUpstreamTaskId}。
      *
      * @return 202 回执体（非 {@code null} 本身即表示「已判定为异步」）；
      *         非异步任务或配置不完整时为 {@code null}
@@ -276,16 +243,8 @@ public class AsyncTaskSupport {
     }
 
     /**
-     * 从创建响应取上游任务 ID，<b>取不到就抛</b>（包级可见，供单测直接驱动）。
-     *
-     * <p>⭐⭐ <b>为什么是 502 而不是 500 / 回退同步</b>（2026-11-01）：
-     * 上游回了 2xx（响应体在手上、任务已建），但里面没有档案约定的任务 ID ——
-     * 这不是网关内部故障，而是「档案的 {@code task_id_path} 配错」或「上游契约变了」。
-     * 用 {@link GatewayUpstreamException} 表达，客户端拿到 502 {@code UPSTREAM_ERROR}、
-     * 数仓落 {@code upstream_call} 阶段，运维照消息里的档案编码去改档案即可。</p>
-     *
-     * <p>⚠ 消息里必须带档案编码与表达式原文：只报「取不到 ID」的话，线上有几十份档案时
-     * 无从下手（绑定 → 档案 → 列，三层跳转只能靠猜）。</p>
+     * 从创建响应取上游任务 ID，取不到就抛（包级可见，供单测直接驱动）。
+     * 取不到 ID 用 {@link GatewayUpstreamException} 表达：客户端拿到 502 {@code UPSTREAM_ERROR}、数仓落 {@code upstream_call} 阶段；消息里必须带档案编码与表达式原文。
      *
      * @param profileCode 触发本次判定的档案编码（绑定上的 {@code async_profile_code}）
      * @param createBody  上游创建响应
@@ -305,14 +264,8 @@ public class AsyncTaskSupport {
 
     /**
      * 从客户端原始请求体里取回调地址并做安全校验。
-     *
-     * <p>⭐ <b>取的是 {@code exchange.requestBody()}（原始体），不是转发给上游的那份</b>：
-     * 上游请求体里的回推字段已被 {@code VideoRequestSupport} 剥掉（防止上游绕过结算直推客户端），
-     * 所以提取必须发生在剥除之前——这一步在提交侧，剥除在适配器侧，天然满足。</p>
-     *
-     * <p>⚠ 校验不过时<b>只丢回调、不失败提交</b>：回调是增强能力，客户仍可轮询拿结果；
-     * 为一个不安全的地址把整条视频任务判死，代价远大于少一次回调。但必须留 WARN，
-     * 否则「我配了 callback_url 却没收到」会变成无从排查的黑洞。</p>
+     * 取 {@code exchange.requestBody()}（原始体），不是转发给上游的那份（回推字段已被 {@code VideoRequestSupport} 剥掉）；提取发生在剥除之前。
+     * 校验不过只丢回调、不失败提交，客户仍可轮询拿结果，留 WARN。
      */
     private String resolveCallbackUrl(GatewayExchange exchange) {
         String raw = CallbackFieldSupport.callbackUrlOf(exchange == null ? Map.of() : exchange.requestBody());
@@ -324,7 +277,7 @@ public class AsyncTaskSupport {
     }
 
     /**
-     * 创建一条异步任务的输入（一次性打包，避免七、八个同类型参数排在一起被传错顺序）。
+     * 创建一条异步任务的输入（一次性打包）。
      */
     public record AsyncTaskCreation(String taskCode,
                                     String profileCode,
@@ -338,10 +291,7 @@ public class AsyncTaskSupport {
                                     LocalDateTime now,
                                     /**
                                      * 已校验的回调地址；{@code null} 表示不回调。
-                                     *
-                                     * <p>⚠ 只在这里（提交那一刻）从原始请求体提取一次并快照，
-                                     * 之后不再回看请求体：档案/请求体都可能在途变化，而「这批任务回调到哪」
-                                     * 必须是一个确定事实。</p>
+                                     * 只在提交那一刻从原始请求体提取一次并快照，之后不再回看请求体。
                                      */
                                     String callbackUrl) {
     }

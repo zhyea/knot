@@ -13,19 +13,9 @@ import java.util.Map;
 
 /**
  * 异步任务对外视图的唯一投影：{@code AsyncTaskDto → AsyncTaskQueryResponse}。
- *
- * <p>⭐⭐ <b>为什么必须有这一层（2026-10-29）</b>：同一份对外 body 现在有两个出口——
- * 客户端<b>轮询</b>（{@link AsyncTaskLookupRunner}）与任务终态<b>回调推送</b>
- * （{@link AsyncTaskDeliveryRunner}）。两处各写一份投影，必然漂移：回调 body 少一个
- * {@code result} 键、或者 status 一处给码一处给词，客户端就要写两条解析分支。</p>
- *
- * <p>收口之后：<b>回调推的就是轮询会返回的那一份</b>。客户端的解析逻辑只有一套，
- * 「轮询拿到了什么」与「回调收到了什么」永远同形。唯一例外是测试头（回调没有请求头，
- * 故 {@code upstream_body} 只在单次轮询响应里出现），见 {@link #toResponse(AsyncTaskDto, boolean)}。</p>
- *
- * <p>⚠ {@code status} 直接就是 {@link org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum}
- * 的<b>落库码</b>（0~5），与 {@code /api/enum-options} 下发的同一套。不做「对外词」改名：
- * 客户端与管理端看同一份码、同一份中文 label，多一层词表只会多一处漂移点。</p>
+ * 同一份对外 body 有两个出口：客户端轮询（{@link AsyncTaskLookupRunner}）与任务终态回调推送（{@link AsyncTaskDeliveryRunner}），都经本类投影，保证两处同形。
+ * 回调推的就是轮询会返回的那一份；唯一例外是测试头（回调没有请求头，故 {@code upstream_body} 只在单次轮询响应里出现），见 {@link #toResponse(AsyncTaskDto, boolean)}。
+ * {@code status} 直接就是 {@link org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum} 的落库码（0~5），与 {@code /api/enum-options} 下发的同一套。
  */
 final class AsyncTaskViewSupport {
 
@@ -39,14 +29,8 @@ final class AsyncTaskViewSupport {
 
     /**
      * 投影：{@code testHeader} 为 true 时额外带上内部证据（含上游原文）。
-     *
-     * <p>⭐⭐ <b>账目两键（{@code knot_extend} + 并列 {@code usage}）的下发条件</b>（2026-11-12 robin 拍板）：
-     * <b>终态 + 提交时快照的 {@code returnUsageDetail}</b>；测试头是<b>叠加</b>开关，只看它也能出账。
-     * 在途任务还没结算，下发只会给客户端一个空账，所以终态是硬条件。</p>
-     *
-     * <p>⭐ <b>{@code upstream_body} 仍只跟测试头</b>：消费者开了用量明细只该拿到账目，
-     * 不该连上游响应原文一起收到。回调没有请求头，所以测试头不叠加——这是轮询与回调
-     * <b>唯一</b>的有意差异，其余字段由本方法一次投影、两处调用，永不漂移。</p>
+     * 账目两键（{@code knot_extend} + 并列 {@code usage}）的下发条件：终态 + 提交时快照的 {@code returnUsageDetail}；测试头是叠加开关，只看它也能出账。
+     * {@code upstream_body} 只跟测试头；消费者开了用量明细只拿账目，不收上游响应原文；回调没有请求头，测试头不叠加。
      */
     static AsyncTaskQueryResponse toResponse(AsyncTaskDto task, boolean testHeader) {
         boolean accounting = testHeader || (terminal(task) && returnUsageDetail(task));
@@ -72,8 +56,7 @@ final class AsyncTaskViewSupport {
     }
 
     /**
-     * 消费者配置取提交时的 {@code context_json} 快照，不是当前库里的路由配置：任务跑到终态
-     * 可能已过去几十分钟，用「现在的配置」会让同一笔任务在轮询与回调之间改口。
+     * 消费者配置取提交时的 {@code context_json} 快照，不是当前库里的路由配置。
      * 旧快照缺该字段时 Jackson 填 false，按「不带账目」处理。
      */
     private static boolean returnUsageDetail(AsyncTaskDto task) {
@@ -85,9 +68,8 @@ final class AsyncTaskViewSupport {
     }
 
     /**
-     * 从终态查询响应原文取上游 usage 对象：配了 {@code usage_path} 就按档案表达式取，
-     * 否则回落到顶层 {@code usage}（含 Responses 协议 {@code response.usage} 下钻）。
-     * ⚠ 只读 {@code terminal_body} 原文，不裁剪不回写；空对象与 null 一律省略（同同步链路口径）。
+     * 从终态查询响应原文取上游 usage 对象：配了 {@code usage_path} 就按档案表达式取，否则回落到顶层 {@code usage}（含 Responses 协议 {@code response.usage} 下钻）。
+     * 只读 {@code terminal_body} 原文，不裁剪不回写；空对象与 null 一律省略（同同步链路口径）。
      */
     private static Map<String, Object> rawUsageOf(AsyncTaskDto task) {
         Map<String, Object> body = upstreamBodyOf(task);
@@ -101,10 +83,8 @@ final class AsyncTaskViewSupport {
     }
 
     /**
-     * 结算快照 → {@code knot_extend}；未结算（失败/超时/老任务）返回 null。
-     *
-     * <p>反序列化失败时 {@code JsonKit.fromJson} 自身记 ERROR 并返回 null，这里不再兜一层：
-     * 多一层 catch 只会让「脏数据」与「本来没有」在日志里长得一样。</p>
+     * 结算快照 → {@code knot_extend}；未结算（失败/超时/老任务）返回 {@code null}。
+     * 反序列化失败时 {@code JsonKit.fromJson} 自身记 ERROR 并返回 {@code null}，这里不再兜一层。
      */
     private static KnotExtendPayload settlementOf(AsyncTaskDto task) {
         return JsonKit.fromJson(task.settlementJson(), KnotExtendPayload.class);

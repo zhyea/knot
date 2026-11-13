@@ -18,30 +18,15 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * 异步档案的<b>归一与校验</b>，以及管理面的<b>试跑</b>。
- *
- * <p>⭐⭐ <b>为什么这里必须有校验，而运行时不能只靠它</b>：档案是「配置」，写入只有两条路
- * ——管理面与运维脚本。管理面把住一条，另一条（SQL）把不住，所以运行时仍要有防线
- * （网关遇到停用/协议不匹配的档案回落同步并 {@code log.error}）。但反过来，
- * <b>没有管理面校验</b>时的代价更高：一个把 {@code status} 写成 {@code statuses} 的档案，
- * 现象是「任务永远在轮询」，排查会先怀疑上游。</p>
- *
- * <p>⭐ <b>保存时只挡「静态可判」的错</b>：语法、必填、长度、取值范围。语义错（表达式求值抛异常、
- * 判定返回非布尔、状态文案对不上）静态判不出来，只有 {@link #dryRun} 能暴露——
- * 所以试跑不是锦上添花，它是这套配置唯一的<能看见结果的验证手段>。</p>
- *
- * <p>⚠ <b>试跑复用运行时同一份判定</b>（{@link AsyncTaskTerminalSupport#verdict}）：
- * 若试跑自己写一遍「成功→失败→进行」的顺序，试跑通过而线上判错就是早晚的事。</p>
+ * 异步档案的归一与校验，以及管理面的试跑。
+ * 保存时只挡静态可判的错（语法、必填、长度、取值范围）；语义错（表达式求值抛异常、判定返回非布尔、状态文案对不上）靠 {@link #dryRun} 暴露。
+ * 运行时仍要有防线：网关遇停用 / 协议不匹配的档案回落同步并 {@code log.error}。
+ * 试跑复用运行时同一份判定（{@link AsyncTaskTerminalSupport#verdict}）。
  */
 public final class AsyncTaskProfileSupport {
 
     /**
-     * 档案编码：字母开头，允许数字、下划线与连字符；<b>大小写不做要求</b>，最长 64 位。
-     *
-     * <p>⭐ <b>为什么不再强制纯大写</b>（2026-11-01 拍板）：当初的担心是「绑定表按 {@code profile_code}
-     * 引用，大小写漂移会打断引用」，但该列的 collation 是 {@code utf8mb4_unicode_ci}——
-     * <b>大小写不敏感</b>，引用侧本来就漂不了；而编码在编辑态不可改，也不存在「改一笔让引用失效」的路径。
-     * 剩下的只是可读性，不足以拒绝 {@code SeedanceVideo} 这类写法。</p>
+     * 档案编码：字母开头，允许数字、下划线与连字符；大小写不做要求，最长 64 位。
      */
     private static final Pattern PROFILE_CODE = Pattern.compile("^[A-Za-z][A-Za-z0-9_-]{0,63}$");
 
@@ -55,11 +40,8 @@ public final class AsyncTaskProfileSupport {
     }
 
     /**
-     * 归一：去首尾空白、协议与方法转大写。
-     *
-     * <p>⚠ 只做「不改变语义的清洗」。空串<b>折成 null</b> 是有语义的一步：
-     * 可选列（{@code status_running} / {@code error_message_path}）用 null 表示「这一档没配」，
-     * 而空串进了 MVEL 会被当成空表达式——两种输入必须收敛成一种表示。</p>
+     * 归一：去首尾空白、协议与方法转大写，只做不改变语义的清洗；
+     * 空串折成 {@code null}（可选列 {@code status_running} / {@code error_message_path} 用 null 表示「这一档没配」）。
      */
     public static AsyncTaskProfileSaveDto normalize(AsyncTaskProfileSaveDto dto) {
         if (dto == null) {
@@ -161,11 +143,8 @@ public final class AsyncTaskProfileSupport {
     }
 
     /**
-     * 试跑：按档案的表达式读两段真实响应，把「取到什么、判成什么」摊开。
-     *
-     * <p>⚠ 这里<b>不抛业务异常</b>（除入参缺失）：试跑的价值就是「错了也要看得见」。
-     * 逐条表达式包裹 try/catch 收集成 {@code errors}，让运维一次看到全部问题，
-     * 而不是改一条、跑一次、再冒出下一条。</p>
+     * 试跑：按档案的表达式读两段真实响应，把「取到什么、判成什么」摊开；
+     * 不抛业务异常（除入参缺失），逐条表达式包裹 try/catch 收集成 {@code errors}。
      */
     public static AsyncTaskProfileDryRunVo dryRun(AsyncTaskProfileDryRunDto dto) {
         require(dto != null && dto.profile() != null, "试跑需要档案内容");
@@ -233,11 +212,7 @@ public final class AsyncTaskProfileSupport {
     }
 
     /**
-     * 试跑结论的一句话提示。
-     *
-     * <p>入参是枚举而不是 {@code Terminal#name()} 转出来的字符串：字符串版本要写
-     * {@code switch ("SUCCEEDED")} 加 {@code default}，新增档位时静静落进 default，
-     * 试跑就会对运维说一句与判定结论不符的话——而试跑的全部价值就是「说得清判定成了什么」。</p>
+     * 试跑结论的一句话提示；入参是枚举，不用 {@code Terminal#name()} 转出的字符串。
      */
     private static String hintOf(AsyncTaskTerminalSupport.Terminal terminal, List<String> resultUrls,
                                  String errorMessage) {
@@ -282,12 +257,7 @@ public final class AsyncTaskProfileSupport {
     }
 
     /**
-     * 严格取值（试跑专用）：与<b>运行时</b>同一口径，取不到就记 error。
-     *
-     * <p>⭐⭐ 为什么 {@code task_id_path} 不能用宽容的 {@link #readText}（2026-11-01）：
-     * 运行时取不到上游任务 ID 会直接 502（档案配了异步却没有可轮询的任务），
-     * 试跑若只是把 {@code null} 摊在界面上、一条错误都不留，就会出现
-     * 「试跑全绿、上线一半请求 502」——试跑存在的意义正是把那类错误提前摊开。</p>
+     * 严格取值（试跑专用）：与运行时同一口径，取不到就记 error。
      */
     private static String readRequiredText(Map<String, Object> body, String expression, String label,
                                            List<String> errors) {
@@ -300,10 +270,8 @@ public final class AsyncTaskProfileSupport {
     }
 
     /**
-     * 判定表达式试算：只回答「这条表达式能不能用」，不回答「算成功还是失败」。
-     *
-     * <p>返回值为 {@code false} 可能是「不成立」也可能是「出错」，两者由 {@code errors} 区分——
-     * 调用方只在 {@code errors} 为空时使用结果。</p>
+     * 判定表达式试算：只回答「这条表达式能不能用」，不回答「算成功还是失败」；
+     * 返回 {@code false} 可能是「不成立」也可能是「出错」，两者由 {@code errors} 区分，调用方只在 {@code errors} 为空时使用结果。
      */
     private static boolean testQuietly(Map<String, Object> vars, String expression, String label, List<String> errors) {
         if (StringUtils.isBlank(expression)) {

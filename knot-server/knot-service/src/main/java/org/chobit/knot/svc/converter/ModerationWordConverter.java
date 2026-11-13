@@ -10,8 +10,7 @@ import java.util.List;
 
 /**
  * 敏感词条 Entity / DTO / VO 互转。
- *
- * <p>{@code normalizedWord} 只在 DTO 与 Entity 之间流转：VO 不暴露它，前端只维护原文。</p>
+ * {@code normalizedWord} 只在 DTO 与 Entity 之间流转：VO 不暴露它，前端只维护原文。
  */
 @Component
 public class ModerationWordConverter {
@@ -55,9 +54,8 @@ public class ModerationWordConverter {
 
     /**
      * 视图 → DTO。
-     *
-     * <p>{@code normalizedWord} 由服务端从原文归一化后维护，{@code createdAt} / {@code updatedAt}
-     * 由库侧维护，三者都不接受请求写回，这里显式留空。</p>
+     * {@code normalizedWord} 由服务端从原文归一化后维护，{@code createdAt} / {@code updatedAt}
+     * 由库侧维护，三者都不接受请求写回，这里显式留空。
      */
     public ModerationWordDto toDto(ModerationWordItem item) {
         if (item == null) {

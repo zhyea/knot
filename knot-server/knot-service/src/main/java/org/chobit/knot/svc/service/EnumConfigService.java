@@ -26,14 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 枚举主数据服务。
- *
- * <p>⭐ 对外一律吐 {@link EnumConfigItem} / {@link EnumCategorySummaryItem}，实体只在私有方法里用。
- * 入参同样是 Item：{@code @OperationLog} 的 {@code oldValueSpel} 走
- * {@code @enumConfigService.getById}，新旧快照必须是同一种载体。</p>
- *
- * <p>⚠ {@link #listByCategory} 带 {@code @Cacheable}，缓存值是 Item 列表。
- * 缓存实现是 <b>Caffeine 本地缓存</b>（admin 的 {@code CacheConfiguration}），存在堆里、重启即空，
- * 所以改缓存值类型没有反序列化兼容问题；若哪天换成 Redis，这里要加缓存版本号。</p>
+ * 对外一律吐 {@link EnumConfigItem} / {@link EnumCategorySummaryItem}，实体只在私有方法里用；
+ * 入参同为 Item，{@code @OperationLog} 的 {@code oldValueSpel} 走 {@code @enumConfigService.getById}。
+ * {@link #listByCategory} 带 {@code @Cacheable}，缓存值为 Item 列表（admin 的 Caffeine 本地缓存）。
  */
 @Service
 public class EnumConfigService {
@@ -44,9 +39,8 @@ public class EnumConfigService {
     public static final String ENUM_ITEMS_CACHE = "enumItems";
 
     /**
-     * 已由后端代码枚举（GET /api/enum-options，EnumOptionRegistry）权威维护的 DB 分类编码。
-     * 这些分类已在 data.sql 与迁移脚本 2026-10-02-retire-code-enums.sql 中退役，
-     * 禁止在 DB 重新创建，否则会再次产生"双源漂移"。
+     * 已由后端代码枚举（{@code GET /api/enum-options}，{@code EnumOptionRegistry}）权威维护的 DB 分类编码。
+     * 禁止在 DB 重新创建这些分类。
      */
     private static final Set<String> CODE_ENUM_CATEGORY_CODES = Set.of(
             "app_type",
@@ -61,11 +55,8 @@ public class EnumConfigService {
     );
 
     /**
-     * 零消费孤儿分类：自建库起就没有任何前后端/Mapper 读取方，属于"可配置但没人配置"的
-     * 误配置入口，已在迁移脚本 2026-10-03-retire-orphan-enums.sql 中整体删除。
-     * 与 {@link #CODE_ENUM_CATEGORY_CODES} 的区别是它们**没有**代码枚举接管（不存在"正确取值"），
-     * 但同样禁止重建——若将来真要启用（如告警级别进功能），应走「新建 Java enum + 注册
-     * EnumOptionRegistry」的标准路径，而不是在枚举管理页手工填回这几张字典表。
+     * 零消费孤儿分类：没有任何前后端 / Mapper 读取方，也无代码枚举接管（不存在「正确取值」）。
+     * 禁止重建；要启用应新建 Java enum 并注册 {@code EnumOptionRegistry}。
      */
     private static final Set<String> RETIRED_ORPHAN_CATEGORY_CODES = Set.of(
             "plugin_source_type",
@@ -75,7 +66,7 @@ public class EnumConfigService {
             "plugin_result_status"
     );
 
-    /** 禁止在 DB 重新创建的分类（代码枚举已接管的 + 已退役孤儿的）。 */
+    /** 禁止在 DB 重新创建的分类（代码枚举已接管的 + 已停用的）。 */
     private static boolean isReservedCategory(String categoryCode) {
         return CODE_ENUM_CATEGORY_CODES.contains(categoryCode)
                 || RETIRED_ORPHAN_CATEGORY_CODES.contains(categoryCode);
@@ -111,9 +102,7 @@ public class EnumConfigService {
 
     /**
      * 按分类读取枚举项（缓存 {@link #ENUM_ITEMS_CACHE}，单参数方法默认 key 即 category）。
-     *
-     * <p>前端下拉改为每次打开强制回源后，这里用短 TTL 的本地缓存吸收重复请求、避免 DB 读放大；
-     * 一致性由 create/update/delete 的整表失效兜底。</p>
+     * 一致性由 create / update / delete 的整表失效保证。
      */
     @Cacheable(cacheNames = ENUM_ITEMS_CACHE)
     public List<EnumConfigItem> listByCategory(String category) {
@@ -172,9 +161,8 @@ public class EnumConfigService {
     }
 
     /**
-     * 更新枚举项。编码口径与其他业务码一致：没有任何引用时可改，一旦被引用（计费规则/统一模型的
-     * 模型族、折扣策略的折扣类型、敏感词条的分类）就拒绝改码——引用方存的都是 item_code，
-     * 改码等于让存量行掉绑（模型族掉绑会直接落不到计费规则上）。名称/排序/启用/备注始终可改。
+     * 更新枚举项。编码没有任何引用时可改，一旦被引用（计费规则 / 统一模型的模型族、
+     * 折扣策略的折扣类型、敏感词条的分类）就拒绝改码；名称 / 排序 / 启用 / 备注始终可改。
      */
     @CacheEvict(cacheNames = ENUM_ITEMS_CACHE, allEntries = true)
     @Transactional

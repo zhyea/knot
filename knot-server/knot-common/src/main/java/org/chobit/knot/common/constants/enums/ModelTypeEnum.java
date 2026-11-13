@@ -13,10 +13,8 @@ import java.util.Set;
 
 /**
  * Gateway model type definitions.
- *
- * <p>The type list and the "model type -> allowed API protocols" rule are maintained here only.
- * The database enum category {@code model_type} is retired, callers must not read the display
- * name from {@code ks_enum_configs}.</p>
+ * The type list and the "model type -> allowed API protocols" rule are maintained here only;
+ * callers must not read the display name from {@code ks_enum_configs}.
  */
 public enum ModelTypeEnum implements EnumOption {
 

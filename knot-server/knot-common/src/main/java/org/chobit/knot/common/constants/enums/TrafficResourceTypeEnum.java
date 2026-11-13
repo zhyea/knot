@@ -3,12 +3,8 @@ package org.chobit.knot.common.constants.enums;
 import java.util.Arrays;
 
 /**
- * 受控资源类型：决定该资源能配哪一类策略。
- *
- * <ul>
- *   <li>{@code MODEL} / {@code ROUTING_RULE} —— 只配<b>限流</b>（RPM + TPM）；</li>
- *   <li>{@code APP} / {@code PROVIDER} / {@code ROUTING_CONSUMER} —— 只配<b>限额</b>（最大 token + 成本上限）。</li>
- * </ul>
+ * 受控资源类型：决定该资源能配哪一类策略。{@code MODEL} / {@code ROUTING_RULE} 只配限流（RPM + TPM）；
+ * {@code APP} / {@code PROVIDER} / {@code ROUTING_CONSUMER} 只配限额（最大 token + 成本上限）。
  */
 public enum TrafficResourceTypeEnum {
     APP("APP", false, true),

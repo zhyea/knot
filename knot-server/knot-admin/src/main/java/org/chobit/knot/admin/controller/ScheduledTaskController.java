@@ -14,15 +14,8 @@ import java.util.List;
 
 /**
  * 定时任务管理面接口。
- *
- * <p>⭐ 返回类型是 svc 的 record 而不是 {@code dal.entity}（2026-10-28 分层改造③）：
- * 实体只允许在 {@code org.chobit.knot.svc.converter.ScheduledTaskConverter} 里出现，
- * 于是「有没有实体漏出去」是一条 grep 就能出结果的事。</p>
- *
- * <p>⚠ <b>record 的 SpEL 要用访问器形式（{@code #result.id()}），不能用属性形式（{@code #result.id}）</b>：
- * record 组件是私有 final 字段 + 无 {@code getId()} 方法，属性形式的解析会失败，
- * 而切面对失败是<b>静默兜底</b>的（{@code parseSpelLong} 返回 null、{@code parseSpel} 返回表达式原文），
- * 于是审计日志里 entityId 变空、entityName 变成字面量 {@code "#result.taskName"}，不会抛错也不会告警。</p>
+ * 返回 svc 的 record 而非 {@code dal.entity}，实体只允许出现在 {@code org.chobit.knot.svc.converter.ScheduledTaskConverter}。
+ * 审计日志的 SpEL 用 record 的访问器形式（{@code #result.id()}），属性形式会静默解析成表达式原文。
  */
 @RestController
 @RequestMapping("/api/system/scheduled-tasks")

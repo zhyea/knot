@@ -2,10 +2,8 @@ package org.chobit.knot.svc.dto.routing;
 
 /**
  * 单条自检结果：校验项 + 三态 + 说明。
- *
- * <p>纯数据载体，由 {@link BillingFactChecks} 产出；{@code message} 在 FAIL/SKIP 时
- * 给出可读原因，PASS 时为空，供抽屉自检区直接展示。</p>
- *
+ * 纯数据载体，由 {@link BillingFactChecks} 产出；{@code message} 在 FAIL/SKIP 时
+ * 给出可读原因，PASS 时为空，供抽屉自检区直接展示。
  * @param code    自检项
  * @param status  三态
  * @param message 失败/跳过原因（PASS 为空）

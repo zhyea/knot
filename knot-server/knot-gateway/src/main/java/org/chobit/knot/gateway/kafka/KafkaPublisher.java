@@ -9,33 +9,10 @@ import org.springframework.kafka.core.KafkaTemplate;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Kafka 投递器：把 {@link Msg} 协议消息送到指定 topic——**纯管道，不认识任何业务概念**。
- *
- * <p>只有一个投递方法 {@link #publish(String, Msg)}：topic 由调用方（业务埋点侧）维护并
- * 传入，本类不持有「请求层 / 响应层」这类业务主题常量；分区键取消息自带的
- * {@link Msg#traceId()}。</p>
- *
- * <h3>形态：Kafka 原生 async + fire-and-forget（robin 2026-10-18 拍板「是 kafka 的 async」）</h3>
- * <p>序列化后 {@code kafkaTemplate.send()} 提交即返回，<b>不等 broker 应答</b>——埋点穿插在
- * 上游调用前后，同步等 ack 会把 broker 的 RTT 算进 TTFT，这是请求链路的红线。投递异步性
- * 由生产者客户端承担（accumulator 缓冲 + sender 后台线程），不建自建队列、不起投递线程
- * （队列化要么满即丢弃 = 丢数据、要么无界堆积 = OOM、要么反压请求线程 = 拖慢 TTFT）。</p>
- *
- * <h3>契约：绝不抛</h3>
- * <p>序列化失败（这条消息废了）→ {@code dropped} + warn（必须可见，理由见 {@link #publish}）；
- * send 同步抛异常（如 {@code max.block.ms} 超时）→ {@code dropped} + 节流 WARN + 死信；
- * 异步回调失败（broker 拒收 / 网络抖动，回调里才暴露）→ 死信（written/lost 计数）。
- * <b>任何情况下异常都不穿透到请求链路。</b></p>
- *
- * <h3>日志模式（{@code kafka.mock=true}）</h3>
- * <p>没有本地 broker 时，装配处改用 {@link #logOnly()}：消息照常序列化，但不提交给生产者，
- * 而是原样打到 INFO 日志（前缀 {@code [kafka-mock]}，单行 JSON 与真实 payload 逐字一致，
- * 便于 grep / 复制比对）。只服务于本地测试，生产恒走真投递。</p>
- *
- * <p>TTFT 风险由生产者客户端的 {@code max.block.ms=1000} 封顶（见 {@link KafkaConfiguration}）：
- * Kafka 持续故障且 accumulator（默认 32MB）也满时调用线程最多阻塞 1s/事件——有界但真实存在，
- * 属已披露的取舍；{@link #warmUp(String...)} 把最常见的触发场景（启动后首次发送时元数据
- * 未就绪）提前消化到启动期。</p>
+ * Kafka 投递器：把 {@link Msg} 协议消息送到指定 topic，纯管道，不认识业务主题；topic 由调用方传入，分区键取 {@link Msg#traceId()}。
+ * 序列化后 {@code kafkaTemplate.send()} 提交即返回，不等 broker 应答；投递异步性由生产者客户端承担，不建自建队列、不起投递线程。
+ * 契约：序列化失败计 {@code dropped} 并告警，send 同步异常计 {@code dropped} 并落死信，异步回调失败落死信；异常不穿透到请求链路。
+ * {@code kafka.mock=true} 时改用 {@link #logOnly()}：消息只打到 INFO 日志（前缀 {@code [kafka-mock]}）；{@link #warmUp(String...)} 在启动期预热元数据。
  */
 @Slf4j
 public class KafkaPublisher {
@@ -70,9 +47,7 @@ public class KafkaPublisher {
 
     /**
      * 日志模式投递器：不连 broker，把序列化后的消息打到 INFO 日志。
-     *
-     * <p>只由装配处在 {@code kafka.mock=true} 时使用（见 {@link KafkaConfiguration}）——
-     * 本地没有 Kafka 也能跑通整条埋点链路并核对消息内容，不需要 broker、不写死信文件。</p>
+     * 只由装配处在 {@code kafka.mock=true} 时使用，不写死信文件。
      *
      * @return 日志模式投递器（无生产者、无死信写入器）
      */

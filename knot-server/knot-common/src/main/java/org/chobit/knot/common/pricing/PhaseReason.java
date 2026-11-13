@@ -1,7 +1,7 @@
 package org.chobit.knot.common.pricing;
 
 /**
- * 高低峰判定原因：给预览与排障用，决定角色的是 {@link PricingPhase}，本枚举只解释“为什么”。
+ * 高低峰判定原因：给预览与排障用；决定相位的是 {@link PricingPhase}，本枚举只解释原因。
  */
 public enum PhaseReason {
 

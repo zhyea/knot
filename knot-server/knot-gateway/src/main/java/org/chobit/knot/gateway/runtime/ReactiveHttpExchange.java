@@ -8,11 +8,8 @@ import org.springframework.web.server.ServerWebExchange;
 import java.nio.charset.StandardCharsets;
 
 /**
- * {@link GatewayHttpExchange} 的 WebFlux 实现（批2 起：容器是 Netty）。
- *
- * <p>与批1 的 Servlet 实现相比，这里<b>不需要任何 ThreadLocal</b>：
- * {@link ServerWebExchange} 是控制器方法入参，天然随链路传递，
- * 在 {@code boundedElastic} 线程上写响应头同样有效（响应对象本身是线程安全的）。</p>
+ * {@link GatewayHttpExchange} 的 WebFlux 实现（容器是 Netty）。
+ * {@link ServerWebExchange} 由控制器方法入参传入，随链路传递；在 {@code boundedElastic} 线程上写响应头同样有效。
  */
 public final class ReactiveHttpExchange implements GatewayHttpExchange {
 

@@ -3,10 +3,8 @@ package org.chobit.knot.dal.entity;
 import lombok.Data;
 
 /**
- * 模型族（{@code ks_enum_configs} 中 category='model_family' 的枚举项）。
- *
- * <p>模型族仍存枚举表，只是按模型域单独维护；这里用模型域语义字段（code / name）暴露，
- * 避免与通用枚举的 itemCode / itemLabel 混用。</p>
+ * 模型族（{@code ks_enum_configs} 中 {@code category='model_family'} 的枚举项），
+ * 以模型域语义字段 code / name 暴露。
  */
 @Data
 public class ModelFamilyEntity {

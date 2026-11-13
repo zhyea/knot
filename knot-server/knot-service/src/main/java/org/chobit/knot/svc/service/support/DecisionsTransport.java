@@ -4,9 +4,8 @@ import java.util.Map;
 
 /**
  * 网关 {@code POST /v1/decisions} 调用通道（接口化以便单测替换）。
- *
- * <p>真实实现 {@link RestClientDecisionsTransport} 走 RestClient；测试用假实现注入，
- * 断言「secretKey 仅进 Authorization 头、不进请求体、不落日志」以及错误码降级。</p>
+ * 真实实现 {@link RestClientDecisionsTransport} 走 RestClient；测试用假实现注入，
+ * 断言「secretKey 仅进 Authorization 头、不进请求体、不落日志」以及错误码降级。
  */
 public interface DecisionsTransport {
 

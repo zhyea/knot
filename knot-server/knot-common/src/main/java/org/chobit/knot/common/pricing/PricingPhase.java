@@ -3,10 +3,8 @@ package org.chobit.knot.common.pricing;
 import org.chobit.knot.common.constants.enums.EnumOption;
 
 /**
- * 高低峰相位。
- *
- * <p>PEAK = 高峰（通常按基础价计费），OFF_PEAK = 低峰（按 multiplier 打折）。
- * label 随枚举下发前端（/api/enum-options），不再前端自建第二份相位名。</p>
+ * 高低峰相位：{@code PEAK} = 高峰（通常按基础价计费），{@code OFF_PEAK} = 低峰（按 multiplier 打折）。
+ * label 随枚举经 {@code /api/enum-options} 下发前端。
  */
 public enum PricingPhase implements EnumOption {
 

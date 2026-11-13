@@ -8,9 +8,7 @@ import org.springframework.web.client.RestClient;
 
 /**
  * 路由规则调试链路的 HTTP 出口：持有调试专用 {@link RestClient}，负责向网关发起真实请求。
- *
- * <p>与业务 Service 分离的原因是可测性与职责单一边界——本类不含校验、不查库、不翻译结果，
- * 只做「发出去」和「把响应交回去」。</p>
+ * 本类不含校验、不查库、不翻译结果，只做「发出去」和「把响应交回去」。
  */
 @Component
 public class RoutingRuleDebugRunner {
@@ -48,10 +46,8 @@ public class RoutingRuleDebugRunner {
     }
 
     /**
-     * 流式调用：返回<b>未关闭</b>的响应体供增量读取，调用方负责关闭。
-     *
-     * <p>{@code exchange(fn, false)} 不自动关闭响应：既不应用默认错误处理器
-     * （网关 4xx/5xx 需要原样读取响应体），也让响应体保持可增量读取。</p>
+     * 流式调用：返回未关闭的响应体供增量读取，调用方负责关闭。
+     * {@code exchange(fn, false)} 不自动关闭响应、不应用默认错误处理器（网关 4xx/5xx 需要原样读取响应体），让响应体保持可增量读取。
      */
     public ClientHttpResponse openStream(String baseUrl,
                                         String gatewayPath,

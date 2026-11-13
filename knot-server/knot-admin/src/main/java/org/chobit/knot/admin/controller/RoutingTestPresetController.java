@@ -39,9 +39,7 @@ public class RoutingTestPresetController {
 
     /**
      * 下拉候选：统一 OptionPage 契约（value=id，label=name，meta.protocolCode=接口协议）。
-     *
-     * <p>协议码不再塞进 {@code OptionItem} 的第三构造参数（原顶层 {@code code}）——那是绑定键之外的
-     * 业务属性，按 options 契约一律走资源专属 meta。</p>
+     * 协议码属绑定键之外的业务属性，按 options 契约一律走资源专属 meta，不塞进 {@code OptionItem}。
      */
     @GetMapping("/options")
     public OptionPage<OptionItem<RoutingTestPresetOptionMeta>> options() {

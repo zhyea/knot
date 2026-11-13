@@ -76,8 +76,7 @@ public class PluginService implements PluginBindingProvider {
     }
 
     /**
-     * 单表视图构造：枚举列按 code 解析；存量非法 code 直接跳过，避免 valueOf 抛异常打挂整条链路。
-     * scope 维度已随单表收口移除（2026-10-13），配置改由 Nacos 下发，故视图不再携带 scope/config。
+     * 单表视图构造：枚举列按 code 解析，非法 code 直接跳过；视图不携带 scope / config（配置由 Nacos 下发）。
      */
     private PluginBindingView toBindingView(PluginInstanceEntity entity) {
         PluginExtensionPoint point = PluginExtensionPoint.fromCode(entity.getExtensionPoint());

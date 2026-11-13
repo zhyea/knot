@@ -15,8 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Permission management service for authorization administration.
- *
- * <p>⭐ 对外承载 {@link AdminPermissionItem}；实体只在 svc 内部流转。</p>
+ * 对外承载 {@link AdminPermissionItem}；实体只在 svc 内部流转。
  */
 @Service
 public class AuthorizationPermissionService {
@@ -100,9 +99,7 @@ public class AuthorizationPermissionService {
 
     /**
      * Returns a permission snapshot for operation log auditing.
-     *
-     * <p>仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @authorizationPermissionService.permissionAuditSnapshot(#p0)}）
-     * 反射调用，Java 侧无直接引用，IDE 会误报 unused。</p>
+     * 仅由 {@code @OperationLog} 的 SpEL 表达式反射调用，Java 侧无直接引用。
      */
     @SuppressWarnings("unused")
     public AdminPermissionItem permissionAuditSnapshot(Long id) {

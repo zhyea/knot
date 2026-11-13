@@ -45,10 +45,7 @@ public class ProviderCredentialSupport {
     }
 
     /**
-     * 已解出的密文配置 → 鉴权参数（<b>不持有载体</b>）。
-     *
-     * <p>网关侧拿到的是 {@code ProviderCredentialConfigVo}（配置快照），不是 {@code dal.entity}；
-     * 这里用字段入参，两边各取所需，谁也不用为了调用对方而持有对方的载体类型。</p>
+     * 已解出的密文配置 → 鉴权参数（不持有载体）；网关侧拿到的是 {@code ProviderCredentialConfigVo}（配置快照），不是 {@code dal.entity}，这里用字段入参。
      */
     public Map<String, Object> toAuthConfig(String encryptedConfig) {
         if (hasText(encryptedConfig)) {
@@ -190,11 +187,7 @@ public class ProviderCredentialSupport {
     }
 
     /**
-     * 凭据正文加密：序列化失败<b>必须抛</b>，不能返回 null。
-     *
-     * <p>旧实现用 {@code JsonKit.toJson}（失败只 log 后返回 null），null 一路落到
-     * {@code setEncryptedConfig(null)}：接口照样返回「保存成功」，凭据其实没落库——
-     * 既是资损又完全不可见。空结果同理。</p>
+     * 凭据正文加密：序列化失败必须抛，不能返回 {@code null}；空结果同理。
      */
     private String encryptConfig(Map<String, Object> authConfig) {
         String json;

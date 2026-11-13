@@ -13,17 +13,9 @@ import org.chobit.knot.svc.vo.async.AsyncTaskProfileDetailVo;
 /**
  * {@code AsyncTaskEntity} / {@code AsyncTaskProfileEntity} ⇄ {@code svc.dto.async} 的 record 模型转换。
  *
- * <p>⭐ <b>这是 dal 与服务层之间的唯一一道门</b>：全模块只有本类允许 import
- * {@code org.chobit.knot.dal.entity}（Mapper 也只有 {@code svc.service} 的写库服务用）。
- * 收敛到一个类，好处不是「少写几行」，而是「将来要检查有没有实体漏出去」时
- * 有一条命令就能出结果的判据（grep {@code org.chobit.knot.dal} 应只命中本类与两个写库服务）。</p>
- *
- * <p>⚠ <b>不做任何兜底与归一</b>：字段为 null 就是 null，空串就是空串。
- * 档案里的默认值、时间推导、表达式合法性都归消费方（{@code AsyncTaskSpec}）的模型，
- * 这里补一层兜底就会出现两个「默认值出处」，必然漂移。</p>
- *
- * <p>⚠ <b>加实体字段时这里必须同步</b>：漏一个字段编译不会报错，表现是「新字段读出来恒为 null」，
- * 而且只在用到那个字段的场景才显形。守门测试 {@code AsyncTaskConverterTest} 按字段数钉住。</p>
+ * 全模块只有本类允许 import {@code org.chobit.knot.dal.entity}（Mapper 仅 {@code svc.service} 的写库服务使用）。
+ * 不做任何兜底与归一：null 即 null、空串即空串，默认值与时间推导归消费方（{@code AsyncTaskSpec}）。
+ * 加实体字段时本类必须同步，否则新字段读出来恒为 {@code null}。
  */
 public final class AsyncTaskConverter {
 
@@ -68,9 +60,7 @@ public final class AsyncTaskConverter {
     }
 
     /**
-     * 草稿 → 实体。{@code status} / {@code attempts} 在这里落成初始值：
-     * 新任务必然是 {@link AsyncTaskStatusEnum#PENDING}、查询次数必然是 0，
-     * 不由调用方传——否则调用方就能把一条新任务直接建成终态。
+     * 草稿 → 实体。{@code status} 落 {@link AsyncTaskStatusEnum#PENDING}、{@code attempts} 落 0，不由调用方传入。
      */
     public static AsyncTaskEntity toEntity(AsyncTaskDraftDto draft) {
         AsyncTaskEntity entity = new AsyncTaskEntity();
@@ -128,9 +118,7 @@ public final class AsyncTaskConverter {
     /**
      * 写入载体 → 实体（新建与更新共用）。
      *
-     * <p>⚠ 不含 {@code created_at} / {@code updated_at} / {@code binding_count}：
-     * 前两个由 DB 维护，第三个是查询期派生列。写进去的后果是「新建时把创建时间写成 null」——
-     * 列有 NOT NULL DEFAULT，严格模式下会被直接拒。</p>
+     * 不含 {@code created_at} / {@code updated_at} / {@code binding_count}：前两个由 DB 维护，第三个是查询期派生列。
      */
     public static AsyncTaskProfileEntity toProfileEntity(AsyncTaskProfileSaveDto dto) {
         if (dto == null) {

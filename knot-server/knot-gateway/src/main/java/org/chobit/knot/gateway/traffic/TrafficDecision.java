@@ -2,10 +2,7 @@ package org.chobit.knot.gateway.traffic;
 
 /**
  * 一次流量判定的结果。
- *
- * <p>{@code allowed=false} 时带上被拒原因、命中的资源、限额与当前用量、窗口重置时刻，
- * 供网关拼错误信息与响应头 {@code Retry-After}。计数键仍用资源主键 id，
- * 但对外只用业务码 {@code resourceCode}——主键是部署相关的内部标识，调用方无从对应。</p>
+ * {@code allowed=false} 时带上被拒原因、命中的资源、限额与当前用量、窗口重置时刻，供网关拼错误信息与响应头 {@code Retry-After}；计数键用资源主键 id，对外只用业务码 {@code resourceCode}。
  *
  * @param currency 被拒维度为成本时所用的币种，其余维度为 {@code null}
  */

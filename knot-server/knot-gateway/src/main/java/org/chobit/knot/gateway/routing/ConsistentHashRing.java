@@ -10,20 +10,12 @@ import java.util.TreeMap;
 
 /**
  * 一致性 hash 环（Ketama 口径），用于模型池内的粘性路由。
- *
- * <p>每个候选建固定数量的虚拟节点落到环上，按粘性键的 hash 顺时针取第一个虚拟节点所属候选。
- * 相较 {@code hash % n} 的好处：候选集合变化（池内增删模型、停用启用）时只影响环上相邻段，
- * 其余键的命中保持不变，把「池变更导致的 prompt cache 重击」限制在最小范围。</p>
- *
- * <p>纯函数、无 Spring 依赖：同样的候选集合在任何节点上建出的环完全一致，
- * 因此粘性路由不需要共享存储（既无绑定记录，也无需 Redis 同步）。</p>
+ * 每个候选建固定数量的虚拟节点落到环上，按粘性键的 hash 顺时针取第一个虚拟节点所属候选。
+ * 纯函数、无 Spring 依赖：同样的候选集合在任何节点上建出的环完全一致，粘性路由因此不需要共享存储。
  */
 public final class ConsistentHashRing {
 
-    /**
-     * 每个候选的虚拟节点数（Ketama 经典值）。只影响分布均匀度、不影响正确性，
-     * 因此不暴露为配置项。
-     */
+    /** 每个候选的虚拟节点数（Ketama 经典值）。 */
     public static final int VIRTUAL_NODES = 160;
 
     private static final ConsistentHashRing EMPTY = new ConsistentHashRing(new TreeMap<>());
@@ -69,9 +61,7 @@ public final class ConsistentHashRing {
     }
 
     /**
-     * MD5 前 8 字节按大端拼成 long——Ketama 经典取位方式，JDK 自带实现，零依赖。
-     *
-     * <p>只要确定性与均匀度，不需要抗碰撞强度；MD5 在所有 JDK 中均可用。</p>
+     * MD5 前 8 字节按大端拼成 long——Ketama 经典取位方式。
      */
     public static long md5Long(String value) {
         byte[] digest = digest(value);
@@ -83,7 +73,7 @@ public final class ConsistentHashRing {
     }
 
     /**
-     * 键的短摘要，仅供日志/链路追踪使用（避免把客户端原始粘性键写进日志）。
+     * 键的短摘要，仅供日志 / 链路追踪使用，不写客户端原始粘性键。
      */
     public static String digestShort(String value) {
         return Long.toHexString(md5Long(value));

@@ -3,25 +3,10 @@ package org.chobit.knot.dal.entity;
 import lombok.Data;
 
 /**
- * 下拉候选投影行（options 专用 DAL 行对象）。
- *
- * <p>{@code OptionsMapper} 的统一返回类型，取代原先的 {@code List<Map<String, Object>>}：
- * 投影列名（value/label/disabled/meta）与本类字段一一对应，MyBatis 直接映射，
- * 列名写错在编译期与冒烟阶段即暴露，不再靠 Service 里手写字符串取键兜底。</p>
- *
- * <p>顶层 <b>没有 {@code code}</b>：业务码属资源语义，由 SQL 侧 {@code json_object} 投到 {@code meta}
- * （如 {@code json_object('consumerCode', c.consumer_code)}），不再单独占一列。</p>
- *
- * <p>与 {@code OptionItem} 的差别：本类是<b> DAL 行</b>（含 {@code disabled} 的 SQL 原始 0/1 语义），
- * {@code OptionItem} 是<b> 对外 VO</b>（{@code disabled} 已是布尔、meta 已是反序列化后的 Map）。
- * 二者转换见 knot-service 的 {@code OptionConverter}。</p>
- *
- * <p>泛型 {@code V} 表示 value 的实际类型：id 型资源为 {@link Long}，code 型资源为 {@link String}。
- * 泛型在此仅作文档与编译期提示——MyBatis 反射填充时按 JDBC 实际类型落值，
- * 与不加泛型的行为完全一致（不存在 unchecked 转换风险）。</p>
- *
- * <p>敏感字段纪律：本类只承载下拉必需的列，SQL 侧绝不 select 出 credential / secretKey /
- * 完整 configJson（见 options-refactor-constraints.md 第 0 节第 6 条）。</p>
+ * 下拉候选投影行（options 专用 DAL 行对象），{@code OptionsMapper} 的统一返回类型。
+ * 投影列 value / label / disabled / meta 与字段一一对应；顶层无 {@code code}，业务码由 SQL
+ * 侧 {@code json_object} 投到 {@code meta}；泛型 {@code V} 为 value 实际类型（{@link Long} / {@link String}）。
+ * 只承载下拉必需列，不 select credential / secretKey / 完整 configJson。
  */
 @Data
 public class OptionRow<V> {

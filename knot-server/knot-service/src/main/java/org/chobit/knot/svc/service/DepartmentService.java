@@ -146,8 +146,7 @@ public class DepartmentService {
 
     /**
      * 机构编码改码：未被用户 / 应用按 dept_code 引用时可改，已绑定直接 409；改码前做唯一性校验。
-     *
-     * <p>入参 deptCode 为空表示「不修改」，沿用库中现值。</p>
+     * 入参 deptCode 为空表示「不修改」，沿用库中现值。
      */
     private String resolveDeptCodeForUpdate(DepartmentEntity existing, String requested) {
         String deptCode = CodeBindingSupport.normalize(requested);

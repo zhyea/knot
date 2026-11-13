@@ -8,14 +8,9 @@ import org.chobit.knot.common.util.MapNumberUtils;
 import java.util.Map;
 
 /**
- * TOKEN 模式计费输入：token 各维度。
- *
- * <p>缓存写两档口径互斥，与对外 {@code ModelUsage.InputTokens} 保持一致：
- * {@code cacheWriteTokens} 是单字段总量口径，{@code cacheWrite5mTokens} / {@code cacheWrite1hTokens}
- * 是按 TTL 拆分的明细口径。只要明细其一大于 0，总量口径即作废（见 {@link #cacheWriteTotal()}）。</p>
- *
- * <p>媒体计量（张数 / 秒数 / 像素）不走这里，由 {@code ImageBillingUsage} /
- * {@code VideoBillingUsage} / {@code AudioBillingUsage} 各自承载。</p>
+ * TOKEN 模式计费输入：token 各维度。缓存写两档口径互斥：{@code cacheWriteTokens} 是单字段总量口径，
+ * {@code cacheWrite5mTokens} / {@code cacheWrite1hTokens} 是按 TTL 拆分的明细口径；明细其一大于 0 时总量口径作废（见 {@link #cacheWriteTotal()}）。
+ * 媒体计量（张数 / 秒数 / 像素）由 {@code ImageBillingUsage} / {@code VideoBillingUsage} / {@code AudioBillingUsage} 承载。
  */
 public record TokenBillingUsage(Long inputTokens,
                                 Long outputTokens,
@@ -41,9 +36,7 @@ public record TokenBillingUsage(Long inputTokens,
 
     /**
      * 从上游响应体提取：取 {@code usage} 子对象解析，缺失或非对象时返回空用量。
-     *
-     * <p>{@code usage} 定位走 {@link UsageRawReader#readUsage}：除顶层外，也下钻
-     * Responses 协议事件的 {@code response.usage} 包装。</p>
+     * {@code usage} 定位走 {@link UsageRawReader#readUsage}，含 Responses 协议事件的 {@code response.usage} 包装。
      */
     public static TokenBillingUsage fromResponse(Map<String, Object> body) {
         if (body == null || body.isEmpty()) {
@@ -106,10 +99,7 @@ public record TokenBillingUsage(Long inputTokens,
     }
 
     /**
-     * 把缓存读写加回输入侧总量（Anthropic 口径）。
-     *
-     * <p>Anthropic 的 {@code input_tokens} 不含缓存读写，两侧相加才是输入侧 token 总量；
-     * 缓存写走有效总量（ttl 明细优先），避免 5m/1h 口径下漏算。</p>
+     * 输入侧 token 总量（Anthropic 口径）：把缓存读写加回，缓存写取有效总量（TTL 明细优先）。
      */
     public TokenBillingUsage withCacheCountedInInput() {
         if (isEmpty()) {
@@ -155,11 +145,7 @@ public record TokenBillingUsage(Long inputTokens,
                 && cacheWrite1hTokens <= 0;
     }
 
-    /**
-     * 按 TTL 取缓存写 token 数：{@code ttl} 取 {@code 5m} 或 {@code 1h}。
-     *
-     * <p>别名与 {@code ModelUsageNormalizer} 的 5m/1h 识别保持一致，避免两处口径漂移。</p>
-     */
+    /** 按 TTL 取缓存写 token 数：{@code ttl} 取 {@code 5m} 或 {@code 1h}。 */
     private static long cacheWriteTtl(Map<String, Object> usage, String ttl) {
         return MapNumberUtils.firstLong(usage,
                         "cache_write_" + ttl,

@@ -19,15 +19,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * AWS SigV4 鉴权：用 AK/SK 对「方法 + 路径 + host + 请求体哈希 + 时间戳」签名，
- * 产出 {@code Authorization} / {@code X-Amz-Date}（有临时凭据时再加 {@code X-Amz-Security-Token}）。
- *
- * <p>签名所需的 service 名由凭据里的 {@code endpointType} 决定：
- * {@code bedrock-runtime→bedrock}、{@code bedrock-mantle→bedrock-mantle}（2026-10-21 按 AWS
- * 官方文档核实，两者不是同一个 service，写错会全站 403）。</p>
- *
- * <p>只签 {@code host}、{@code x-amz-date}（及 security token）：这是 SigV4 允许的最小集，
- * 故意不签 {@code content-type} 等可能被客户端规范化的头，避免「签名算一次、发出时变了」。</p>
+ * AWS SigV4 鉴权：对「方法 + 路径 + host + 请求体哈希 + 时间戳」签名，产出 {@code Authorization} / {@code X-Amz-Date}
+ * （临时凭据时另加 {@code X-Amz-Security-Token}），只签 {@code host} 与 {@code x-amz-date}。
+ * service 名由凭据的 {@code endpointType} 决定：{@code bedrock-runtime→bedrock}、{@code bedrock-mantle→bedrock-mantle}。
  */
 @Component
 @Order(30)
@@ -69,15 +63,8 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
     }
 
     /**
-     * AWS 专用的端点来源：账户 base URL 优先，为空时按凭据派生。
-     *
-     * <p><b>这里是 AWS 特例的唯一归属地</b>——通用接口与通用策略完全不知道 AWS 存在，
-     * 也就不会因为别的供应商凭据里恰好有 {@code region} / {@code endpointType} 而误命中。</p>
-     *
-     * <p>SigV4 的 credential scope 必须含 region（{@code AwsSigV4Support.credentialScope}），
-     * 缺 region 无论账户是否配了 host 都签不出来，故统一按「配置缺失」返回 {@code null}，
-     * 由执行器报 {@code UPSTREAM_ENDPOINT_NOT_CONFIGURED} —— 把问题挡在请求前，
-     * 而不是让上游回一个令人费解的 403 {@code SignatureDoesNotMatch}。</p>
+     * AWS 专用的端点来源：账户 base URL 优先，为空时按凭据的 {@code region} / {@code endpointType} 派生；
+     * 缺 region 时返回 {@code null}，由执行器报 {@code UPSTREAM_ENDPOINT_NOT_CONFIGURED}。
      */
     @Override
     public String baseUrl(UpstreamRequestContext context) {
@@ -91,10 +78,7 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
         return explicit != null ? explicit : AwsBedrockEndpointResolver.baseUrlFrom(context.authConfig());
     }
 
-    /**
-     * SigV4 没有静态头可写：签名必须等请求体定稿后由执行器回调 {@link #sign}，
-     * 因此这里刻意留空（与 {@code apply}「只写静态头」的职责保持一致）。
-     */
+    /** SigV4 无静态头可写，签名由执行器在请求体定稿后回调 {@link #sign}。 */
     @Override
     public void apply(HttpHeaders headers, UpstreamRequestContext context) {
     }
@@ -110,8 +94,7 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
     }
 
     /**
-     * 带显式时钟的签名：{@code now} 固定后可与 botocore 的签名逐字符对拍
-     * （AWS 时间窗只有 5 分钟，用 {@link Instant#now()} 无法稳定断言）。
+     * 带显式时钟的签名：{@code now} 由调用方给定，用于可复现的签名校验。
      */
     public void sign(UpstreamSignableRequest request,
                      HttpHeaders headers,
@@ -163,9 +146,7 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
         }
     }
 
-    /**
-     * {@code Host} 头值：非默认端口要带上端口，否则签名覆盖的 host 与实际发出的不一致。
-     */
+    /** {@code Host} 头值：非默认端口需带上端口。 */
     private static String hostHeader(URI uri) {
         String host = uri.getHost() == null ? "" : uri.getHost();
         int port = uri.getPort();

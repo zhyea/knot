@@ -25,11 +25,9 @@ public interface EnumConfigMapper {
     EnumConfigEntity getByCategoryAndCode(@Param("category") String category, @Param("itemCode") String itemCode);
 
     /**
-     * 改码守卫：统计按 item_code 引用该枚举项的行数。
-     *
-     * <p>四类引用方（分类之间互斥，故四者相加即为该编码的总引用数）：
-     * 计费规则与统一模型的 {@code model_family}（都要按族匹配，改码后存量行匹配不到规则）、
-     * 折扣策略的 {@code discount_type}、敏感词条的 {@code category_code}。</p>
+     * 改码守卫：统计按 item_code 引用该枚举项的行数。四类引用方（彼此互斥）：
+     * 计费规则与统一模型的 {@code model_family}、折扣策略的 {@code discount_type}、
+     * 敏感词条的 {@code category_code}。
      */
     Long countItemCodeBindings(@Param("itemCode") String itemCode);
 

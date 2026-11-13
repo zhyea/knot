@@ -8,15 +8,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 路由规则测试·计费裁判结果（v7 §2 / §9 输出）：三区一站式聚合。
- *
- * <p>被告链（producedUsage / producedBilling / upstreamUsage / upstreamCost / ruleRef）供「计费事实区」；
- * {@code checks} 供「自检区」七项；{@code verdict} 供「裁判结论区」。自检与裁判互不可见（双盲），
- * 故本对象同时承载两者但互不引用对方结论。</p>
- *
- * <p>被告账与影子账同型（{@link BillingFactAmount}），便于前端直接逐项对照；
- * {@link RoutingBillingVerdict#isAvailable()} 为 false 时仅 {@link RoutingBillingVerdict#getReason()}
- * 非空，不抛异常炸链路。</p>
+ * 路由规则测试·计费裁判结果：三区一站式聚合。
+ * 被告链（producedUsage / producedBilling / upstreamUsage / upstreamCost / ruleRef）供「计费事实区」，
+ * {@code checks} 供「自检区」七项，{@code verdict} 供「裁判结论区」；本对象同时承载自检与裁判结论。
+ * 被告账与影子账同型（{@link BillingFactAmount}）；{@link RoutingBillingVerdict#isAvailable()} 为 false 时
+ * 仅 {@link RoutingBillingVerdict#getReason()} 非空，不抛异常。
  *
  * @param producedUsage   被告用量：knot_extend.usage 原样
  * @param producedBilling 被告账：knot_extend.billing（已转 BillingFactAmount，与影子账同型）

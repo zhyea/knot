@@ -7,11 +7,7 @@ import java.time.LocalDateTime;
 
 /**
  * 清理过期的任务执行记录。
- *
- * <p>⚠ <b>本类是「handler 自己也要遵守分层」的判例</b>：改造前它直接注入
- * {@code ScheduledTaskMapper} 调 {@code deleteRunsBefore}——同一个模块里
- * 另外三个类也在注入同一个 Mapper，四个入口各写各的。
- * handler 不是「业务逻辑的例外」，它照样只能通过 svc 的 {@link ScheduledTaskService} 用库。</p>
+ * 只通过 svc 的 {@link ScheduledTaskService} 访问数据库，不直接注入 Mapper。
  */
 @Component
 public class ScheduleRunRetentionHandler implements ScheduledTaskHandler {

@@ -37,11 +37,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Collects the enum options that are maintained in code and exposed to the front end through
- * {@code GET /api/enum-options}.
- *
- * <p>Only enums already migrated out of {@code ks_enum_configs} belong here. Enums still kept in the
- * database stay editable by administrators and are served by {@code /api/system/enums}.</p>
+ * Collects the enum options maintained in code and exposed to the front end through {@code GET /api/enum-options}.
+ * Enums still kept in {@code ks_enum_configs} stay editable by administrators and are served by {@code /api/system/enums}.
  */
 @Component
 public class EnumOptionRegistry {
@@ -88,9 +85,6 @@ public class EnumOptionRegistry {
 
     /**
      * Returns all exposed enums as {@code enumKey -> [{code, label}, ...]}.
-     *
-     * <p>数组结构而非 {@code code -> label} 的 map：JSON object key 必然是字符串，
-     * 用 map 会让数字 code 在传输层退化成 "1"，与字符串 code 无法区分。</p>
      */
     public Map<String, List<EnumOptionItem>> enumMap() {
         return enumMap;

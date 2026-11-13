@@ -28,16 +28,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 路由规则测试·计费裁判编排服务（v7 §3 / §8）：薄壳编排，不含业务逻辑本体。
- *
- * <p>四段流水线：被告链（已产出）→ 影子链（{@link BillingFactAssembler} 重算）
- * → 自检（{@link BillingFactChecks} 七项）→ 判定（{@link JevBillingJudge} 双盲）。
- * 判定层只看「被告账 + 底层依据」，绝不喂影子/自检结论。</p>
- *
- * <p>模型定位（{@code targetCode} 优先于 {@code modelCode}）用于确定计费规则与用量提取器，
- * 提取器选择与网关共用 {@code UsageExtractorResolver}（改进清单 3.4）；定位失败仅降级，不抛异常。</p>
- *
- * <p>编排层内部异常以 ERROR 日志报警（全仓无 webhook/Notifier，ERROR 日志即唯一报警通道）。</p>
+ * 路由规则测试·计费裁判编排服务：薄壳编排，不含业务逻辑本体。
+ * 四段流水线：被告链 → 影子链（{@link BillingFactAssembler} 重算）→ 自检（{@link BillingFactChecks} 七项）→ 判定（{@link JevBillingJudge} 双盲）；判定层只看「被告账 + 底层依据」，不喂影子 / 自检结论。
+ * 模型定位（{@code targetCode} 优先于 {@code modelCode}）确定计费规则与用量提取器，提取器选择与网关共用 {@code UsageExtractorResolver}；定位失败仅降级，不抛异常。
+ * 编排层内部异常以 ERROR 日志报警。
  */
 @Slf4j
 @Service
@@ -157,11 +151,9 @@ public class RoutingTestBillingVerdictService {
     }
 
     /**
-     * 绑定实体 → 适配层投影（改进清单 2.5）：只带提取器选择消费的三个字段。
-     *
-     * <p>投影发生在 service 模块边界上，{@code apiPath}/{@code requestAdapter}
-     * 对提取器选择无意义，传 {@code null}。空白/未配置的提取器由
-     * {@link UsageExtractorResolver} 统一判定，本方法不做任何「猜配置」。</p>
+     * 绑定实体 → 适配层投影：只带提取器选择消费的三个字段。
+     * 投影发生在 service 模块边界上，{@code apiPath} / {@code requestAdapter} 传 {@code null}；
+     * 空白 / 未配置的提取器由 {@link UsageExtractorResolver} 统一判定。
      */
     private static List<ModelApiBindingRef> toBindingRefs(List<ModelApiBindingEntity> bindings) {
         if (bindings == null) {

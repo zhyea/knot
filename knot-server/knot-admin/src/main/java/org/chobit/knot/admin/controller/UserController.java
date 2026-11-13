@@ -34,8 +34,7 @@ public class UserController {
     }
 
     /**
-     * 用户下拉（value=username）：路由规则/应用/消费者均按 username 绑定用户，value 取登录名而非主键 id。
-     * 用户维度已无 id 型绑定场景，故本端点是用户下拉的唯一入口。
+     * 用户下拉（value=username）：路由规则 / 应用 / 消费者均按 username 绑定用户，value 取登录名而非主键 id，本端点是用户下拉的唯一入口。
      */
     @PostMapping("/options-by-username")
     public OptionPage<OptionItem<UserOptionMeta>> listOptionsByUsername(@RequestBody(required = false) UserOptionQuery query) {

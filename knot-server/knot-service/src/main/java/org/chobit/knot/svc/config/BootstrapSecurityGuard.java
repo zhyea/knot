@@ -12,13 +12,9 @@ import java.util.Set;
 /**
  * 启动期安全守卫：使用开发默认密钥（JWT / 凭证加密）且未激活非生产 profile 时，直接中断启动（安全默认）。
  *
- * <p>两份密钥在环境变量缺失时回退到源码硬编码默认值，原先仅打印 WARN。
- * 但默认值随源码公开，生产一旦漏配即等于「JWT 可伪造 + 落库凭据可解密」。
- * 因此采用安全默认：只要仍在使用开发默认密钥，就必须显式激活非生产 profile
- * （dev / test / local / development / dev-local / unit / integration / ci 之一），否则拒绝启动——
- * 这样「未设任何 profile 直接启动」的生产部署也会因命中默认密钥而被拦断，逼出显式配置。
- * 生产环境必须以 {@code --spring.profiles.active=prod}（或含 prod 的 profile）启动，
- * 且注入 {@code KNOT_JWT_SECRET} / {@code KNOT_CREDENTIAL_ENCRYPTION_KEY}；二者任一未满足即拒绝启动。</p>
+ * 非生产 profile：{@code dev} / {@code test} / {@code local} / {@code development} / {@code dev-local} /
+ * {@code unit} / {@code integration} / {@code ci}。生产须以含 {@code prod} 的 profile 启动，并注入
+ * {@code KNOT_JWT_SECRET} / {@code KNOT_CREDENTIAL_ENCRYPTION_KEY}；二者任一未满足即拒绝启动。
  */
 @Slf4j
 @Configuration

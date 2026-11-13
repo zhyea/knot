@@ -15,25 +15,10 @@ import org.chobit.knot.common.util.MapNumberUtils;
 import java.util.Map;
 
 /**
- * 把内部计费输入视图 {@link BillingUsage} 投影成对外统一用量 {@link ModelUsage}。
- *
- * <p>口径纪律（2026-10-23 双视图一次提取）：</p>
- * <ol>
- *   <li>两侧 token 总量、缓存读写各档<b>一律取自 {@code billing}</b>（与计费同源，不再按字段名猜语义）；</li>
- *   <li>仅「明细拆分」从原始 usage 补取：输入的 image/video token、输出的 reasoning token；</li>
- *   <li>媒体计量（图片张数、音视频秒数）取 {@code billing}，缺失时再由响应体兜底。</li>
- * </ol>
- *
- * <p>因此 {@code billing} 与 {@code usage} 天然同口径：恒有
- * {@code usage.input.tokens.total() == billing.inputTokens()}，不会出现计费按一套、展示按另一套。</p>
- *
- * <p>token 明细口径：</p>
- * <ul>
- *   <li>{@code text}：上游显式给了就用显式值，否则 {@code 该侧总量 - 其余明细}；</li>
- *   <li>{@code unclassified}：按上式配不平的残留，通常是厂商私有的新维度；</li>
- *   <li>{@code cache_write} 与 {@code cache_write_5m}/{@code cache_write_1h} 互斥由
- *       {@link InputTokens} 构造器兜平，这里无需判断。</li>
- * </ul>
+ * 把内部计费输入视图 {@link BillingUsage} 投影成对外统一用量 {@link ModelUsage}，恒有
+ * {@code usage.input.tokens.total() == billing.inputTokens()}。
+ * 两侧 token 总量与缓存读写各档一律取自 {@code billing}；仅明细拆分（输入 image/video token、输出 reasoning token）从原始 usage 补取。
+ * 媒体计量取 {@code billing}，缺失时由响应体兜底；{@code text} 优先上游显式值，否则取「该侧总量 - 其余明细」，配不平的残留在 {@code unclassified}。
  */
 public final class ModelUsageNormalizer {
 
@@ -154,9 +139,6 @@ public final class ModelUsageNormalizer {
 
     /**
      * 把计费事实投影成对外用量视图：两侧计量 + 计费属性。
-     *
-     * <p>⭐ 用 sealed {@code switch} 而不是 {@code instanceof} 链：新增一种
-     * {@link BillingUsage} 时编译器会强制回来补投影，否则「加字段忘了投影」只会静默丢量。</p>
      */
     private static ModelUsage projectFacts(ModelUsage base, BillingUsage billing) {
         return switch (billing) {
@@ -188,8 +170,7 @@ public final class ModelUsageNormalizer {
     }
 
     /**
-     * VIDEO 事实投影：输入侧（张数 / 秒数）与输出侧（秒数 / 条数）都要落，
-     * 否则「按输入秒 + 输入图收费」（MiniMax）与「按条收费」（Veo）在对外用量里无从体现。
+     * VIDEO 事实投影：输入侧（张数 / 秒数）与输出侧（秒数 / 条数）都要落。
      */
     private static ModelUsage projectVideo(ModelUsage base, VideoBillingUsage video) {
         Input input = inputOf(base);
@@ -273,11 +254,8 @@ public final class ModelUsageNormalizer {
     }
 
     /**
-     * 只有响应体、连计费输入视图都没有时用：例如图像接口只回 {@code data} 数组。
-     *
-     * <p>⚠ 视频不会走到这里：只要响应体里有 {@code data} / {@code videos} 或任何时长字段，
-     * {@code VideoBillingUsage} 就不是空用量（条数与档位名都算量）。因此本方法把 {@code data}
-     * 当图片张数是安全的——它服务的是图像类接口的兜底。</p>
+     * 只有响应体、连计费输入视图都没有时用：例如图像接口只回 {@code data} 数组，此时把 {@code data} 当图片张数。
+     * 视频不走这里：VIDEO 的条数与档位名都已计入 {@code VideoBillingUsage}。
      */
     public static ModelUsage mediaOnly(Map<String, Object> rawBody) {
         if (rawBody == null || rawBody.isEmpty()) {
@@ -298,11 +276,7 @@ public final class ModelUsageNormalizer {
     }
 
     /**
-     * 用响应体补齐「usage 里没写的多模态维度」：只在 usage 侧对应字段仍为 0 时回填。
-     *
-     * <p>⚠ VIDEO 一律跳过：视频响应的 {@code data} 数组装的是<b>视频</b>，回填进
-     * {@code output.image_count} 会把条数错标成图片张数；而视频的各项事实已由
-     * {@link #projectVideo} 从计费视图完整投影，不需要响应体兜底。</p>
+     * 用响应体补齐「usage 里没写的多模态维度」：只在 usage 侧对应字段仍为 0 时回填，VIDEO 一律跳过。
      */
     private static ModelUsage withBodyMedia(ModelUsage usage, Map<String, Object> rawBody, BillingUsage billing) {
         if (usage == null || rawBody == null || rawBody.isEmpty() || billing instanceof VideoBillingUsage) {

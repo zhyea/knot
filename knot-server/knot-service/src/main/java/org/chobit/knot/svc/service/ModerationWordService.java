@@ -32,14 +32,8 @@ import java.util.Set;
 
 /**
  * 敏感词条管理面 CRUD + 导入导出。
- *
- * <p><b>逻辑删除四必配</b>（对齐 {@code kb_logical_models}）：{@code countByWordAndCategory} 物理行判、
- * 列表 {@code includeDeleted} + mapper {@code <if>} + 排序 {@code is_deleted asc, id desc}、
- * {@code restore} 端点、引用检查——本表无跨表引用（分类是枚举、插件不引用词行 id），
- * 故删除即停参与编译，不额外设引用拦截。</p>
- *
- * <p>词库编译/缓存/定时刷新由网关运行时负责（admin 与 gateway 是两个进程，此处不再持有缓存）：
- * 管理面写操作后，网关经版本轮询 / 定时刷新自行拾取变更，无需跨进程通知。</p>
+ * 逻辑删除四必配（对齐 {@code kb_logical_models}）：{@code countByWordAndCategory} 物理行判、列表 {@code includeDeleted} + mapper {@code <if>} + 排序 {@code is_deleted asc, id desc}、{@code restore} 端点、引用检查；本表无跨表引用，不额外设引用拦截。
+ * 词库编译 / 缓存 / 定时刷新由网关运行时负责；管理面写操作后网关经版本轮询 / 定时刷新自行拾取变更。
  */
 @Service
 public class ModerationWordService {
@@ -147,7 +141,7 @@ public class ModerationWordService {
     }
 
     /**
-     * <p>停用中的词才允许删除：启用词先停用再删，避免误删后匹配行为静默变化。</p>
+     * 停用中的词才允许删除：启用词先停用再删。
      */
     @Transactional
     public void delete(Long id) {
@@ -165,9 +159,7 @@ public class ModerationWordService {
 
     /**
      * Restores a logically deleted sensitive word.
-     *
-     * <p>编码唯一性按物理行判定（uk_word_category 不区分 is_deleted），所以逻辑删除后
-     * 同 (word, category_code) 无法新建，只能恢复。</p>
+     * 编码唯一性按物理行判定（uk_word_category 不区分 is_deleted），逻辑删除后同 (word, category_code) 无法新建，只能恢复。
      */
     @Transactional
     public ModerationWordDto restore(Long id) {
@@ -185,20 +177,10 @@ public class ModerationWordService {
     }
 
     /**
-     * 批量导入：逐行独立校验，**部分失败不影响已成功的行**。
-     *
-     * <p>去重按 (word, category_code)，两档语义不同：
-     * <ul>
-     *   <li><b>库内已存在</b>（含已逻辑删除行，因为唯一键不区分 is_deleted）→ 静默跳过，
-     *       计入 {@code skipped}。重复导入同一份文件是常见运维操作，不该报错。</li>
-     *   <li><b>本批内重复</b> → 计入 {@code errors} 并指明行号，让运营发现文件本身有重复行。</li>
-     * </ul>
-     * 一次性拉全量 word 做内存判重，避免逐条 count 查询。</p>
-     *
-     * <p>注意：判重必须含已逻辑删除行——{@code uk_word_category} 是物理唯一键，
-     * 若按 {@code listForExport()}（仅未删除）判重，重复导入一个已删除词会撞唯一键，
-     * {@code DataIntegrityViolationException} 直接让整个 {@code @Transactional} 回滚，
-     * "部分失败不影响已成功行"的承诺就破了。</p>
+     * 批量导入：逐行独立校验，部分失败不影响已成功的行。
+     * 去重按 (word, category_code)：库内已存在（含已逻辑删除行）静默跳过并计入 {@code skipped}；
+     * 本批内重复计入 {@code errors} 并指明行号；一次性拉全量 word 做内存判重。
+     * 判重必须含已逻辑删除行（{@code uk_word_category} 是物理唯一键）。
      */
     @Transactional
     public ModerationWordImportResult importWords(List<ModerationWordImportItem> rows) {
@@ -270,10 +252,8 @@ public class ModerationWordService {
 
     /**
      * 全量启用词条：网关每请求随插件上下文下发（中性 {@link ModerationTerm}，不暴露实体）。
-     *
-     * <p>词库加载收敛到本服务：网关只经此方法提供资源，缓存 / 编译 / 刷新在 knot-plugin 侧
-     * （{@code ModerationWordCache} 按 {@link ModerationTerm#versionOf(List)} 内容版本去重），
-     * plugin-api 不再持词源契约。</p>
+     * 词库加载收敛到本服务，网关只经此方法提供资源；缓存 / 编译 / 刷新在 knot-plugin 侧
+     * （{@code ModerationWordCache} 按 {@link ModerationTerm#versionOf(List)} 内容版本去重）。
      */
     public List<ModerationTerm> loadEnabledTerms() {
         List<ModerationWordEntity> rows = wordMapper.listEnabled();

@@ -14,16 +14,8 @@ import java.util.Set;
 
 /**
  * 外部模型目录 JSON 的取值与归一化工具。
- *
- * <p>上游目录接口的字段类型很不老实：同一个字段在不同条目里可能是字符串、数字、布尔、
- * 甚至嵌套对象，缺失时给 {@code null} 或空串，时间戳还可能用 {@code 0} 表示「没有」。
- * 这些「取值口径」如果散在各个 provider 里各写一套，同步出来的条目就会因为某个源多判了
- * 一种类型而长得不一样，所以收在这里。</p>
- *
- * <p>⚠ <b>已知重复</b>：{@code OpenRouterModelSyncProvider} 里有一份同款的 private 副本
- * （{@code text / integer / longValue / epochSeconds / normalizeName / shortHash / stringList / add}），
- * 是 2026-11-01 接入 XFusionAI 之前就存在的。本次不动它——那个类没有测试护体，机械收口
- * 的收益低于改坏它的风险，列为 follow-up：等它补上测试后把副本删掉，统一调这里。</p>
+ * 上游目录字段类型不稳定：同一字段可能是字符串、数字、布尔或嵌套对象，缺失为 {@code null}
+ * 或空串，时间戳可能用 {@code 0} 表示「没有」。
  */
 public final class ExternalModelJsonSupport {
 
@@ -77,10 +69,7 @@ public final class ExternalModelJsonSupport {
     }
 
     /**
-     * 秒级 epoch 转本地时间。
-     *
-     * <p>{@code null} 与 {@code <= 0} 都返回 {@code null}：部分源（XFusionAI 实测 7 条）
-     * 用 {@code 0} 表示「没有创建时间」，直接转换会落出 1970-01-01 这种假数据。</p>
+     * 秒级 epoch 转本地时间；{@code null} 与 {@code <= 0} 都返回 {@code null}。
      */
     public static LocalDateTime epochSeconds(Long value) {
         if (value == null || value <= 0) {

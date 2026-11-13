@@ -6,10 +6,10 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 
 /**
- * 限额策略：只作用于<b>应用</b>、<b>供应商账户</b>与<b>路由消费者</b>三层。
+ * 限额策略：只作用于应用、供应商账户与路由消费者三层。
  *
- * <p>两个维度都是累计量，按 {@code window} 指定的窗口统计，<b>窗口结束即清零</b>；
- * 且都在请求成功后才记账——上游失败与 failover 重试不消耗额度。</p>
+ * 两个维度都是累计量，按 {@code window} 指定的窗口统计，窗口结束即清零；都在请求成功后才记账，
+ * 上游失败与 failover 重试不消耗额度。
  *
  * @param maxTokens 窗口内 token 上限；{@code <= 0} 表示这一维度不限
  * @param costLimit 窗口内成本上限；{@code null} 或 {@code <= 0} 表示这一维度不限

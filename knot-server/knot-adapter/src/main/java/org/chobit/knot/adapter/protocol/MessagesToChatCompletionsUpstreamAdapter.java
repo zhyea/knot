@@ -19,14 +19,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Anthropic Messages → OpenAI ChatCompletions 适配器（泛化转换，不隶属单一供应商）。
- *
- * <p><b>只服务 {@code MESSAGES} 一种入协议</b>：请求侧 system 折成首条 system 消息、
- * {@code stop_sequences→stop}、移除 {@code top_k}；响应侧把上游的 {@code chat.completion}
- * 翻回 Messages 形状（content 文本块 + stop_reason + usage，非 chat.completion 响应原样透传）。</p>
- *
- * <p>OpenAI 系其余协议（ChatCompletions / Embeddings / Image 等）的请求与响应均为原样透传，
- * 由 {@link PassthroughUpstreamAdapter} 承担，不在本类重复。</p>
+ * Anthropic Messages → OpenAI ChatCompletions 适配器（泛化转换，不隶属单一供应商），只服务 {@code MESSAGES} 入协议。
+ * 请求侧 system 折成首条 system 消息、{@code stop_sequences→stop}、移除 {@code top_k}；
+ * 响应侧把上游 {@code chat.completion} 翻回 Messages 形状（content 文本块 + stop_reason + usage，非 chat.completion 响应原样透传）。
+ * OpenAI 系其余协议的透传由 {@link PassthroughUpstreamAdapter} 承担。
  */
 @Component
 @Order(100)

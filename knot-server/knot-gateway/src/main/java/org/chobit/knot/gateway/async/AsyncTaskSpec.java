@@ -4,26 +4,10 @@ import org.chobit.knot.svc.dto.async.AsyncTaskProfileDto;
 import org.chobit.knot.svc.service.support.AsyncTaskExpressions;
 
 /**
- * 查询口径快照（落 {@code kb_async_tasks.poll_spec_json}）。
- *
- * <p><b>为什么要快照而不是终态时回查档案</b>：档案是「当前配置」，在途任务必须按
- * <b>提交时</b>的口径轮询与计费 —— 否则改一次地址/终态取值，就会让一批在途任务
- * 查不到或判错终态，且金额无法复现。这是「同一笔任务无论何时完成，算法可复现」的落地方式。</p>
- *
- * <p>⭐ <b>本记录是纯数据，不含任何求值逻辑</b>（2026-10-28）：{@code taskIdPath} /
- * {@code statusPath} / {@code resultPath} / {@code errorMessagePath} 是 <b>MVEL 取值表达式</b>；
- * {@code statusSucceeded} / {@code statusFailed} / {@code statusRunning} 是
- * <b>MVEL 布尔表达式</b>（可用变量 {@code status} 与 {@code body}）。求值统一走
- * {@code AsyncTaskExpressionSupport}，判定语义统一在 {@code AsyncTaskTerminalSupport#verdict}
- * ——三处各写一份比较逻辑必然漂移（旧版把「逗号分隔取值是否包含」写在记录里，正是被替换的形态）。</p>
- *
- * <p>⚠ <b>2026-10-29 加 {@code errorMessagePath}</b>：失败原因原先写死取响应体顶层
- * {@code message}，而视频协议普遍把它放在
- * {@code data.task_status_msg}（可灵）或 {@code error.message}（即梦），失败任务只能落通用文案。
- * 旧快照反序列化时该字段为 {@code null}，运行时按老行为兜底——不改写在途任务的判定。</p>
- *
- * <p>{@code queryPath} 里的 {@code {task_id}} 是 <b>URL 模板占位</b>，与上面的 MVEL 表达式
- * 不是一回事（一个拼地址、一个读响应），由 {@link #resolvePath(String)} 替换。</p>
+ * 查询口径快照（落 {@code kb_async_tasks.poll_spec_json}），在途任务按提交时的口径轮询与计费。
+ * 纯数据，不含求值逻辑：{@code taskIdPath} / {@code statusPath} / {@code resultPath} / {@code errorMessagePath} 为 MVEL 取值表达式，{@code statusSucceeded} / {@code statusFailed} / {@code statusRunning} 为 MVEL 布尔表达式（变量 {@code status} 与 {@code body}）；求值走 {@code AsyncTaskExpressionSupport}，判定走 {@code AsyncTaskTerminalSupport#verdict}。
+ * 旧快照反序列化时 {@code errorMessagePath} 为 {@code null}，运行时按老行为兜底。
+ * {@code queryPath} 里的 {@code {task_id}} 是 URL 模板占位（一个拼地址、一个读响应），由 {@link #resolvePath(String)} 替换。
  */
 public record AsyncTaskSpec(String queryMethod,
                             String queryPath,
@@ -55,9 +39,7 @@ public record AsyncTaskSpec(String queryMethod,
 
     /**
      * 由档案实体投影：档案改了不影响已快照的任务。
-     *
-     * <p>档案列缺失或非正时按 {@link AsyncTaskDefaults} 兜底（与 {@link AsyncTaskProperties} 同一个出处），
-     * 本方法不再写裸字面量。</p>
+     * 档案列缺失或非正时按 {@link AsyncTaskDefaults} 兜底（与 {@link AsyncTaskProperties} 同一个出处），本方法不写裸字面量。
      */
     public static AsyncTaskSpec of(AsyncTaskProfileDto profile) {
         if (profile == null) {
@@ -86,13 +68,8 @@ public record AsyncTaskSpec(String queryMethod,
 
     /**
      * 七条表达式里用于终态判定的视图：交给 {@code AsyncTaskTerminalSupport} 判定。
-     *
-     * <p>⚠ <b>不含 {@code usagePath}</b>：它是「查询响应取证」的取值对象（取上游 usage 的
-     * {@code Map}），只在结算侧消费，不参与终态判定。旧快照（{@code poll_spec_json}）缺该字段时
-     * 反序列化为 {@code null}，运行时按顶层 usage 兜底。</p>
-     *
-     * <p>快照与档案都投影成同一个值对象，判定的实现因此只有一处；
-     * 若网关按快照判、管理端按草稿判各写一份，试跑通过而线上判错是必然结果。</p>
+     * 不含 {@code usagePath}（取上游 usage 的 {@code Map}，只在结算侧消费）；旧快照缺该字段时反序列化为 {@code null}，运行时按顶层 usage 兜底。
+     * 快照与档案都投影成同一个值对象，判定实现只有一处。
      */
     public AsyncTaskExpressions expressions() {
         return new AsyncTaskExpressions(statusPath, statusSucceeded, statusFailed,
@@ -100,10 +77,7 @@ public record AsyncTaskSpec(String queryMethod,
     }
 
     /**
-     * 查询路径占位替换：{@code {task_id}}。
-     *
-     * <p>替换不完（还有 {@code {}）就直接抛：拼出来的是一个查不到东西的 URL，
-     * 表现为「任务永远查不到」，远比一次明确的失败难排查。</p>
+     * 查询路径占位替换：{@code {task_id}}；替换不完（还有 {@code {}}）就直接抛。
      */
     public String resolvePath(String upstreamTaskId) {
         if (queryPath == null) {

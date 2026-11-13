@@ -17,10 +17,7 @@ public class GatewayRequestContext {
 
     private final String authorization;
     /**
-     * API key（Bearer 提取结果）。
-     *
-     * <p>构造后才写入：<b>头校验失败时也要存在请求上下文</b>——入口即拒的请求同样要产出一条响应层事件
-     * （否则数仓统计不到 401/400 的拒绝量），此时 apiKey 保持 {@code null}。</p>
+     * API key（Bearer 提取结果）。构造后才写入；头校验失败时请求上下文依然存在，此时本字段为 {@code null}。
      */
     @Setter
     private String apiKey;
@@ -75,11 +72,8 @@ public class GatewayRequestContext {
     }
 
     /**
-     * 网关自生成的请求标识（32 位小写 hex）：上游请求头 {@code X-Request-Id} 与
-     * 数仓消息 {@code request_id} 的唯一来源。
-     *
-     * <p>⚠ 不要和 {@code upstream_request_id}（上游返回的 id）混用：前者是我方编号，
-     * 后者是供应商侧编号，二者共同构成一次请求的双向对账键。</p>
+     * 网关自生成的请求标识（32 位小写 hex）：上游请求头 {@code X-Request-Id} 与数仓消息 {@code request_id} 的唯一来源。
+     * 与 {@code upstream_request_id}（上游返回的 id）不同，二者共同构成一次请求的双向对账键。
      */
     public String requestId() {
         return traceContext.requestId();

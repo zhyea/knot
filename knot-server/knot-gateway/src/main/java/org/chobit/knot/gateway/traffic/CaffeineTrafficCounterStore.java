@@ -10,19 +10,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 单节点计数存储：Caffeine。
- *
- * <p>三条实现要点：</p>
- * <ol>
- *   <li><b>原子性</b>：走 {@code cache.asMap().compute}，Caffeine 对同一 key 的计算是排他的，
- *       相当于 JDK {@code ConcurrentHashMap} 的 per-bin 锁，不会出现「读出来再加回去」的丢计数。</li>
- *   <li><b>逐键过期</b>：不同维度窗口长度不同（秒 / 分 / 日 / 月 / 累计），
- *       用 {@link Expiry} 按条目自身携带的过期时刻计算 TTL，而不是全局统一的
- *       {@code expireAfterWrite}。</li>
- *   <li><b>有界</b>：{@code maximumSize} 兜底，避免冷资源把堆撑爆。</li>
- * </ol>
- *
- * <p>局限：计数只在本进程内有效，多节点部署下各节点各自计数（总配额被放大 N 倍），
- * 需要全局一致时切到 {@code RedisTrafficCounterStore}。</p>
+ * 计数走 {@code cache.asMap().compute}（同一 key 排他，不会丢计数）；TTL 由 {@link Expiry} 按条目自身的过期时刻逐键计算；{@code maximumSize} 兜底。
+ * 计数只在本进程内有效，多节点部署各节点各算各的，需要全局一致时切到 {@code RedisTrafficCounterStore}。
  */
 public class CaffeineTrafficCounterStore implements TrafficCounterStore {
 
@@ -75,7 +64,7 @@ public class CaffeineTrafficCounterStore implements TrafficCounterStore {
     }
 
     /**
-     * 可变计数条目：存活期间只在其上加值，避免频繁替换缓存条目。
+     * 可变计数条目：存活期间只在其上加值。
      */
     private static final class Counter {
 

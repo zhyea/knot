@@ -13,11 +13,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * AWS Bedrock Converse 适配器：OpenAI Responses → Converse。
- *
- * <p><b>只服务 {@code RESPONSES} 一种入协议</b>：先把 Responses 形状（{@code input} /
- * {@code instructions}）归一成 OpenAI chat 形状，再走 {@link AwsBedrockConverseSupport}
- * 折成 Converse 请求。只服务 {@code bedrock-runtime} 端点。</p>
+ * AWS Bedrock Converse 适配器：OpenAI Responses → Converse，只服务 {@code RESPONSES} 入协议与 {@code bedrock-runtime} 端点。
+ * 先把 Responses 形状（{@code input} / {@code instructions}）归一成 OpenAI chat 形状，再走 {@link AwsBedrockConverseSupport} 折成 Converse 请求。
  */
 @Component
 @Order(30)

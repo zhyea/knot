@@ -87,8 +87,8 @@ public final class JsonKit {
     }
 
     /**
-     * 序列化对象为 JSON，但<b>不上吞</b>失败：以受检 {@link JsonProcessingException} 上抛。
-     * 当调用方必须就序列化失败做出反应（如转为领域异常）时使用，替代直接持有 mapper 调 writeValueAsString。
+     * 序列化对象为 JSON，失败以受检 {@link JsonProcessingException} 上抛而不吞掉；
+     * 调用方需就序列化失败做出反应（如转为领域异常）时使用。
      *
      * @throws JsonProcessingException 序列化失败时抛出
      */
@@ -130,8 +130,8 @@ public final class JsonKit {
     }
 
     /**
-     * 反序列化到具体类，但<b>不上吞</b>解析失败：以受检 {@link JsonProcessingException} 上抛。
-     * 当调用方必须就非法输入做出反应（如转为领域异常）时使用，替代直接持有 mapper 调 readValue。
+     * 反序列化到具体类，失败以受检 {@link JsonProcessingException} 上抛而不吞掉；
+     * 调用方需就非法输入做出反应（如转为领域异常）时使用。
      *
      * @throws JsonProcessingException 解析失败时抛出
      */
@@ -170,8 +170,8 @@ public final class JsonKit {
     }
 
     /**
-     * 解析为树节点，但<b>不上吞</b>失败：以受检 {@link JsonProcessingException} 上抛。
-     * 当调用方必须就非法输入做出反应（如转为领域异常）时使用，替代直接持有 mapper 调 readTree。
+     * 解析为树节点，失败以受检 {@link JsonProcessingException} 上抛而不吞掉；
+     * 调用方需就非法输入做出反应（如转为领域异常）时使用。
      *
      * @throws JsonProcessingException 解析失败时抛出
      */
@@ -183,15 +183,7 @@ public final class JsonKit {
     }
 
     /**
-     * 构造用于日志的 payload 摘要。
-     *
-     * <p>这里刻意<b>不输出原文的任何片段</b>：传入的 json 可能是解密后的供应商凭据、
-     * 用户请求体或上游响应体，一旦落盘即等于泄漏。
-     * 2026-09-23 供应商凭据解析失败时，明文 apiKey 就是以这种方式被写进日志文件的。
-     *
-     * <p>摘要只保留定位解析失败所需的最小信息：总长度与首个非空白字符。
-     * 首字符足以区分「JSON 对象 / 数组 / 裸 token」三类最常见故障；
-     * 定位具体偏移由 Jackson 异常自身携带的 line/column 提供。
+     * 构造用于日志的 payload 摘要：总长度与首个非空白字符，绝不包含原文片段。
      *
      * @param json 待解析的原始文本，允许为 null
      * @return 形如 len=36, first={ 或 len=22, first=s 的摘要，绝不包含原文片段

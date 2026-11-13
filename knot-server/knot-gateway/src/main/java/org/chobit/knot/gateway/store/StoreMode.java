@@ -1,21 +1,9 @@
 package org.chobit.knot.gateway.store;
 
 /**
- * 业务域运行时存储的实现模式（<b>只有两档</b>）。
- *
- * <p>存储选型是 traffic / load 等<b>业务域自己的属性</b>（{@code knot.<domain>.store}），
- * 不是独立的「cache 层」——本枚举与归一处只是各域共用的选型词表：</p>
- * <ul>
- *   <li>{@link #CAFFEINE}：进程内视图，不依赖 Redis。单节点默认档。</li>
- *   <li>{@link #REDIS}：多节点共享全局视图。<b>Redis 不可用时一律 fail-hard</b>
- *       ——抛 {@code RedisUnavailableException} → 网关 503 + ERROR 日志报警，
- *       不静默降级到本地缓存（降级会让频控超发、负载失衡，属不可接受的静默损失）。</li>
- * </ul>
- *
- * <p>⚠ 摘除状态（outage）<b>不在本词表内</b>：它是纯本地统计，一律走 Caffeine
- * （{@code TargetOutageStore} 只有 Caffeine 一个实现），因此没有多节点档位。
- * 摘除是「本节点自己的异常观察」，不需要跨节点共享；放 Redis 反而让 Redis 故障
- * 直接打掉网关的自我保护能力。</p>
+ * 业务域运行时存储的实现模式（只有两档），配置键为 {@code knot.<domain>.store}。
+ * {@link #CAFFEINE}：进程内视图，不依赖 Redis，单节点默认档；{@link #REDIS}：多节点共享全局视图，Redis 不可用时 fail-hard（抛异常 → 网关 503 + ERROR 日志），不降级到本地缓存。
+ * 摘除状态（outage）不在本词表内，一律走 Caffeine（{@code TargetOutageStore} 只有这一个实现）。
  */
 public enum StoreMode {
 

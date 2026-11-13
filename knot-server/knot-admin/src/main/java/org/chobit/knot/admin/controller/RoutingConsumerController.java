@@ -50,9 +50,7 @@ public class RoutingConsumerController {
 
     /**
      * 消费者详情：按 id 精确取（含 secretKey），供路由测试按需取密钥。
-     *
-     * <p>下拉候选用 {@code POST /options}（不含 secretKey）；密钥只在此详情按需返回，
-     * 避免列表接口把全部密钥批量下发到前端。</p>
+     * 下拉候选用 {@code POST /options}（不含 secretKey），密钥只在此详情按需返回。
      */
     @GetMapping("/{id}")
     public RoutingConsumer get(@PathVariable Long id) {
@@ -61,8 +59,6 @@ public class RoutingConsumerController {
 
     /**
      * 消费者详情：按业务码精确取（含 secretKey），供路由规则测试抽屉按规则绑定的 consumerCode 取密钥。
-     *
-     * <p>路由规则↔消费者收敛为 1:1 且绑定走 consumerCode 后，测试抽屉不再经主键 id 取密钥。</p>
      */
     @GetMapping("/code/{code}")
     public RoutingConsumer getByCode(@PathVariable String code) {

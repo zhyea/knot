@@ -30,7 +30,7 @@ public class ModerationWordController {
     }
 
     /**
-     * <p>唯一键是 (word, category_code)，故可用性判断要同时带分类。</p>
+     * 唯一键是 (word, category_code)，可用性判断要同时带分类。
      */
     @GetMapping("/check-code")
     public CodeAvailability checkCode(@RequestParam String word,

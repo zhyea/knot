@@ -28,9 +28,8 @@ public interface ExternalModelMapper {
     ExternalModelItemEntity getItemById(Long id);
 
     /**
-     * 按 model_id 查条目（2026-11-01 robin 拍板：同步去重只认模型 ID，同一模型跨源视为
-     * 同一条目，最近同步的源覆盖旧数据并把条目归属翻到新源）。表唯一键
-     * uk_external_model_item 已同步改为 (model_id)。
+     * 按 {@code model_id} 查条目。同步去重只认模型 ID：同一模型跨源视为同一条目，
+     * 最近同步的源覆盖旧数据并接管归属；唯一键 {@code uk_external_model_item} 为 (model_id)。
      */
     ExternalModelItemEntity getItemByModelId(@Param("modelId") String modelId);
 

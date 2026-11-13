@@ -9,15 +9,10 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
- * 计费规则三级回退解析（复用生产链路口径，见 {@code GatewayConfigCacheService.getActiveBillingRule}）：
- * <ol>
- *   <li>EXPLICIT —— 模型显式绑定的规则码（{@code getActiveByRuleCode}）；</li>
- *   <li>FAMILY —— 模型族精确匹配默认规则（{@code getActiveByModelFamily(family)}）；</li>
- *   <li>GLOBAL —— 模型族为空的全局默认规则（同一查询在 family 为空时只剩此分支）；</li>
- *   <li>MISSING —— 三级均无。</li>
- * </ol>
- *
- * <p>与网关唯一差异：本解析在管理端离线发生，不参与响应热路径；命中层级被显式判定并透传给自检层。</p>
+ * 计费规则三级回退解析（复用生产链路 {@code GatewayConfigCacheService.getActiveBillingRule} 口径）：
+ * EXPLICIT 模型显式绑定规则码（{@code getActiveByRuleCode}）→ FAMILY 模型族精确匹配默认规则（{@code getActiveByModelFamily(family)}）
+ * → GLOBAL 模型族为空的全局默认规则（同一查询在 family 为空时只剩此分支）→ MISSING 三级均无。
+ * 本解析在管理端离线发生，不参与响应热路径；命中层级显式判定并透传给自检层。
  */
 @Component
 public class BillingRuleFallbackResolver {

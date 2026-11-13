@@ -21,10 +21,8 @@ public interface ProviderAccountMapper {
                      @Param("excludeId") Long excludeId);
 
     /**
-     * 按账户业务码统计绑定的供应商模型数（改码守卫用）。
-     *
-     * <p>kb_models 逻辑删除后可恢复，被删行仍持有 provider_account_code 引用，
-     * 故此处不按 is_deleted 过滤。</p>
+     * 按账户业务码统计绑定的供应商模型数（改码守卫用）。{@code kb_models} 逻辑删除后可恢复，
+     * 被删行仍持有 {@code provider_account_code} 引用，故不按 {@code is_deleted} 过滤。
      */
     Long countModelsByAccountCode(@Param("accountCode") String accountCode);
 

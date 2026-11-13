@@ -5,25 +5,10 @@ import org.chobit.knot.common.constants.GatewayHeaders;
 import java.util.function.LongConsumer;
 
 /**
- * 首 token 响应时间（TTFT）写头器：把「请求进入网关模板处理 → 响应侧首个可观测产出」
- * 的耗时以响应头 {@code X-Knot-First-Token-Time}（毫秒）暴露给调用方。
- *
- * <p>两个出口共用同一实例与同一语义：</p>
- * <ul>
- *   <li>流式：由 {@code ProxyStreamingFlux} 在上游首行数据到达、首次 write/flush 之前调用
- *       {@link #mark()}——Tomcat 在首次 flush body 时才 commit 响应头，此刻写头依然生效；</li>
- *   <li>非流式：由 {@code AbstractGatewayRequestTemplate} 在响应体就绪、返回控制器前调用。</li>
- * </ul>
- *
- * <p>{@link #mark()} 幂等：只有首次调用写头并通知观察者，后续调用（SSE 每行都会触发）直接短路。
- * 响应承载缺失（{@link GatewayHttpExchange#noop()}）时静默跳过写头，<b>但观察者仍会触发</b>——
- * 慢信号这类派生能力不依赖响应对象。</p>
- *
- * <p>观察者（{@link LongConsumer}）在 {@link #mark()} 内、写头之前以耗时（毫秒）回调一次，
- * 供摘除模块消费 TTFT（见 {@code GatewayRequestHandler#firstTokenObserver}）。</p>
- *
- * <p>2026-10-20：入参由 {@code HttpServletResponse} 改为 {@link GatewayHttpExchange}——
- * 写头不再需要 {@code RequestContextHolder} 的线程本地属性，异步/响应式线程上也能正确写出。</p>
+ * 首 token 响应时间（TTFT）写头器：把「请求进入网关模板处理 → 响应侧首个可观测产出」的耗时以响应头 {@code X-Knot-First-Token-Time}（毫秒）暴露给调用方。
+ * 流式由 {@code ProxyStreamingFlux} 在首个数据到达、首次 write/flush 之前调用 {@link #mark()}；非流式由 {@code AbstractGatewayRequestTemplate} 在响应体就绪时调用。
+ * {@link #mark()} 幂等：只有首次调用写头并通知观察者；响应承载缺失（{@link GatewayHttpExchange#noop()}）时跳过写头但观察者仍触发。
+ * 观察者（{@link LongConsumer}）在 {@link #mark()} 内、写头之前以耗时（毫秒）回调一次，供摘除模块消费 TTFT（{@code GatewayRequestHandler#firstTokenObserver}）。
  */
 public final class FirstTokenHeaderWriter {
 

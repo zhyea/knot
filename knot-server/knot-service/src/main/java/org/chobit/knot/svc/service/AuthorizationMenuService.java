@@ -15,10 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Menu management service for authorization administration.
- *
- * <p>⭐ 对外载体是 {@link AdminMenuDetailItem}，不是导航树用的 {@code AdminMenuItem}：
- * 维护界面必须看到禁用菜单，导航树不能。两者字段集不同（前者主键 {@code id}、无 children），
- * 混用会让「关掉的菜单还出现在侧边栏」这种 bug 复活。</p>
+ * 对外载体是 {@link AdminMenuDetailItem}，不是导航树用的 {@code AdminMenuItem}：
+ * 前者主键 {@code id}、无 children，且包含禁用菜单。
  */
 @Service
 public class AuthorizationMenuService {
@@ -98,9 +96,7 @@ public class AuthorizationMenuService {
 
     /**
      * Returns a menu snapshot for operation log auditing.
-     *
-     * <p>仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @authorizationMenuService.menuAuditSnapshot(#p0)}）
-     * 反射调用，Java 侧无直接引用，IDE 会误报 unused。</p>
+     * 仅由 {@code @OperationLog} 的 SpEL 表达式反射调用，Java 侧无直接引用。
      */
     @SuppressWarnings("unused")
     public AdminMenuDetailItem menuAuditSnapshot(Long id) {

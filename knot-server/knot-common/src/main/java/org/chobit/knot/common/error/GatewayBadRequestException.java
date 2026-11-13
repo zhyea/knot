@@ -1,11 +1,9 @@
 package org.chobit.knot.common.error;
 
 /**
- * 400（Bad Request）语义的跨模块父异常。
+ * 400（Bad Request）语义的跨模块父异常，供无法反向依赖网关异常家族的下层模块（如 knot-plugin）抛出。
  *
- * <p>供无法反向依赖网关异常家族的下层模块（如 knot-plugin）抛出：由网关
- * {@code GatewayExceptionHandler} 统一捕获转 HTTP 400。携带 {@code errorType} + {@code code}，
- * 便于响应体带出结构化 type/code（与网关自有异常家族同一形状）。</p>
+ * 由网关 {@code GatewayExceptionHandler} 捕获转 HTTP 400；携带 {@code errorType} + {@code code}，响应体带出结构化 type/code。
  */
 public class GatewayBadRequestException extends RuntimeException {
 

@@ -5,26 +5,10 @@ import org.chobit.knot.common.util.JsonKit;
 import java.util.Locale;
 
 /**
- * 路由规则级「异常摘除」策略：把窗口内反复异常的供应商模型从候选链里临时剔除。
+ * 路由规则级「异常摘除」策略：把窗口内反复异常的供应商模型从候选链里临时剔除，作用于目标之间，降级顺序 retry → failover → eject。
  *
- * <p>与 {@link RetryPolicy} 的关系是<b>正交的两层降级</b>：重试在<b>同一目标内部</b>原地重投，
- * 摘除作用于<b>目标之间</b>——被摘除的目标在后续请求里根本不进入候选链，省掉「明知是坏的目标
- * 还要先试一遍」的延迟与上游压力。降级顺序为「retry → failover → eject」。</p>
- *
- * <p>异常信号有两类，共用一个窗口计数器，任一达阈值即摘除：</p>
- * <ul>
- *   <li>{@code FAILURE}：上游故障类失败（5xx、上游 429、网络超时/连接错误）；</li>
- *   <li>{@code SLOW}：请求成功但首 token 延迟超过 {@code slowFirstTokenMs}。</li>
- * </ul>
- *
- * <p>各字段在<b>紧凑构造器中即归一化</b>——缺省值填充、越界收敛、模式归一。
- * 因此任何 {@code EjectionPolicy} 实例（含 Jackson 反序列化出来的）拿到的都是可直接使用的有效值。</p>
- *
- * <p>配置分两种模式：{@code simple}（仅启用/窗口/阈值/慢阈值/冷却）与
- * {@code professional}（计数开关、冷却增长、探活租约、全摘 fail-open 全可调）。默认 {@code simple}。</p>
- *
- * <p>存储为 {@code kb_routing_rules.ejection_policy}（TEXT/JSON）；该列为空表示未显式配置，
- * 运行时解析为 {@link #DEFAULT}（<b>默认关闭</b>——摘除会主动减少可用容量，误判代价高于漏判）。</p>
+ * 信号两类，共用一个窗口计数器，任一达阈值即摘除：{@code FAILURE}（5xx / 上游 429 / 网络超时与连接错误）、{@code SLOW}（成功但首 token 延迟超过 {@code slowFirstTokenMs}）。
+ * 存储为 {@code kb_routing_rules.ejection_policy}；该列为空时解析为 {@link #DEFAULT}（默认关闭），模式分 {@code simple} / {@code professional}，默认 {@code simple}。
  */
 public record EjectionPolicy(
         /** 是否启用摘除；关闭表示候选链不做任何摘除过滤 */
@@ -71,9 +55,6 @@ public record EjectionPolicy(
 
     /**
      * 默认策略：默认关闭、简单模式，窗口 60s、阈值 5 次、慢阈值 15s、冷却 60s。
-     *
-     * <p>单独抽常量而非引用 {@link #DEFAULT}：紧凑构造器在 {@code DEFAULT} 静态初始化期间
-     * 就会执行，此时 {@code DEFAULT} 仍为 null，回退分支读它会 NPE。</p>
      */
     public static final EjectionPolicy DEFAULT = new EjectionPolicy(
             Boolean.FALSE,
@@ -128,10 +109,7 @@ public record EjectionPolicy(
     }
 
     /**
-     * 是否启用摘除。
-     *
-     * <p>不叫 {@code enabled()}：record 的显式存取方法必须与组件同名同类型，
-     * 而组件是 {@link Boolean}（可空、需要区分「未配置」与「显式关闭」）。</p>
+     * 是否启用摘除。{@code null} 表示未配置，与显式关闭区分。
      */
     public boolean isEnabled() {
         return Boolean.TRUE.equals(enabled);

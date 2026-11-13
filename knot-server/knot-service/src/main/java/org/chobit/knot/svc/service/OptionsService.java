@@ -40,23 +40,10 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * 下拉候选（options）服务：P0 九类 + 阶段四扩的两类（角色、供应商信息）= 11 类资源。
- * 统一契约见 options-refactor-constraints.md。
- *
- * <p>核心流程（每资源一致）：
- * <ol>
- *   <li>按 keyword / enabledOnly / 资源过滤检索当前页（PageHelper 追加 limit + count）；
- *       pageSize 服务端上限 50 由 {@link OptionQuery#effectivePageSize()} 钳制。</li>
- *   <li>若带 {@code values}（已选项回显），再按 value 精确取一次（不分页、不过滤 enabledOnly，
- *       仅保留「存在」条件并算 disabled），合并进 list —— 使「已选项不在第一页」也能正确回显。</li>
- *   <li>{@code missingValues} = 请求 values 中未命中的项（不存在 / 已删 / 无权限），前端据此阻止非法提交。</li>
- * </ol>
- *
- * <p>层间职责：DAL 返回 {@link OptionRow}（列名与字段名由 {@code resultMap} 绑定），
- * 本类只做分页 / 合并 / 缺失判定三件业务，行→ VO 的逐字段归一交给 {@link OptionConverter}。</p>
- *
- * <p>敏感字段：路由消费者、供应商账户 options 绝不返回 secretKey / 凭据 / 完整 configJson（见约束 R6）。
- * 供应商账户的 baseUrl 走 {@code meta} 返回，不单独占 VO 字段。</p>
+ * 下拉候选（options）服务，统一处理 11 类资源。
+ * 核心流程：按 keyword / enabledOnly / 资源过滤检索当前页（PageHelper 追加 limit + count，pageSize 上限 50 由 {@link OptionQuery#effectivePageSize()} 钳制）；
+ * 带 {@code values} 时按 value 精确取一次（不分页、不过滤 enabledOnly，仅保留「存在」条件并算 disabled）合并进 list，{@code missingValues} 记未命中项（不存在 / 已删 / 无权限）供前端阻止非法提交。
+ * DAL 返回 {@link OptionRow}，本类只做分页 / 合并 / 缺失判定，行→ VO 归一交给 {@link OptionConverter}；敏感字段不返回 secretKey / 凭据 / 完整 configJson，供应商账户 baseUrl 走 {@code meta}。
  */
 @Service
 public class OptionsService {

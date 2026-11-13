@@ -59,14 +59,9 @@ public final class AiPayloadFields {
     public static final String OUTPUT_TOKENS = "output_tokens";
     /**
      * 网关向调用方输出的扩展信息字段名，值为 {@code {usage, billing}} 两视图。
-     *
-     * <p>仅在路由消费者 {@code return_usage_detail} 打开时注入：整包响应作为响应体字段，
-     * SSE 响应作为独立的 {@code data:} 事件插在 {@code [DONE]} 之前（无 [DONE] 时追加在流末尾），
-     * 不改动上游原有 chunk。历史字段 {@code knot_usage} / {@code model_usage}
-     * 已被本字段取代（一次做干净，不留兼容）。</p>
-     *
-     * <p>{@code billing} 只在命中计费规则时出现；无规则可命中时整个 {@code billing} 省略，
-     * 使调用方能区分「免费」与「未配置计费」。</p>
+     * 仅在路由消费者 {@code return_usage_detail} 打开时注入：整包响应为响应体字段，SSE 响应为独立的
+     * {@code data:} 事件，插在 {@code [DONE]} 之前（无 [DONE] 时追加到流末尾），不改动上游原有 chunk。
+     * {@code billing} 只在命中计费规则时出现，无规则可命中时整键省略。
      */
     public static final String KNOT_EXTEND = "knot_extend";
     /**

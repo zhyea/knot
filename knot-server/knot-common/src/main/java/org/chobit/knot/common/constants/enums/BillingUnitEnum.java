@@ -6,9 +6,8 @@ import org.chobit.knot.common.error.ErrorCode;
 import java.util.Arrays;
 
 /**
- * 计费单位：已从 ks_enum_configs（billing_unit 字典）迁出，
- * 通过 /api/enum-options 以 BillingUnitEnum 键下发前端。
- * 某个计费模式可用的单位集合由 {@link BillingModeEnum#supportedUnits()} 约束，本枚举只定义取值本身。
+ * 计费单位：通过 {@code /api/enum-options} 以 {@code BillingUnitEnum} 键下发前端。
+ * 某计费模式可用的单位集合由 {@link BillingModeEnum#supportedUnits()} 约束，本枚举只定义取值本身。
  */
 public enum BillingUnitEnum implements EnumOption {
     ONE_K_TOKENS("1K_TOKENS", "每千 Token 单价"),
@@ -39,16 +38,9 @@ public enum BillingUnitEnum implements EnumOption {
     }
 
     /**
-     * 单个计费单位对应的数量基数（如 1K_TOKENS=1000）。
-     * 金额 = 用量 / unitSize * 单价。新增枚举必须显式给出基数，
-     * 未覆盖时在运行期直接抛异常，避免静默按错误基数计费造成资损。
-     *
-     * <p>⭐ 所有基数都是 10 的幂（1 / 1e3 / 1e6）：金额 = 用量 × 单价 ÷ 基数
-     * 恒定除尽，不终止除法在这套单位体系里不可能出现。
-     * PER_MINUTE（60 秒）已于 2026-10-17 退役——它是唯一的非 10 的幂基数，
-     * 会逼出「秒 ÷ 60」的不终止除法；退役后 audio 与 video 统一按秒计费。
-     * 若未来确需按分钟计费，必须在配置期把单价折成每秒价，不要让 60 进金额公式
-     * （设计纪要见 docs/design/routing-test-drawer-billing-verify-design.md §6）。</p>
+     * 单个计费单位对应的数量基数（如 {@code 1K_TOKENS=1000}）：金额 = 用量 / unitSize * 单价 的除数。
+     * 所有基数都是 10 的幂（1 / 1e3 / 1e6），金额公式恒定除尽。
+     * 新增枚举必须显式给出基数，未覆盖时运行期直接抛异常。
      */
     public int unitSize() {
         return switch (this) {
@@ -61,14 +53,8 @@ public enum BillingUnitEnum implements EnumOption {
     }
 
     /**
-     * 该单位是否是「按 token 计」的量纲。
-     *
-     * <p>⭐ 量纲由单位本身声明，不需要另设 {@code quantitySource} 一类字段：
-     * 「一单位收多少钱」的分母是什么，就已经回答了「按什么收」。
-     * 再开一个字段等于把同一件事写两遍，两处必然漂移（2026-10-26 对齐豆包口径时确立）。</p>
-     *
-     * <p>用途：VIDEO 模式默认按秒（{@code PER_SECOND}），但豆包 Seedance 这类
-     * 「视频模型按 token 计价」的厂商要选 {@code 1M_TOKENS}，计算器据此改取 token 量。</p>
+     * 该单位是否是「按 token 计」的量纲；量纲由单位本身声明，不需要另设 {@code quantitySource} 字段。
+     * VIDEO 模式默认按秒，按 token 计价的厂商选 {@code 1M_TOKENS} 时，计算器据此改取 token 量。
      */
     public boolean tokenBased() {
         return this == PER_TOKEN || this == ONE_K_TOKENS || this == ONE_M_TOKENS;

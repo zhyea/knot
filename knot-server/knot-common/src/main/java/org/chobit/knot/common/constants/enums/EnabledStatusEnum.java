@@ -3,13 +3,8 @@ package org.chobit.knot.common.constants.enums;
 import java.util.List;
 
 /**
- * 二态可用状态：全项目唯一的二态持久化枚举。
- *
- * <p>历史 {@code ACTIVE / INACTIVE}（生效 / 停用）与 {@code ENABLED / DISABLED}（启用 / 禁用）
- * 在本枚举中归一为 1 / 0，页面文案由字段语义决定，不再建立第二套二态枚举。
- * 删除语义不属于本枚举，一律走 {@code is_deleted}。</p>
- *
- * <p>{@code DISABLED = 0} 是合法值：前后端禁止用 truthy 判断代替显式比较。</p>
+ * 二态可用状态：1 = 启用 / 0 = 禁用，页面文案由字段语义决定；全项目唯一的二态持久化枚举。
+ * 删除语义不属于本枚举，一律走 {@code is_deleted}；{@code DISABLED = 0} 是合法值，禁止用 truthy 判断。
  */
 public enum EnabledStatusEnum implements NumericEnumOption {
     ENABLED(1, "启用"),

@@ -6,12 +6,6 @@ import java.util.Map;
 /**
  * content 折文本的跨协议归一原语：既吃 OpenAI 的裸字符串，也吃 Anthropic / Converse 的
  * {@code [{text: ...}]} block 列表，其余形状按 {@code toString} 兜底。
- *
- * <p>归属判据：{@code textOf} 归一的是 OpenAI / Anthropic / Converse 三种协议共有的 content
- * 形状，无供应商语义——曾作为私有辅助住在 {@code AwsBedrockConverseSupport}，并导致
- * {@code AwsBedrockMessagesToConverseUpstreamAdapter} 复制了一份逐字相同的私有副本，
- * 2026-10-25 拆出（判例：**跨类逐字重复是「通用能力住了供应商专用类」的直接后果**，
- * 见到重复实现先怀疑归属，而不是先合并）。
  */
 public final class PayloadTextSupport {
 

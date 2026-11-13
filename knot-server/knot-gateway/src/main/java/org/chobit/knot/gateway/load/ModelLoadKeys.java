@@ -2,11 +2,7 @@ package org.chobit.knot.gateway.load;
 
 /**
  * 在途并发计量键的拼装入口。
- *
- * <p>键格式：{@code <prefix>:MODEL:<modelCode>}，例如 {@code knot:load:MODEL:gpt-4o}。</p>
- *
- * <p>键用的是模型<b>业务码</b>（{@code kb_models.model_code}）而不是主键 id：
- * 对齐「跨模块绑定存 code 不存 id」口径，且重建库后键空间不变。</p>
+ * 键格式 {@code <prefix>:MODEL:<modelCode>}（如 {@code knot:load:MODEL:gpt-4o}），用模型业务码 {@code kb_models.model_code}，不用主键 id。
  */
 public final class ModelLoadKeys {
 

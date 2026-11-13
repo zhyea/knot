@@ -5,11 +5,8 @@ import org.chobit.knot.common.model.BillingConfig;
 import java.math.BigDecimal;
 
 /**
- * 高低峰判定结果：相位 + 判定原因 + 倍率 + 命中相位规则。
- *
- * <p>不可变值对象，供预览接口与价格计算共用。{@code matchedRule} 用于 ABSOLUTE 模式直接取
- * 命中位相自身单价（方案层不二次乘法）；MULTIPLIER 模式忽略它。无时间来源时 {@code matchedRule}
- * 为 null（与 {@link #noTimestamp()} 的相等性保持一致，既有测试不破）。
+ * 高低峰判定结果：相位 + 判定原因 + 倍率 + 命中相位规则，不可变值对象，供预览接口与价格计算共用。
+ * {@code matchedRule} 用于 ABSOLUTE 模式直接取命中相位自身单价，MULTIPLIER 模式忽略；无时间来源时为 {@code null}。
  */
 public record PhaseDecision(PricingPhase phase,
                             PhaseReason reason,

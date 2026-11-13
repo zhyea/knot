@@ -16,16 +16,8 @@ import org.springframework.stereotype.Component;
 /**
  * 同步插件分发器：按「扩展点 + 阶段 + 能力码 + 上下文类型」四要素解析出唯一 handler，按 {@code orderNo} 升序内联执行。
  *
- * <p><b>为什么在 {@code knot-plugin} 而不在 {@code knot-plugin-api}</b>（2026-10-24）：{@code plugin-api}
- * 是契约模块，只承载 {@link PluginDispatcher} 等接口与 DTO；{@code @Component} 属运行时实现，放进去等于
- * 让契约模块拖入 Spring 容器职责，也逼所有依赖 {@code plugin-api} 的模块（如 admin）凭空多一个无用的
- * bean。迁到实现模块后，调用方仍只依赖 {@link PluginDispatcher} 接口，网关对 {@code knot-plugin} 保持
- * {@code runtime} 依赖即可——既让编译期的跨模块 import 被编译器直接拦下，也保证运行时 bean 一定在
- * classpath（见 {@code 40-plugin.md} 的反而教训）。</p>
- *
- * <p><b>不吞异常</b>：本类刻意<b>没有</b> try/catch。同步插件位于请求主链路上，handler 抛出的异常必须
- * 冒泡打断链路（敏感词拒绝、内容改写都依赖这一点）。故障隔离若要引入，只能在调用方按插件类型区分
- * FAIL_OPEN / FAIL_CLOSED，不在这里统一吞掉——统一吞掉等于把所有拒绝都洗成放行。</p>
+ * 不吞异常：handler 抛出的异常直接冒泡打断链路（敏感词拒绝、内容改写依赖这一点）；故障隔离只能在调用方
+ * 按插件类型区分 FAIL_OPEN / FAIL_CLOSED。
  */
 @Component
 public class DefaultPluginDispatcher implements PluginDispatcher {

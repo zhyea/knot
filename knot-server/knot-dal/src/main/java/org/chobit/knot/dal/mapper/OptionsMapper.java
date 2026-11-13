@@ -7,24 +7,10 @@ import org.chobit.knot.dal.entity.OptionRow;
 import java.util.List;
 
 /**
- * 下拉候选（options）投影查询。
- *
- * <p>每资源两个方法：
- * <ul>
- *   <li>{@code listXxxOptions}：关键字检索页（由 PageHelper 追加 limit/count，SQL 内不写 limit）；
- *       参数含 enabledOnly / includeDeleted / 资源过滤字段。</li>
- *   <li>{@code listXxxOptionsByValues}：按已选value 精确回显（不分页、不过滤 enabledOnly，
- *       仅保留「存在」条件并计算 disabled 标记，停用/已删项据此回显并进 missingValues）。</li>
- * </ul>
- *
- * <p>返回 {@code List<OptionRow<V>>}：投影列名 value / label / disabled / meta 与该类字段
- * 一一对应，由 MyBatis 直接填充（见 {@code OptionsMapper.xml} 的 {@code resultType}）。
- * 顶层不再有 {@code code}——业务码由 SQL 侧 {@code json_object} 投到 {@code meta}。
- * 泛型 {@code V} 标注 value 的实际类型——id 型资源 {@code Long}，code 型资源 {@code String}——
- * 仅作文档与编译期提示，反射填充行为与不带泛型一致。</p>
- *
- * <p>约定见 options-refactor-constraints.md 第 0/1 节：禁返回 secretKey / 凭据 / 完整 configJson。
- * baseUrl 不再单独占列，已并入供应商账户的 {@code meta}（非敏感的上游地址）。</p>
+ * 下拉候选（options）投影查询。每资源两个方法：{@code listXxxOptions} 关键字检索页
+ * （{@code PageHelper} 追加 limit/count，SQL 内不写 limit；参数含 enabledOnly / includeDeleted / 资源过滤字段）；
+ * {@code listXxxOptionsByValues} 按已选 value 精确回显（不分页、不过滤 enabledOnly，计算 disabled 并进 missingValues）。
+ * 返回 {@code List<OptionRow<V>>}（列 value / label / disabled / meta，顶层无 {@code code}）；禁返回凭据 / secretKey / 完整 configJson。
  */
 @Mapper
 public interface OptionsMapper {

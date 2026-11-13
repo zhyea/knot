@@ -43,10 +43,7 @@ public enum RouteTargetTypeEnum implements EnumOption {
     }
 
     /**
-     * 写入/校验入口的归一：空白或未知值回退调用方指定的类型。
-     *
-     * <p>刻意<b>要求显式传 fallback</b>——「空当作 MODEL」是路由目标的业务默认，不该藏在枚举里
-     * 静默生效；换一个调用方（比如调试目标）可能希望未知值直接报错。</p>
+     * 写入/校验入口的归一：空白或未知值回退调用方显式指定的类型（{@code fallback}）。
      */
     public static RouteTargetTypeEnum ofOrDefault(String code, RouteTargetTypeEnum fallback) {
         RouteTargetTypeEnum value = fromCode(code);
@@ -54,9 +51,7 @@ public enum RouteTargetTypeEnum implements EnumOption {
     }
 
     /**
-     * 大小写不敏感的 code 比较（管理面与低频路径用）。
-     * 网关热路径（{@code RoutingResolver}）保持 {@code MODEL.code().equals(...)}，
-     * 避免每个目标逐次做 trim + toUpperCase 的归一开销。
+     * 大小写不敏感的 code 比较，仅用于管理面与低频路径；网关热路径用 {@code MODEL.code().equals(...)} 直接比较。
      */
     public boolean matches(String code) {
         return code != null && code.trim().equalsIgnoreCase(this.code);

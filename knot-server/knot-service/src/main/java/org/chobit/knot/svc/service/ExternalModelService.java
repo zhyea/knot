@@ -75,11 +75,9 @@ public class ExternalModelService {
     }
 
     /**
-     * 对外投影：条目的 {@code rawJson} / {@code description} / {@code contextLength} 可能由供应商
-     * 详情接口补全，{@link #requireEntity} 已经把补全结果落库，这里只负责换载体。
-     *
-     * <p>同时被 {@code @OperationLog(oldValueSpel = "@externalModelService.getItem(#p0)")} 使用，
-     * 所以老值快照也是这个 record——新旧快照同载体，审计里不会出现「一半实体一半 record」。</p>
+     * 对外投影：{@code rawJson} / {@code description} / {@code contextLength} 可能由供应商详情接口补全，
+     * 补全由 {@link #requireEntity} 落库，这里只负责换载体。
+     * 同时被 {@code @OperationLog(oldValueSpel = "@externalModelService.getItem(#p0)")} 使用，新老快照同载体。
      */
     @Transactional
     public ExternalModelItem getItem(Long id) {
@@ -87,13 +85,9 @@ public class ExternalModelService {
     }
 
     /**
-     * 内部取实体：缺失即 404，且命中供应商 provider 时把 enrich 出来的详情回写数据库。
-     *
-     * <p>⚠ 这是唯一允许吐 {@code ExternalModelItemEntity} 的出口，且只在 svc 内部用——
-     * 谁要往外传，必须走 {@link #getItem}。</p>
-     *
-     * <p>⚠ 这里<b>不标</b> {@code @Transactional}：它是内部自调用，Spring 代理不会介入，标了也只是
-     * 一个假的承诺。事务由两个调用方（{@link #getItem} / {@link #createLogicalModel}）提供。</p>
+     * 内部取实体：缺失即 404，命中供应商 provider 时把 enrich 出的详情回写数据库。
+     * 唯一允许吐 {@code ExternalModelItemEntity} 的出口，只在 svc 内部用；往外传必须走 {@link #getItem}。
+     * 不标 {@code @Transactional}：内部自调用不经过代理，事务由 {@link #getItem} / {@link #createLogicalModel} 提供。
      */
     private ExternalModelItemEntity requireEntity(Long id) {
         ExternalModelItemEntity item = externalModelMapper.getItemById(id);
@@ -245,9 +239,9 @@ public class ExternalModelService {
     }
 
     /**
-     * 外部模型转统一模型的编码归一：点号是版本号的一部分（gpt-4.1）必须保留；
-     * 斜杠左侧是供应商命名空间（openai/gpt-4.1），不进编码；其余非法字符仍归一为连字符。
-     * 主干与冲突后缀共用此口径 —— 2026-11-10 robin 拍板，见 ExternalModelServiceCodeTest。
+     * 外部模型转统一模型的编码归一：点号是版本号的一部分（{@code gpt-4.1}）必须保留；
+     * 斜杠左侧是供应商命名空间（{@code openai/gpt-4.1}）不进编码；其余非法字符归一为连字符。
+     * 主干与冲突后缀共用此口径。
      */
     static String slug(String value) {
         String v = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);

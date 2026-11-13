@@ -17,13 +17,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * OpenAI Responses → Anthropic Messages 适配器（泛化转换，不隶属单一供应商）。
- *
- * <p><b>只服务 {@code RESPONSES} 一种入协议</b>：请求侧 {@code input}（字符串或事件列表）折成
- * {@code messages}，{@code instructions} 提升为顶层 {@code system}，
+ * OpenAI Responses → Anthropic Messages 适配器（泛化转换，不隶属单一供应商），只服务 {@code RESPONSES} 入协议。
+ * 请求侧 {@code input}（字符串或事件列表）折成 {@code messages}、{@code instructions} 提升为顶层 {@code system}、
  * {@code max_output_tokens→max_tokens}，移除 Responses 专有字段，{@code max_tokens} 缺省兜底 1024；
- * 响应侧把上游的 Messages 形状翻回 {@code response} 对象（output_text + status + usage，
- * 非 Messages 响应原样透传）。</p>
+ * 响应侧把 Messages 形状翻回 {@code response} 对象（output_text + status + usage，非 Messages 响应原样透传）。
  */
 @Component
 @Order(10)

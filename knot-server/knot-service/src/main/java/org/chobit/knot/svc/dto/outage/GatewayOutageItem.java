@@ -2,10 +2,8 @@ package org.chobit.knot.svc.dto.outage;
 
 /**
  * 网关摘除管理面的一条条目（镜像网关侧 {@code OutageAdminItem}）。
- *
- * <p>由 admin 后端经 RestClient 透传网关 {@code GET /_admin/outages} 的 JSON 反序列化得到，
- * 字段命名与网关保持一致，前端面板直接按字段渲染。</p>
- *
+ * 由 admin 后端经 RestClient 透传网关 {@code GET /_admin/outages} 的 JSON 反序列化得到，
+ * 字段命名与网关保持一致，前端面板直接按字段渲染。
  * @param ruleCode     路由规则业务码
  * @param modelCode    供应商模型业务码
  * @param failures     窗口内失败类异常计数

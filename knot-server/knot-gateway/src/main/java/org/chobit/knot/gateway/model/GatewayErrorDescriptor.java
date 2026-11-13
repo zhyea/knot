@@ -14,16 +14,8 @@ import org.chobit.knot.gateway.redis.RedisUnavailableException;
 import java.util.concurrent.TimeoutException;
 
 /**
- * 网关错误的<b>唯一映射</b>：一次失败该用什么 {@code type} / {@code code} /
- * {@code httpStatus} / {@code stage} 表达，只由本类决定。
- *
- * <p>此前 HTTP 出口（{@code GatewayExceptionHandler}）与数仓出口（{@code ErrorMsgDto}）
- * 各写一棵 if-else 树，两棵树逐条对照才能确认没漂移；任何一方新增分支而另一方忘了同步，
- * 调用方看到的语义与数仓统计的语义就会不一致，且编译与单测都发现不了。现在两侧都取本类，
- * 新增异常类型只需改一处。</p>
- *
- * <p>不覆盖 Spring 框架异常（{@code ServerWebInputException} 等）——它们只出现在 HTTP
- * 入口、不进数仓，不存在两棵树问题，仍由 {@code GatewayExceptionHandler} 自行处理。</p>
+ * 网关错误的唯一映射：一次失败用什么 {@code type} / {@code code} / {@code httpStatus} / {@code stage} 表达，由本类决定；HTTP 出口与数仓出口共用。
+ * 不覆盖 Spring 框架异常（如 {@code ServerWebInputException}），它们只出现在 HTTP 入口，仍由 {@code GatewayExceptionHandler} 处理。
  *
  * @param type       错误性质（{@link GatewayErrorTypeEnum} 的 code）
  * @param code       具体错误码，无细分时为 {@code null}
@@ -45,10 +37,7 @@ public record GatewayErrorDescriptor(String type,
 
     /**
      * 由异常实例解析错误描述。
-     *
-     * <p>错误类型单一来源：网关异常家族在构造时已把 {@link GatewayErrorTypeEnum} 的 code
-     * 写进 {@code type()}，这里直接取用，不再按异常类型二次推断。非家族异常
-     * （业务异常 / 存储不可用 / 未预期异常）没有 type，按处置语义取枚举常量。</p>
+     * 网关异常家族直接取 {@code type()} 中的 {@link GatewayErrorTypeEnum} code；非家族异常按处置语义取枚举常量。
      */
     public static GatewayErrorDescriptor of(Throwable error) {
         // 请求预算超时（B2 deadline，Mono.timeout 抛 TimeoutException）：这是「唯一真总超时」

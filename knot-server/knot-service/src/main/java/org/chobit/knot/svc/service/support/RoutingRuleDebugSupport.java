@@ -11,9 +11,7 @@ import org.chobit.knot.common.util.JsonKit;
 
 /**
  * 路由规则调试的纯函数集合：协议准入白名单、网关路径、请求体补全、curl 文本。
- *
- * <p>全部为静态无状态方法——本类不持有 mapper、不发起 HTTP，因此可被能力下发接口与真实调试
- * 调用同时复用，杜绝「面板展示的路径」与「实际请求的路径」两份实现漂移。</p>
+ * 全部为静态无状态方法，本类不持有 mapper、不发起 HTTP，可被能力下发接口与真实调试调用同时复用。
  */
 public final class RoutingRuleDebugSupport {
 

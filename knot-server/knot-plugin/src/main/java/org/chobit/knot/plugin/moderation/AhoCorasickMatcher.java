@@ -11,12 +11,9 @@ import java.util.Map;
 import java.util.Queue;
 
 /**
- * Aho-Corasick 多模式匹配自动机：一次线性扫描同时命中全部词条，整体 O(n)。
+ * Aho-Corasick 多模式匹配自动机：一次线性扫描同时命中全部词条，整体 O(n)；词库变更时整体重建。
  *
- * <p>不用逐词 {@code contains}（万级词库 × 数十 KB 正文 = 千万次比较），也不用数据库 LIKE。
- * 词库变更时整体重建：重建成本远低于运行期逐词匹配。</p>
- *
- * <p>入参是中性 {@link ModerationTerm}：本模块不依赖持久化实体，词库由网关经插件上下文下发。</p>
+ * 入参是中性 {@link ModerationTerm}：本模块不依赖持久化实体，词库由网关经插件上下文下发。
  */
 public final class AhoCorasickMatcher {
 
@@ -119,7 +116,7 @@ public final class AhoCorasickMatcher {
     }
 
     /**
-     * 词库为空：调用方据此短路，避免无意义扫描。
+     * 词库为空：调用方据此短路，不做扫描。
      */
     public boolean empty() {
         return noWords;

@@ -4,12 +4,9 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 /**
- * 计费方案试算结果：**方案层怎么看这一刻**。
- *
- * <p>{@code phase}/{@code reason}/{@code multiplier} 直接来自 {@code PeakOffPeakResolver}，
- * 与管理端配置页（F1 的时间判定测试）走同一套判定，禁止另写一套。
- * {@code prices} 是「已乘过倍率」的最终单价：TOKEN 模式给 input/output/cacheRead/cacheWrite 四项，
- * 其余模式给 {@code default} 一项。
+ * 计费方案试算结果，方案层看到的一次试算快照。
+ * {@code phase}/{@code reason}/{@code multiplier} 来自 {@code PeakOffPeakResolver}，与管理端配置页共用同一套判定，禁止另写一套。
+ * {@code prices} 为已乘倍率的最终单价：TOKEN 模式给 input/output/cacheRead/cacheWrite 四项，其余模式给 {@code default} 一项。
  */
 public record PricingPreviewResult(Long ruleId,
                                    String ruleCode,

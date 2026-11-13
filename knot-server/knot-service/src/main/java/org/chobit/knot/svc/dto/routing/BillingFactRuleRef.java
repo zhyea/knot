@@ -3,8 +3,7 @@ package org.chobit.knot.svc.dto.routing;
 /**
  * 计费规则快照（被告链依据之一）：当次实际参与计费的规则元数据。
  *
- * <p>{@code matchedBy} 与原 {@link BillingFactSubject#ruleSource()} 同源，二者保持一致；
- * {@code versionCode} 取规则当前生效版本，供排障定位「用的是哪一版单价」。</p>
+ * {@code matchedBy} 与 {@link BillingFactSubject#ruleSource()} 同值；{@code versionCode} 取规则当前生效版本。
  *
  * @param code        规则码
  * @param billingMode 计费模式（TOKEN / IMAGE / ...）

@@ -1,12 +1,9 @@
 package org.chobit.knot.plugin.moderation;
 
 /**
- * 敏感词命中事件：只带元数据，<b>不带命中词、不带上下文片段、不带原文</b>（合规：原文不出库）。
+ * 敏感词命中事件：只带元数据，不带命中词、不带上下文片段、不带原文。
  *
- * <p>当前走结构化日志；Kafka 就绪后由 sink 切到 topic 送数仓，事件结构不变（设计文档 §5.3）。</p>
- *
- * <p>消费者维度暂不落事件：插件上下文的路由快照只带 {@code consumerId}，
- * 按项目「跨模块绑定一律存 code 不存 id」的口径，等快照补 consumerCode 后再加。</p>
+ * 当前经结构化日志输出，事件结构不随 sink 改变；消费者维度暂不落事件（路由快照只带 {@code consumerId}）。
  */
 public record ModerationHitEvent(String traceId,
                                  String appCode,

@@ -10,18 +10,10 @@ import org.chobit.knot.common.util.MapNumberUtils;
 import java.util.Map;
 
 /**
- * 读取上游响应的「原始用量载体」，作为归一化输入（不再对外透传）。
- *
- * <p>规则：
- * <ul>
- *   <li>整包响应：直接返回响应体本身；</li>
- *   <li>SSE 响应：逐事件解析，挑出携带 {@code usage} 且 token 总量最大的那个事件；
- *       全部事件都没有 {@code usage} 时返回最后一个事件（保住多模态场景的 data 数组兜底）；</li>
- *   <li>JSON 解析失败：抛出 {@code JsonProcessingException}——<b>不再静默降级为 {@code null}</b>，
- *       否则「上游没回 usage」与「网关解析不出来」无法区分；响应体为空返回 {@code null}。</li>
- * </ul>
- *
- * <p>本类只读原文，不做任何数值解析或单位换算。</p>
+ * 读取上游响应的「原始用量载体」，作为归一化输入，不对外透传。
+ * 整包响应直接返回响应体本身；SSE 逐事件解析，取携带 {@code usage} 且 token 总量最大的事件，全部没有 {@code usage} 时返回最后一个事件。
+ * JSON 解析失败抛 {@code JsonProcessingException}（不静默降级为 {@code null}）；响应体为空返回 {@code null}。
+ * 本类只读原文，不做任何数值解析或单位换算。
  */
 public final class UsageRawReader {
 
@@ -83,10 +75,7 @@ public final class UsageRawReader {
 
     /**
      * 取对象里的 {@code usage} 子对象，不存在或不是对象时返回 {@code null}。
-     *
-     * <p>Responses 协议兜底：SSE 事件把完整响应包在 {@code response} 子对象里
-     * （{@code response.completed} / {@code response.incomplete} 等），顶层没有 {@code usage}，
-     * 此时下钻 {@code response.usage}。</p>
+     * Responses 协议下顶层没有 {@code usage}，此时下钻 {@code response.usage}。
      */
     public static Map<String, Object> readUsage(Map<String, Object> body) {
         Map<String, Object> usage = usageOf(body);

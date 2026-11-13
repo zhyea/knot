@@ -47,7 +47,7 @@ public interface ModerationWordMapper {
     int restore(@Param("id") Long id);
 
     /**
-     * 编码唯一性按物理行判定：uk_word_category 不区分 is_deleted，
+     * 编码唯一性按物理行判定：{@code uk_word_category} 不区分 {@code is_deleted}，
      * 逻辑删除后同 (word, category_code) 无法新建，只能恢复。
      */
     Long countByWordAndCategory(@Param("word") String word,

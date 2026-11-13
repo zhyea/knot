@@ -3,9 +3,8 @@ package org.chobit.knot.svc.dto.routing;
 /**
  * 计费规则的命中层级（三级回退）：决定「哪一级规则」实际参与了当次计费。
  *
- * <p>顺序即回退优先级：模型显式绑定 → 模型族默认 → 全局默认 → 全部缺失。
- * 自检层 {@code RULE_SOURCE_EXPECTED} 以 {@link #EXPLICIT} 为期望层级，
- * 模型静默回退到族/全局默认时即标 FAIL（见设计稿 v7 §5）。</p>
+ * 顺序即回退优先级：模型显式绑定 → 模型族默认 → 全局默认 → 全部缺失。
+ * 自检层 {@code RULE_SOURCE_EXPECTED} 以 {@link #EXPLICIT} 为期望层级，回退到族 / 全局默认即标 FAIL。
  */
 public enum BillingRuleSource {
 

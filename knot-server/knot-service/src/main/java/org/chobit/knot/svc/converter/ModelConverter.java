@@ -52,10 +52,7 @@ public interface ModelConverter {
     // ==================== 折扣策略（model_code 子资源） ====================
 
     /**
-     * 折扣策略视图 → DTO。
-     *
-     * <p>归属由路径变量 {@code model_code} 决定，请求体不携带归属，故 {@code id} 显式忽略——
-     * 否则请求体里随便塞个 id 都会混进落库对象。</p>
+     * 折扣策略视图 → DTO。归属由路径变量 {@code model_code} 决定，{@code id} 显式忽略。
      */
     @Mapping(target = "id", ignore = true)
     DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy vo);

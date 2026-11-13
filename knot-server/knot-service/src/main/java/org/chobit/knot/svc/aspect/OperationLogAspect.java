@@ -26,18 +26,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 /**
  * 操作日志切面：拦截 {@link OperationLog} 注解，并异步写入操作日志表。
  *
- * <p>⚠ 2026-10-20（knot-gateway 切 Netty）：本切面依赖 {@code HttpServletRequest} 与
- * {@code RequestContextHolder} 的 Servlet 实现，属于<b>管理端（Spring MVC）专属</b>。
- * 网关侧的组件扫描同样覆盖 {@code org.chobit.knot}，但网关已经没有 Servlet API，
- * 一旦被实例化就是 {@code NoClassDefFoundError: jakarta.servlet.http.HttpServletRequest}
- * （且发生在 {@code AnnotationAwareAspectJAutoProxyCreator} 枚举切面时，整应用起不来）。
- * 用 {@code @ConditionalOnClass} 显式限定生效栈——条件用字符串形式写类名，
- * 这样类不存在时也能安全求值。</p>
- *
- * <p>⚠ 同类问题不能照搬到 {@code CurrentAuth}：它是 service 层多个 bean 的构造器硬依赖，
- * 条件装配只会把 {@code NoClassDefFoundError} 换成 {@code UnsatisfiedDependencyException}。
- * 切面<b>没有</b>任何 bean 依赖它（且网关控制器上没有任何 {@code @OperationLog}），
- * 所以这里「干脆不创建」是安全的。</p>
+ * 仅管理端（Spring MVC）生效：以字符串类名形式声明 {@code @ConditionalOnClass} 限定，网关侧不创建该切面。
  */
 @Slf4j
 @Aspect

@@ -143,15 +143,8 @@ public class ProviderService {
     }
 
     /**
-     * 校验账户的上游地址：静态接入策略必须填写 base URL，可由凭据派生端点的策略允许为空。
-     *
-     * <p>判定依据是策略自己的能力声明
-     * {@link UpstreamAuthApplier#requiresBaseUrl()}，
-     * 而不是供应商名字——「哪个供应商可以不给地址」属于供应商特例，留在策略里，
-     * 服务层不必认识 AWS，也就不会因为新增供应商而改这里。</p>
-     *
-     * <p>停用的账户放行（与模型侧 {@code if (request.enabled())} 的校验口径一致）：
-     * 允许先建停用账户、补全配置后再启用。</p>
+     * 校验账户的上游地址：静态接入策略必须填写 base URL，可由凭据派生端点的策略允许为空；
+     * 判定走 {@link UpstreamAuthApplier#requiresBaseUrl()}。停用账户放行，允许先建停用账户、补全配置后再启用。
      */
     private void validateBaseUrl(ProviderAccountDto request, String authApplierCode) {
         if (!request.enabled()) {
@@ -263,12 +256,8 @@ public class ProviderService {
     }
 
     /**
-     * 供应商账户编码的绑定处数，两类引用方：
-     * <ol>
-     *   <li>账户下挂载的供应商模型（kb_models.provider_account_code），逻辑删除可恢复故不按 is_deleted 过滤；</li>
-     *   <li>频控/额度绑定行（resource_type='PROVIDER' 指向的就是账户 code，不是供应商主表）——
-     *       改码后多态 join 落空，限流与额度会静默失效。</li>
-     * </ol>
+     * 供应商账户编码的绑定处数，两类引用方：账户下挂载的供应商模型（kb_models.provider_account_code，不按 is_deleted 过滤）；
+     * 频控 / 额度绑定行（resource_type='PROVIDER' 指向账户 code，不是供应商主表）。
      */
     private Long boundCount(String accountCode) {
         Long count = providerAccountMapper.countModelsByAccountCode(accountCode);

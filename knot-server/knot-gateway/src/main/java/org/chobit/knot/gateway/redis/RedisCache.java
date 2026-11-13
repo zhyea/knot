@@ -11,46 +11,16 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * 网关侧 Redis 访问的唯一门面：多节点共享状态存储（频控计数、在途负载）的
- * Redis 实现一律经由本类，不再各自持有 {@code StringRedisTemplate}。
- *
- * <p><b>定位：实现细节，非对外 API。</b>业务层只依赖各域的存储接口
- * （{@code TrafficCounterStore} / {@code ModelLoadStore}），由
- * {@code *StoreConfiguration} 按配置装配 Caffeine 或 Redis 实现。
- * 本类只被 Redis 实现内部依赖，不改变「单节点 Caffeine / 多节点 Redis」这条选型骨架。
- *
- * <p><b>故障口径：fail-hard，一律抛异常，绝不静默放行。</b>
- * 这三个存储承载的是<b>跨节点共享的全局口径</b>，在Redis 不可用时静默按放行值处理
- * 会产生看不见的损失：频控计 0 等于限额失效（多节点下悄悄涨到「配置值 × 节点数」，
- * 直接超发）、在途记 0 等于所有模型被看成不拥塞（负载均衡退化成权重序，已过载的
- * 模型继续被加压）。因此本类不提供任何「放行值」入口，异常一律包成
- * {@link RedisUnavailableException} 上抛，由
- * {@code GatewayExceptionHandler} 映射为 503 并打 ERROR 日志——
- * ERROR 级日志是本项目的报警通道，运维据此收到通知。</p>
- *
- * <p>统一掉三件事：</p>
- * <ol>
- *   <li><b>异常分类</b>：底层五花八门的 Spring Redis 异常一律包成
- *       {@link RedisUnavailableException}，上层只认这一种信号。</li>
- *   <li><b>错误日志节流</b>：同一 {@code 域+操作+键} 在一分钟内只打一条 ERROR。
- *       故障期间这是每请求都走的路径，不节流会把日志盘打爆，反而丢故障现场。</li>
- *   <li><b>日志字段固定</b>：{@code domain} / {@code operation} / {@code key}
- *       三个字段写进消息文本，便于日志采集侧按关键字配报警规则。</li>
- * </ol>
- *
- * <p>刻意<b>不</b>做的事：不做键命名（键归各 {@code *Keys}）、不做序列化策略统一
- * （两处状态结构不同）、不做重试（重试会把 Redis 慢放大成正反馈）、
- * <b>不做降级</b>（见上：降级必然产生静默损失，不如直接失败并报警）。</p>
+ * 网关侧 Redis 访问的唯一门面：多节点共享状态存储（频控计数、在途负载）的 Redis 实现一律经由本类。
+ * 故障一律包成 {@link RedisUnavailableException} 上抛，由 {@code GatewayExceptionHandler} 映射为 503 并打 ERROR 日志，不提供任何放行值。
+ * 同一 {@code domain} / {@code operation} / {@code key} 的 ERROR 日志一分钟内只打一条；不做键命名、序列化统一、重试与降级。
  */
 @Slf4j
 @Component
 public class RedisCache {
 
     /**
-     * 同一故障点的错误日志节流窗口：一分钟一条足够定位，不至于刷爆日志。
-     *
-     * <p>⚠ 节流只压「日志条数」，不压「异常上抛」——每次 Redis 故障都会照常抛，
-     * 对应请求一律 503，不会因为日志节流而变成静默成功。</p>
+     * 同一故障点的错误日志节流窗口：一分钟一条。节流只压日志条数，异常照常上抛，对应请求一律 503。
      */
     private static final Duration ERROR_LOG_WINDOW = Duration.ofMinutes(1);
 
@@ -71,10 +41,9 @@ public class RedisCache {
     /**
      * 执行 Lua 脚本：成功返回值（可能为 {@code null}）；Redis 不可用时抛
      * {@link RedisUnavailableException}，并按节流窗口打一条 ERROR 日志。
-     *
      * @param domain    存储域（traffic / load），仅用于日志与异常定位
      * @param operation 操作名（常量字符串）
-     * @param script    脚本；多节点下的读-改-写必须写成<b>单段</b>脚本
+     * @param script    脚本；多节点下的读-改-写必须写成单段脚本
      * @param keys      键列表
      * @param args      参数
      */
@@ -99,10 +68,7 @@ public class RedisCache {
 
     /**
      * 批量读字符串值（Redis {@code MGET}）；Redis 不可用时抛 {@link RedisUnavailableException}。
-     *
-     * <p>用于选路热路径一次性取多个在途键（P8），把 N 次 {@link #value} 串行往返合并为单次 RTT。
-     * 返回的列表与入参 {@code keys} 顺序一一对应；Redis 在某些情况下可能整体返回 {@code null}，
-     * 调用方须按缺失处理。</p>
+     * 返回列表与入参 {@code keys} 顺序一一对应，key 不存在对应位置为 {@code null}；Redis 可能整体返回 {@code null}，调用方须按缺失处理。
      *
      * @param keys 键列表（非空时至少为 1 个）
      * @return 与 {@code keys} 同序的值列表；key 不存在对应位置为 {@code null}

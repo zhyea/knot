@@ -153,10 +153,8 @@ public class UserService {
     }
 
     /**
-     * 操作日志用的用户快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
-     * 用户不存在时返回 {@code null}。角色随快照一并带出，密码等敏感字段脱敏后落日志。
-     *
-     * <p>仅由 SpEL 反射调用，Java 侧无直接引用，IDE 会误报 unused。</p>
+     * 操作日志用的用户快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，用户不存在时返回 {@code null}。
+     * 角色随快照一并带出，密码等敏感字段脱敏后落日志；仅由 SpEL 反射调用，Java 侧无直接引用。
      */
     @SuppressWarnings("unused")
     public Map<String, Object> userAuditSnapshot(Long id) {
@@ -229,10 +227,8 @@ public class UserService {
     }
 
     /**
-     * 用户编码（登录名）改码：未绑定（应用负责人 / 消费者归属 / 路由规则归属）时可改，
-     * 已绑定直接 409；改码前做唯一性校验（uk_users_username 不区分 is_deleted，故含已删除行）。
-     *
-     * <p>入参 username 为空一律拒绝：登录名是必填项，不做「不修改」特例。</p>
+     * 用户编码（登录名）改码：未绑定（应用负责人 / 消费者归属 / 路由规则归属）时可改，已绑定直接 409；
+     * 改码前做唯一性校验（uk_users_username 不区分 is_deleted，含已删除行）；入参 username 为空一律拒绝，登录名是必填项，不做「不修改」特例。
      */
     private String resolveUsernameForUpdate(UserEntity entity, String requested) {
         String username = CodeBindingSupport.normalize(requested);
@@ -337,10 +333,8 @@ public class UserService {
     }
 
     /**
-     * 口令策略收口在服务端：前端只做即时反馈，绕过前端直接调 API 一样要被拦住
-     * （旧实现只校验非空，API 直调可创建 1 位密码）。
-     *
-     * <p>上限 72 字节是 BCrypt 的硬边界：超过会被静默截断，等于缩短用户口令。</p>
+     * 口令策略收口在服务端：前端只做即时反馈，绕过前端直接调 API 一样要被拦住。
+     * 上限 72 字节是 BCrypt 的硬边界，超过会被静默截断。
      */
     private static String requirePassword(String raw, String label) {
         String password = raw == null ? "" : raw.trim();

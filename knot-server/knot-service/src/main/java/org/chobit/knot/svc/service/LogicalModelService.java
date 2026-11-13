@@ -186,9 +186,8 @@ public class LogicalModelService {
 
     /**
      * Restores a logically deleted logical model.
-     *
-     * <p>编码唯一性按物理行判定（uk_logical_models_code 不区分 is_deleted），所以逻辑删除后
-     * 同 {@code model_code} 无法新建，只能恢复。
+     * 编码唯一性按物理行判定（{@code uk_logical_models_code} 不区分 {@code is_deleted}），
+     * 逻辑删除后同 {@code model_code} 无法新建，只能恢复。
      */
     @Transactional
     public LogicalModelDto restore(Long id) {

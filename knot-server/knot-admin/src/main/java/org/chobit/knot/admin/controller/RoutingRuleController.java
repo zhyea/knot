@@ -44,7 +44,7 @@ import java.util.Map;
 public class RoutingRuleController {
 
     /**
-     * 流式读取缓冲区：够小以保证首片段低延迟，够大以避免事件数过多
+     * 流式读取缓冲区大小（字节）。
      */
     private static final int STREAM_BUFFER_SIZE = 8 * 1024;
 
@@ -164,10 +164,8 @@ public class RoutingRuleController {
 
     /**
      * 流式路由规则测试：以专用 SSE 事件流承载测试元数据、响应片段与结束状态。
-     *
-     * <p>返回 {@link ResponseEntity} 有两个目的：一是设置 SSE 响应头（禁缓存、禁代理缓冲），
-     * 二是命中统一响应包装的 {@code ResponseEntity} 跳过分支，避免流对象被包成 JSON。
-     * 校验失败发生在建立 SSE 之前，仍由全局异常处理器返回既有 4xx {@code ApiResponse}。</p>
+     * 返回 {@link ResponseEntity} 以设置 SSE 响应头（禁缓存、禁代理缓冲），并命中统一响应包装的跳过分支。
+     * 校验失败发生在建立 SSE 之前，仍由全局异常处理器返回 4xx {@code ApiResponse}。
      */
     @PostMapping(value = "/{id}/test/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> testStream(@PathVariable Long id,
@@ -190,9 +188,7 @@ public class RoutingRuleController {
 
     /**
      * 路由规则测试·计费裁判：抽屉在测试响应到手后自动回传当次调用产出，做双盲校验。
-     *
-     * <p>与 {@code /test} 同权限（routing:rule:test），不阻塞测试主流程；被告账缺失时
-     * 由前端短路、不发起本请求。编排层 {@link RoutingTestBillingVerdictService} 不抛异常炸链路。</p>
+     * 与 {@code /test} 同权限（routing:rule:test）；被告账缺失时由前端短路、不发起本请求，编排层不抛异常。
      */
     @PostMapping("/{id}/test/billing-verdict")
     public RoutingBillingVerdictResult billingVerdict(@PathVariable Long id,

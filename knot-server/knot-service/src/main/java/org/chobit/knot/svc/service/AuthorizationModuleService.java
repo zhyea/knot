@@ -13,9 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Module management service for authorization administration.
- *
- * <p>⭐ 对外载体是 {@link AdminModuleDetailItem}，不是导航树用的 {@code AdminModuleItem}：
- * 后者字段名是 {@code moduleId} 且带 {@code menus} 树，是布局渲染的专用造型。</p>
+ * 对外载体是 {@link AdminModuleDetailItem}，不是导航树用的 {@code AdminModuleItem}：
+ * 后者字段名为 {@code moduleId} 且带 {@code menus} 树，是布局渲染的专用造型。
  */
 @Service
 public class AuthorizationModuleService {
@@ -87,9 +86,7 @@ public class AuthorizationModuleService {
 
     /**
      * Returns a module snapshot for operation log auditing.
-     *
-     * <p>仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @authorizationModuleService.moduleAuditSnapshot(#p0)}）
-     * 反射调用，Java 侧无直接引用，IDE 会误报 unused。</p>
+     * 仅由 {@code @OperationLog} 的 SpEL 表达式反射调用，Java 侧无直接引用。
      */
     @SuppressWarnings("unused")
     public AdminModuleDetailItem moduleAuditSnapshot(Long id) {

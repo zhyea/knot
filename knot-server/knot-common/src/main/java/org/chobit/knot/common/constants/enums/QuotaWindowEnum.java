@@ -10,11 +10,8 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.Arrays;
 
 /**
- * 额度统计窗口：窗口结束即清零，重新累计。
- *
- * <p>一个额度策略只有一个窗口，{@code max_tokens} 与 {@code cost_limit} 共用它。
- * 窗口边界按配置时区（默认 {@code Asia/Shanghai}）换算，多节点必须配成同一个时区，
- * 否则同一时刻会落进不同窗口。</p>
+ * 额度统计窗口：窗口结束即清零、重新累计；一个额度策略只有一个窗口，{@code max_tokens} 与
+ * {@code cost_limit} 共用它。窗口边界按配置时区（默认 {@code Asia/Shanghai}）换算，多节点必须同区。
  */
 public enum QuotaWindowEnum implements EnumOption {
 
@@ -73,8 +70,7 @@ public enum QuotaWindowEnum implements EnumOption {
 
     /**
      * 当前时刻所在窗口的标识，用于拼计数键；换窗口即换键，旧键随 TTL 过期。
-     *
-     * <p>周窗口用「本周周一」作为标识，与 {@code WEEK} 的自然语义一致。</p>
+     * 周窗口以「本周周一」为标识。
      */
     public String windowId(ZonedDateTime now) {
         return switch (this) {

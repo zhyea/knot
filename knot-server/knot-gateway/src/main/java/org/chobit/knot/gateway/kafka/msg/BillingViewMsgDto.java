@@ -10,14 +10,8 @@ import java.util.List;
 
 /**
  * 响应层的计费视图：命中的规则、币种与总价，外加逐类用量的明细行。
- *
- * <p>与对外 {@code knot_extend.billing} 是同一份结果，但这里额外带上估价来源
- * （规则业务码 / 版本 / 计费模式 / 定价方案），因为数仓要按「哪条规则算的」做归因；
- * 而对外输出不必暴露这么多内部信息。</p>
- *
- * <p>金额一律走 {@code String}（十进制普通表示、不设小数位上限）：Jackson 对
- * {@link java.math.BigDecimal} 默认写 {@code toString()}，小额会变成 {@code 1E-8}，
- * 数仓解析口径不统一。这里是唯一出口，必须钉死形态。</p>
+ * 与对外 {@code knot_extend.billing} 同一份结果，额外带估价来源（规则业务码 / 版本 / 计费模式 / 定价方案）。
+ * 金额一律走 {@code String}（十进制普通表示、不设小数位上限）。
  *
  * @param totalCost 总价（十进制普通字符串）
  */

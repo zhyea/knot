@@ -3,11 +3,10 @@ package org.chobit.knot.svc.dto.routing;
 import org.chobit.knot.common.constants.enums.EnumOption;
 
 /**
- * 计费自检八项（代码精确，权威）。语义见 v7 §5 与视频路由调试设计稿 §4.4。
+ * 计费自检八项（代码精确，权威）。
  *
- * <p>自检判定域 = 算术正确性（可确定性）：明细公式、汇总一致、单位换算、
- * 网关账与重算账全等（1 ppm 容差）。语义正确性（规则恰当性、场景相称性）交给 JEV，本区判不了。</p>
- * <p>label 随枚举下发前端（/api/enum-options），不再前端自建第二份项名。</p>
+ * 判定域 = 算术正确性：明细公式、汇总一致、单位换算、网关账与重算账全等（1 ppm 容差）；
+ * 语义正确性交给 JEV。{@code label} 经 {@code /api/enum-options} 下发前端。
  */
 public enum BillingCheckCode implements EnumOption {
 
@@ -34,8 +33,6 @@ public enum BillingCheckCode implements EnumOption {
 
     /**
      * 异步任务的结算一致性：终态成功 ⟺ 有结算账、终态失败 ⟺ 无结算账。
-     *
-     * <p>⭐ 它守的是<b>两个相反方向的资损</b>：成功没落账 = 漏收；失败落了账 = 错收。</p>
      */
     ASYNC_SETTLEMENT_CONSISTENCY("异步结算一致");
 

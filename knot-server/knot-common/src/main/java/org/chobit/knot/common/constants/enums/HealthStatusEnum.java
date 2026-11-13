@@ -3,10 +3,8 @@ package org.chobit.knot.common.constants.enums;
 import java.util.List;
 
 /**
- * 健康检查状态（{@code /api/health}）。
- *
- * <p><b>本期只建枚举 + 单测，不注册 {@code EnumOptionRegistry}、不改接口返回。</b>
- * 待调用方确认后再切换：切换时只输出数字 {@code statusCode}，不保留旧字符串读法。</p>
+ * 健康检查状态（{@code /api/health}）：{@code UP} / {@code DEGRADED} / {@code DOWN} 对应 1~3，
+ * 不注册 {@code EnumOptionRegistry}。
  */
 public enum HealthStatusEnum implements NumericEnumOption {
     UP(1, "正常"),

@@ -7,8 +7,7 @@ import java.util.List;
 /**
  * 词库快照：编译好的自动机 + 版本（用于审计事件回溯）。
  *
- * <p>由 {@link ModerationGuard} 从上下文下发的全量词条编译而来，是 knot-plugin 的内部实现——
- * 契约层（{@code GatewayPluginContext}）只过中性词表，不过编译产物。</p>
+ * 由 {@link ModerationGuard} 从上下文下发的全量词条编译而来，属 knot-plugin 内部实现，契约层只过中性词表。
  */
 public record ModerationSnapshot(AhoCorasickMatcher matcher, long version) {
 

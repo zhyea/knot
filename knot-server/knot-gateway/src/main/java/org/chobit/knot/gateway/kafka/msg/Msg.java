@@ -7,11 +7,7 @@ import java.net.UnknownHostException;
 
 /**
  * 数仓消息协议超类：所有进出 Kafka 的顶层消息都实现它。
- *
- * <p>两个契约成员：{@link #traceId()} 是消息的分区键与数仓关联键，由消息自带；
- * {@link #nodeId()} 是产出节点标识，按主机名自动探测（接口常量，类加载时解析一次，
- * 不设配置项——主机名对单实例本就唯一，admin 侧 {@code NodeIdentity} 同走自动探测）。
- * 拿不到主机名时退化为 {@value #UNKNOWN_NODE}，宁可退化也不能让发布失败。</p>
+ * {@link #traceId()} 是消息的分区键与数仓关联键；{@link #nodeId()} 是产出节点标识，按主机名自动探测，拿不到时退化为 {@value #UNKNOWN_NODE}。
  */
 public interface Msg {
 

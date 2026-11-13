@@ -23,30 +23,10 @@ import java.util.Map;
 
 /**
  * VIDEO 模式计算器：按「分量」计价，各分量独立取价后求和。
- *
- * <p>2026-10-25 重写（批次 A+B+C）。此前只支持「输出秒数 × 分辨率单价」一条直线，
- * 覆盖不了业界任何一种主流视频计费。现在的模型：</p>
- * <pre>
- * 总价 = Σ 分量(量 × 单价 ÷ 单位基数) + Σ 附加费
- *
- * 分量：
- *   1. 输出视频 —— 量为合成量（OUTPUT / SUM / OUTPUT_PLUS_MAX），单价走维度键分档
- *   2. 输入视频 —— 仅 video.inputVideoPerSecond 或 INPUT_VIDEO:* 分档价存在时启用
- *   3. 输入图片 —— 仅 video.inputImagePerImage 或 INPUT_IMAGE:* 分档价存在时启用
- * </pre>
- *
- * <p><b>三个关键点</b>：</p>
- * <ol>
- *   <li><b>维度分档键是组合键 + 逐级降级</b>：{@code 720P:REFERENCE:AUDIO} → {@code 720P:REFERENCE}
- *       → {@code 720P} → 默认价。豆包的「分辨率 × 是否含视频输入」二维定价天然可表达，
- *       而只配了 {@code 720P} 的老配置零改动继续生效（2026-10-25 前 {@code sound}/{@code reference}
- *       已被提取器解析出来，但计价链路完全没消费它们）。</li>
- *   <li><b>分档价必须过方案层</b>：全部走 {@code PricingPlan.resolveDimensionPrice}，
- *       不再有「命中分辨率价直接 return」的旁路。此前那条旁路让 VIDEO 拿不到阶梯与错峰
- *       （代码注释自标「风险 ①」），而 Vidu 的错峰半价正是这个需求。</li>
- *   <li><b>PROGRESSIVE 阶梯是分段函数不是阶梯价</b>：Vidu Q2「第 1 秒 8、第 2 秒 10、第 3 秒起 +10」
- *       按单位序号逐秒落档累加，与「总量落一档」是两套算法，混用会算错钱。</li>
- * </ol>
+ * 总价 = Σ 分量(量 × 单价 ÷ 单位基数) + Σ 附加费；分量为输出视频（合成量 OUTPUT / SUM / OUTPUT_PLUS_MAX，按维度键分档）、
+ * 输入视频、输入图片（二者仅在对应分档价或分量价存在时启用）。
+ * 维度分档键为组合键并逐级降级：{@code 720P:REFERENCE:AUDIO} → {@code 720P:REFERENCE} → {@code 720P} → 默认价，分档价统一走 {@code PricingPlan.resolveDimensionPrice}。
+ * PROGRESSIVE 阶梯按单位序号逐段累加，不是「总量落一档」。
  */
 @Slf4j
 @Component
@@ -155,22 +135,9 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
 
     /**
      * VENDOR_MINIMAX 专属口径：MiniMax H3 系列「三分量求和」。
-     *
-     * <pre>
-     * 总价 = 输出秒数 × 档位输出单价
-     *      + 输入秒数 × 档位输入单价（未单独配置 INPUT_VIDEO:档位 时回落到同档位输出单价）
-     *      + max(0, 输入图片张数 − 免费张数) × 每张固定单价
-     * </pre>
-     *
-     * <p><b>与通用分量路径的三点差异</b>（这三点就是本方法存在的理由，不是转发壳）：</p>
-     * <ol>
-     *   <li><b>输出量只取输出秒，绝不折叠输入秒</b>：MiniMax 把输入秒当独立分量计费，
-     *       若再走 {@code quantity(SUM/OUTPUT_PLUS_MAX)} 就会与分量 2 重复计费。</li>
-     *   <li><b>输入视频单价默认回落同档位输出单价</b>：官方「视频输入按输入时长及所选模型的输出分辨率计费」；
-     *       {@code INPUT_VIDEO:档位} 可单独覆盖（未来某档不同价）。</li>
-     *   <li><b>图片单价不随分辨率变化 + 免费额度默认 5 + 音频输入免费</b>：图片按张走固定标量价，
-     *       官方文档明确音频输入免费，故不收取任何附加费。</li>
-     * </ol>
+     * 总价 = 输出秒数 × 档位输出单价 + 输入秒数 × 档位输入单价（未单独配置 {@code INPUT_VIDEO:档位} 时回落同档位输出单价）
+     * + max(0, 输入图片张数 − 免费张数) × 每张固定单价。
+     * 输出量只取输出秒、不折叠输入秒；图片单价不随分辨率变化，音频输入免费。
      */
     private NormalizedBillingAmount calculateVendorMiniMax(NormalizedUsageContext context,
                                                            BillingRuleRef rule,
@@ -225,10 +192,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     }
 
     /**
-     * 不出账：用量不足以支撑计价时的统一出口（规则与提取器类型错配）。
-     *
-     * <p>返回<b>零额 + 空明细</b>，不再按 1 秒硬计——不知道量就不该收钱。明细留空让对账侧
-     * 一眼看出「这笔没有计费依据」，告警带原因，避免静默。</p>
+     * 不出账：用量不足以支撑计价（规则与提取器类型错配）时的统一出口，返回零额 + 空明细。
      */
     private NormalizedBillingAmount noCharge(String reason) {
         log.warn("VIDEO 计费跳过：{}", reason);
@@ -261,9 +225,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     }
 
     /**
-     * 明细里报的单价：PROGRESSIVE 下不存在唯一单价，报<b>本笔单位均价</b>
-     * （总额 ÷ 量），与 robin 2026-10-25 拍板口径一致；type 带 {@code :PROGRESSIVE}
-     * 后缀提示下游不要按「量 × 单价」复算。
+     * 明细里报的单价：PROGRESSIVE 下报本笔单位均价（总额 ÷ 量），且 type 带 {@code :PROGRESSIVE} 后缀，下游不可按「量 × 单价」复算。
      */
     private BigDecimal componentUnitPrice(BillingConfig.PricingPlan plan,
                                           List<String> keys,
@@ -285,11 +247,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     }
 
     /**
-     * 输出视频分量的单价：<b>严格</b>取档位价。
-     *
-     * <p>规则配了档位表 → 必须命中，否则抛（2026-10-31 robin 拍板「任何未命中都抛」）；
-     * 没配档位表 → 按「不分档」处理，用 {@code defaultUnitPrice}；两者都没有 → 也抛。
-     * 旧实现把最终 fallback 写成 {@code BigDecimal.ZERO}，缺价时静默算 0 元、无人察觉。</p>
+     * 输出视频分量的单价：严格取档位价——配了档位表必须命中，未配则用 {@code defaultUnitPrice}，两者都没有时抛异常。
      */
     private BigDecimal strictOutputPrice(BillingConfig.PricingPlan plan,
                                          List<String> keys,
@@ -308,16 +266,9 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     }
 
     /**
-     * 输入侧分量的单价：分档键 -&gt; 分量自带默认价。
-     *
-     * <p>⭐ 走 {@code resolveComponentPrice} 而不是 {@code resolveDimensionPrice}：后者在键未命中时
-     * 会回落到规则的 {@code defaultUnitPrice}（那是<b>输出视频</b>的价），
-     * 把「输入图片 0.20/张」算成「输出视频 0.50/秒」。</p>
-     *
-     * <p>⚠ <b>本分量刻意不参与严格化</b>（2026-10-31）：{@code componentDefault} 在这里不是
-     * 「容错兜底」而是<b>业务口径</b>——MiniMax 官方就是「输入视频没单配价时按同档位输出价」、
-     * 「输入图片按张固定价」。把它判成「维度未命中」会把官方三路求和的配置直接判成缺配。
-     * 严格化只作用于输出视频主分量，判据见 {@link #strictOutputPrice}。</p>
+     * 输入侧分量的单价：分档键未命中时用分量自带的 {@code componentDefault}，不走 {@code resolveDimensionPrice}
+     * （后者会回落到输出视频的 {@code defaultUnitPrice}）。本分量不参与严格化：{@code componentDefault} 在此是业务口径，
+     * 如输入视频未单配价时按同档位输出价、输入图片按张固定价。
      */
     private BigDecimal firstDimensionPrice(BillingConfig.PricingPlan plan,
                                            List<String> keys,
@@ -333,10 +284,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     // ==================== 维度键 ====================
 
     /**
-     * 维度分档键：从最具体到最宽泛排序，供方案层「取第一个命中」。
-     *
-     * <p>顺序固定为 分辨率 → {@code :REFERENCE} → {@code :AUDIO}，
-     * 逐级去掉最右一段。只配了 {@code 720P} 的老配置因此零改动继续生效。</p>
+     * 维度分档键：从最具体到最宽泛排序，供方案层取第一个命中；顺序固定为 分辨率 → {@code :REFERENCE} → {@code :AUDIO}，逐级去掉最右一段。
      */
     private List<String> dimensionKeys(String resolution, boolean reference, boolean sound) {
         if (resolution == null || resolution.isBlank()) {
@@ -357,12 +305,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     }
 
     /**
-     * 输入侧分量的维度键名：分辨率未知时用「不带分辨率」的分量键。
-     *
-     * <p>⭐ 不能直接写成 {@code 前缀 + resolution}：分辨率取不到时会拼出
-     * {@code INPUT_VIDEO:null} 这种脏键——配不出来也查不到，只能静默回落分量默认价。
-     * 而 {@code INPUT_VIDEO} 本身是合法键（「不分档的输入视频价」），
-     * 留着这条降级路径，配置才表达得出来。</p>
+     * 输入侧分量的维度键名：分辨率已知时为 {@code 前缀:分辨率}，未知时退化为不带分辨率的分量键（如 {@code INPUT_VIDEO}，即不分档价）。
      */
     private static String componentKey(String prefix, String resolution) {
         return StringUtils.isBlank(resolution)
@@ -373,16 +316,8 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     // ==================== 合成量 ====================
 
     /**
-     * 输出分量的计费量（秒）：按 {@code video.quantityMode} 把输入秒折进输出秒。
-     *
-     * <p>默认 {@code OUTPUT}（仅输出秒）与历史行为完全一致，未配 {@code video} 的配置不受影响。</p>
-     *
-     * <p>⭐ <b>「至少一秒」兜底收口在这里</b>：v1 它在两处各写一遍（通用路径与 MiniMax 分支），
-     * 改一处漏一处。语义是「<b>确实出片了但时长字段缺失</b>」（提取器给出了档位名或 token 量），
-     * 此时按 1 秒计合理；连档位名都没有的用量由 {@code VideoBillingUsage#isEmpty()} 表达，
-     * 那是另一条链路的口径，不在本方法里判。
-     * 另：毫秒精度下 {@code 0.5s} 不再被截成 0 再兜成 1 秒——它经 {@code outputSeconds()}
-     * 向上取整为 1 秒，与旧值恰好一致，但 {@code 5.9s} 会正确计 6 秒而非 5 秒。</p>
+     * 输出分量的计费量（秒）：按 {@code video.quantityMode}（默认 {@code OUTPUT}）把输入秒折进输出秒。
+     * 「至少一秒」兜底收口在这里：确实出片但时长字段缺失时按 1 秒计；时长经 {@code outputSeconds()} 向上取整到秒。
      */
     private long outputAmountSeconds(VideoBillingUsage video, BillingConfig.VideoConfig videoConfig) {
         long output = firstAmount(video.outputSeconds(), 1L);

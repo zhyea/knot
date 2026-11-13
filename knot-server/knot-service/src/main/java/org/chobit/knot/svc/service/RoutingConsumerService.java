@@ -67,8 +67,7 @@ public class RoutingConsumerService {
     }
 
     /**
-     * 按业务码取消费者详情（含 secretKey）。供路由规则测试抽屉按规则绑定的 consumerCode
-     * 取密钥，避免再经主键 id 建立关系。
+     * 按业务码取消费者详情（含 secretKey）：供路由规则测试抽屉按规则绑定的 consumerCode 取密钥。
      */
     public RoutingConsumerDto getByCode(String code) {
         RoutingConsumerEntity entity = routingConsumerMapper.getByCode(code);

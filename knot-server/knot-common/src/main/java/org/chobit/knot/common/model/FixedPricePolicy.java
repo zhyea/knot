@@ -11,16 +11,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 固定价：基础价格直出（无阶梯、无相位倍率）。
+ * 固定价：基础价格直出，无阶梯、无相位倍率。{@code plan} 由构建入口按版本列传入，只作分类标签与校验锚点。
  *
- * <p>{@code plan} 由构建入口按版本列传入，只作<b>分类标签与校验锚点</b>。取价语义与
- * {@link PricingPlanEnum#FIXED} 完全一致，故所有「语义等同固定价」的方案共用这一份实现——
- * MiniMax 与 Kling 两家的多分量编排都在计算器侧，方案值不作为独立的价格算法。
- * 此前 MiniMax 单独复制了一份逐字重复的 record，2026-10-26 加 Kling 时收敛掉。</p>
- *
- * <p>{@code context}（用量 / 发生时间）在本实现里<b>刻意不用</b>：固定价既不看阶梯也不看相位。
- * 形参由接口约定必须收，不代表每个实现都要消费它——消费方是 {@link TieredPricePolicy}（用量）
- * 与 {@link PeakOffPeakPricePolicy}（发生时间）。</p>
+ * 语义等同固定价的方案共用本实现；{@code context}（用量 / 发生时间）在本实现不消费，
+ * 消费方是 {@link TieredPricePolicy} 与 {@link PeakOffPeakPricePolicy}。
  */
 record FixedPricePolicy(PricingPlanEnum plan,
                         PriceSet basePrices,
@@ -47,10 +41,7 @@ record FixedPricePolicy(PricingPlanEnum plan,
     }
 
     /**
-     * 维度分档价：查表与回落顺序在 {@link BillingConfig#dimensionPriceOrDefault}。
-     *
-     * <p>⚠ 别在这里再抄一份「命中 -&gt; 默认价 -&gt; fallback」。它与 {@link TieredPricePolicy}
-     * 的同名方法曾经逐字重复（diff 差 0 行），重复的代价是同一个口径要改两次。</p>
+     * 维度分档价：查表与回落顺序在 {@link BillingConfig#dimensionPriceOrDefault}，此处不重复实现。
      */
     @Override
     public BigDecimal resolveDimensionPrice(List<String> candidateKeys, PricingContext context, BigDecimal fallback) {

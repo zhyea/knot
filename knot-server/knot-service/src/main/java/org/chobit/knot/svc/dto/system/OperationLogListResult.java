@@ -6,12 +6,7 @@ import org.chobit.knot.svc.vo.system.OperationLogDetailItem;
 import java.util.List;
 
 /**
- * 操作日志分页响应：一页日志 + 三个筛选下拉的候选项。
- *
- * <p>⚠ 这里原先直接持有 {@code List<OperationLogEntity>}——「装响应的壳里塞实体」是实体外泄
- * 最容易漏的一处：controller 的返回类型看着人畜无害（{@code OperationLogListResult}），
- * 但 JSON 里吐的仍是实体。现在改成 {@link OperationLogDetailItem}，与
- * {@code OperationLogController} 其余几个方法同一种载体。</p>
+ * 操作日志分页响应：一页日志 + 三个筛选下拉的候选项，日志元素为 {@link OperationLogDetailItem}。
  */
 public record OperationLogListResult(
         List<OperationLogDetailItem> list,

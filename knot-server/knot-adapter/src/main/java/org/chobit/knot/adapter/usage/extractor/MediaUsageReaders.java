@@ -10,8 +10,7 @@ import java.util.Map;
 
 /**
  * 媒体类提取器（IMAGE / VIDEO / AUDIO）共用的读取口径：响应体取用量、请求体取生成属性。
- *
- * <p>包内共享，不对外暴露。</p>
+ * 包内共享，不对外暴露。
  */
 final class MediaUsageReaders {
 
@@ -29,10 +28,7 @@ final class MediaUsageReaders {
     }
 
     /**
-     * 时长（秒）：{@code usage} 里的别名字段优先，响应体兜底。
-     *
-     * <p>两级兜底与旧口径一致：上游把秒数写进 usage 时以 usage 为准，
-     * 只在响应体顶层上报时（如视频任务对象、转写结果）才取响应体。</p>
+     * 时长（秒）：{@code usage} 里的别名字段优先，响应体顶层兜底。
      */
     static long durationSeconds(Map<String, Object> usage, Map<String, Object> body) {
         long fromUsage = MapNumberUtils.firstLong(usage,
@@ -46,16 +42,8 @@ final class MediaUsageReaders {
             "duration_seconds", "audio_seconds", "video_seconds", "seconds", "duration"};
 
     /**
-     * 时长（毫秒）：{@code usage} 别名优先、响应体顶层兜底，<b>保留小数精度</b>。
-     *
-     * <p>⭐ 为什么不复用 {@link #durationSeconds}：后者走 {@code firstLong}，
-     * {@code 5.9} 会被 {@code Number.longValue()} 截成 {@code 5}（少收 15%），
-     * {@code 0.5} 直接截成 {@code 0}（再被「至少一秒」兜成 1 秒，多收 100%）。
-     * 本方法按「秒 → 毫秒」放大三位并四舍五入，精度只到毫秒为止。</p>
-     *
-     * <p>⚠ 键表全是秒语义（{@code *_seconds} / {@code seconds} / {@code duration}）。
-     * 若某厂商把毫秒写进这些键，会得到 1000 倍用量——这类厂商须在自己的提取器里覆写
-     * {@code facts()} 自行换算，不要放宽本方法的键表。</p>
+     * 时长（毫秒）：{@code usage} 别名优先、响应体顶层兜底。
+     * 键表全是秒语义（{@code *_seconds} / {@code seconds} / {@code duration}），按「秒 → 毫秒」放大三位并四舍五入。
      */
     static long durationMillis(Map<String, Object> usage, Map<String, Object> body) {
         long fromUsage = firstMillis(usage, DURATION_KEYS);
@@ -100,9 +88,7 @@ final class MediaUsageReaders {
 
     /**
      * 请求侧输入图片张数：数组长度优先，其次显式计数字段。
-     *
-     * <p>MiniMax 的「输入图片每张」按张计费，故这里要的是<b>元素个数</b>而不是布尔——
-     * 与 {@code flag()} 的「有没有」是两种口径，不能混用。</p>
+     * 返回元素个数而非布尔，与 {@code flag()} 的「有没有」是两种口径，不能混用。
      */
     static long imageCount(Map<String, Object> requestBody) {
         if (requestBody == null) {
@@ -148,13 +134,8 @@ final class MediaUsageReaders {
 
     /**
      * 请求侧布尔属性（是否有声音）：任一枚叶为真即为真。
-     *
-     * <p>Boolean 直接取值；字符串按 {@code true} 解析；非 0 数字为真；
-     * 其余非 null 值（文件、URL 等对象）视为「已提供」。</p>
-     *
-     * <p>⚠ <b>只用于布尔开关语义</b>（如 {@code generate_audio}）。判断「有没有提供某个素材」
-     * 必须用 {@link #present}：本方法对字符串走 {@code Boolean.parseBoolean}，
-     * 一个 URL 字符串会被判成 {@code false}。</p>
+     * Boolean 直接取值；字符串按 {@code true} 解析；非 0 数字为真；其余非 null 值视为「已提供」。
+     * 只用于布尔开关语义（如 {@code generate_audio}）；判断「有没有提供某素材」须用 {@link #present}。
      */
     static boolean flag(Map<String, Object> source, String... keys) {
         if (source == null || keys == null) {
@@ -170,10 +151,7 @@ final class MediaUsageReaders {
 
     /**
      * 请求侧「是否提供了某物」（存在性语义）：任一枚叶非空即为真。
-     *
-     * <p>与 {@link #flag} 的分工是硬性的：{@code video_url} / {@code reference_url} 这类键的值是
-     * URL 字符串，走 {@code flag} 会被 {@code Boolean.parseBoolean("https://…")} 判成 {@code false}，
-     * 于是「有输入视频」永远识别不到。空串、空集合、空对象、显式 {@code "false"} 视为未提供。</p>
+     * 空串、空集合、空对象、显式 {@code "false"} 视为未提供；URL 字符串这类值须走本方法而非 {@link #flag}。
      */
     static boolean present(Map<String, Object> source, String... keys) {
         if (source == null || keys == null) {
@@ -228,12 +206,8 @@ final class MediaUsageReaders {
     private static final String[] RESOLUTION_KEYS = {"resolution", "size", "dimensions"};
 
     /**
-     * 请求体声明的分辨率档位名：{@code null} 表示没有声明。
-     *
-     * <p>⭐ 计费分档键要的就是这个字符串，<b>不要用宽高反推</b>：厂商的档位名不可枚举
-     * （MiniMax 用 768P、Vidu 用 540P、豆包用 480p/720p/1080p，还有 2K、4K 各种写法），
-     * 从宽高反推只认标准尺寸表，{@code 768P} 这类非标档会退化成裸串或空值，配了价也吃不到。
-     * 厂商自己声明的写法才是最权威的键。</p>
+     * 请求体声明的分辨率档位名，原样返回厂商写法；{@code null} 表示没有声明。
+     * 它是计费分档键，不用宽高反推——档位名不可枚举。
      */
     static String resolution(Map<String, Object> requestBody) {
         if (requestBody == null) {
@@ -249,20 +223,8 @@ final class MediaUsageReaders {
     }
 
     /**
-     * 分辨率文本归一化：**去首尾空白 + 转大写**，就这两步。
-     *
-     * <p>⭐ 刻意<b>不做任何别名推断</b>（2026-10-31 robin 拍板）：{@code 1280x720} 不会变成
-     * {@code 720P}、{@code 720} 不会变成 {@code 720P}、{@code qhd} 也不会变成 {@code 2K}。
-     * 「480P 这个档位只认 {@code 480p} 和 {@code 480P}」——大小写不敏感就到顶了。</p>
-     *
-     * <p>为什么敢砍掉别名：别名推断等于让网关<b>猜</b>上游的字符串语义。猜对了是巧合，
-     * 猜错了在严格取价下就是请求报错；而配置侧本就允许自由填档位名，多配一行比猜更可控。
-     * 档位清单（供配置界面下拉建议）改由 DB 枚举 {@code video_resolution} 维护，
-     * <b>不参与这里的匹配</b>——清单是给运营看的，不是给代码认的。</p>
-     *
-     * <p>⚠ 后果：{@code size: "1280x720"} 这类宽高写法归一出 {@code 1280X720}。
-     * 规则配了档位表而没配这个键，计费会<b>拒绝</b>（严格取价），不会回落默认价。
-     * 需要按宽高计价的厂商，约定由请求侧统一传标准档位名（见 {@code Kling3.0Turbo对接方案}）。</p>
+     * 分辨率文本归一化：只做去首尾空白 + 转大写两步，不做别名推断（{@code 1280x720} 不会变成 {@code 720P}）。
+     * 档位清单由 DB 枚举 {@code video_resolution} 维护，不参与此处的匹配。
      */
     static String normalizeResolution(Object value) {
         String text = value == null ? null : StringUtils.trimToNull(String.valueOf(value));
@@ -271,9 +233,7 @@ final class MediaUsageReaders {
 
     /**
      * 请求体声明的画幅：只认语义明确的 {@code aspect_ratio}。
-     *
-     * <p>{@code size} / {@code ratio} 语义含糊（可能是像素尺寸或宽高比字符串），交给厂商子类
-     * 按实际请求参数覆写，不在通用键表里猜。</p>
+     * {@code size} / {@code ratio} 语义含糊，由厂商子类按实际请求参数覆写，通用键表不含。
      */
     private static final String[] ASPECT_RATIO_KEYS = {"aspect_ratio"};
 
@@ -283,11 +243,8 @@ final class MediaUsageReaders {
     }
 
     /**
-     * 请求体声明的模式 / 功能档：{@code wan-std} / {@code wan-pro} / {@code ONLINE} / {@code OFFLINE}
-     * 以及 Kling 的动作控制。
-     *
-     * <p>原样返回厂商写法，ASCII slug 归一与 {@code MODE=} 键前缀由厂商子类 / Calculator 负责——
-     * 通用层不认识任何一家的枚举。</p>
+     * 请求体声明的模式 / 功能档（{@code wan-std} / {@code wan-pro} / {@code ONLINE} / {@code OFFLINE} 及 Kling 的动作控制），原样返回厂商写法。
+     * ASCII slug 归一与 {@code MODE=} 键前缀由厂商子类 / Calculator 负责。
      */
     private static final String[] OUTPUT_MODE_KEYS = {"video_mode", "output_mode", "mode"};
 
@@ -299,11 +256,8 @@ final class MediaUsageReaders {
     private static final String[] VIDEO_COUNT_KEYS = {"data", "videos"};
 
     /**
-     * 产出条数：{@code data} / {@code videos} 数组长度，单个视频对象（Map）计 1 条。
-     *
-     * <p>Veo 把结果放在 {@code videos}，OpenAI 风格放在 {@code data}；两者都是零个或多个。
-     * 单个 Map 视为「一条视频的对象」——这是按条计价的乘数，读不出条数时返回 0，
-     * 由 {@code VideoBillingUsage#billedVideoCount()} 兜成 1 条（不在这里猜）。</p>
+     * 产出条数：取 {@code data} / {@code videos} 数组长度，单个视频对象（Map）计 1 条。
+     * 读不出条数时返回 0，由 {@code VideoBillingUsage#billedVideoCount()} 兜成 1 条。
      */
     static long outputVideoCount(Map<String, Object> body) {
         if (body == null) {
@@ -350,9 +304,7 @@ final class MediaUsageReaders {
 
     /**
      * 请求侧尺寸的结构化形态：宽 / 高 / 像素（宽 × 高）。
-     *
-     * <p>支持两类写法：{@code "1280x720"} 精确尺寸与 {@code "720p"} 预设名；
-     * 无法识别（{@code auto} 等）时为 {@link #EMPTY}，由计费规则侧决定回落价格。</p>
+     * 支持 {@code "1280x720"} 精确尺寸与 {@code "720p"} 预设名；无法识别（{@code auto} 等）时为 {@link #EMPTY}。
      */
     record MediaSize(long width, long height, long pixels) {
 

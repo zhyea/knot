@@ -13,15 +13,8 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * 计数存储装配：模式由 {@code knot.traffic.store} 决定（默认 {@code caffeine}），
- * 两种模式（进程内 / Redis）共用同一个 {@link TrafficCounterStore} 抽象，
- * 同一时刻只注册一个实现。
- *
- * <p>模式值统一由 {@link StoreModeResolver} 归一，与在途计量同一套读法，
- * 不再各写一份 {@code @ConditionalOnProperty} 分支。</p>
- *
- * <p><b>故障口径：Redis 档 fail-hard。</b>频控计数承载全局额度口径，静默按「计0」放行
- * 会让多节点下的实际限额悄悄涨到「配置值 × 节点数」，直接超发且无感知。
- * 因此 Redis 不可用时直接抛 {@code RedisUnavailableException} → 网关 503 + ERROR 日志报警。</p>
+ * 两种模式（进程内 / Redis）共用同一个 {@link TrafficCounterStore} 抽象，同一时刻只注册一个实现。
+ * 模式值统一由 {@link StoreModeResolver} 归一。故障口径：Redis 档 fail-hard，Redis 不可用时抛 {@code RedisUnavailableException} → 网关 503 + ERROR 日志报警。
  */
 @Slf4j
 @Configuration
@@ -60,10 +53,7 @@ public class TrafficCounterConfiguration {
 
     /**
      * 计数存储实现。
-     *
-     * <p><b>故障口径：Redis 档 fail-hard。</b>Redis 不可用时抛
-     * {@code RedisUnavailableException} → 网关 503，绝不按「计0」静默放行：
-     * 那样多节点下的实际限额会悄悄涨到「配置值 × 节点数」，超发无感知。</p>
+     * 故障口径：Redis 档 fail-hard，Redis 不可用时抛 {@code RedisUnavailableException} → 网关 503，不按「计 0」静默放行。
      */
     @Bean
     public TrafficCounterStore trafficCounterStore(TrafficCounterProperties properties,

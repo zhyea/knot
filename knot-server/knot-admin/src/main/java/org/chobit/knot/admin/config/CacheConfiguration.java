@@ -11,14 +11,8 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * 管理端本地缓存。目前只注册 DB 枚举项一处（{@link EnumConfigService#ENUM_ITEMS_CACHE}）。
- *
- * <p>背景：DB 枚举（ks_enum_configs）的下拉选项随时可增删改，前端已改为每次打开抽屉强制回源
- * （不再依赖前端那份 5 分钟模块级缓存——它正是"改完枚举下拉看不到新值"的根因）。
- * 回源压力全部落到 {@code GET /api/system/enums/items/{category}}，故在服务端兜一层短 TTL 的
- * Caffeine：同一分类在一个 TTL 窗口内只读一次 DB。
- *
- * <p>一致性：写操作由 {@link EnumConfigService} 上的 {@code @CacheEvict} 立即整表失效，
- * 因此走接口的改动是即时可见的；即便有人绕过接口直接改库，最坏也只是本窗口的陈旧读。
+ * 同一分类在一个 TTL 窗口内只读一次 DB；写操作由 {@link EnumConfigService} 上的 {@code @CacheEvict} 立即整表失效。
+ * 绕过接口直接改库时，最坏只是本窗口内的陈旧读。
  */
 @Configuration
 @EnableCaching

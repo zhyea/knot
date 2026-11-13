@@ -11,9 +11,8 @@ import java.util.Map;
 /**
  * 待检测文本抽取：只取文本字段，媒体内容与结构化字段不参与匹配。
  *
- * <p>请求侧按协议取 {@code messages[].content} / {@code prompt} / {@code input} /
- * {@code instructions} / {@code system}；响应侧只递归取键名为 {@code content} / {@code text} 的字符串，
- * 避免把模型名、角色名、id 等结构字段当成正文造成误杀。</p>
+ * 请求侧按协议取 {@code messages[].content} / {@code prompt} / {@code input} / {@code instructions} / {@code system}；
+ * 响应侧只递归取键名为 {@code content} / {@code text} 的字符串。
  */
 public final class ModerationTextExtractor {
 
@@ -53,11 +52,8 @@ public final class ModerationTextExtractor {
     }
 
     /**
-     * 插件视角的响应体抽取：{@code GatewayPluginContext#responseBody()} 是 {@code Object}——
-     * 整包场景既可能是上游原始 JSON 字符串，也可能是已注入 {@code knot_extend} 的 Map。
-     *
-     * <p>流式场景拿到的是 {@code StreamingResponseBody}，此处直接返回空列表（M2 增量检测再覆盖），
-     * 避免对非 JSON 对象做无意义递归。</p>
+     * 插件视角的响应体抽取：{@code GatewayPluginContext#responseBody()} 是 {@code Object}，整包场景可能是上游原始
+     * JSON 字符串，也可能是已注入 {@code knot_extend} 的 Map；流式场景（{@code StreamingResponseBody}）返回空列表。
      */
     public static List<String> fromResponseObject(Object responseBody) {
         if (responseBody instanceof String text) {

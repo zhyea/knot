@@ -3,14 +3,9 @@ package org.chobit.knot.common.pricing;
 import java.time.LocalDate;
 
 /**
- * 节假日日历：高低峰判定的外部数据来源。
- *
- * <p>判定器本身不得持有状态或缓存（见 {@link PeakOffPeakResolver}），数据来源通过本接口注入。
- * 项目当前不提供默认实现 —— {@link #EMPTY} 是「无日历」的空实现，意味着节假日与调休判定都不命中，
- * 只按星期与时段判峰谷。后续接入真实日历（DB / 配置 / 外部服务）只需新增实现，判定逻辑不用改。
- *
- * <p>日期一律按日历自身口径判定，不随时区漂移：中国法定节假日按 {@code Asia/Shanghai} 的自然日，
- * 即便配置里 pricing.timezone 写的是 UTC。
+ * 节假日日历：高低峰判定的外部数据来源，由调用方注入，判定器本身不持有状态或缓存。
+ * {@link #EMPTY} 是「无日历」的空实现：节假日与调休都不命中，只按星期与时段判峰谷。
+ * 日期一律按日历自身口径判定（中国法定节假日按 {@code Asia/Shanghai} 的自然日），不随时区配置漂移。
  */
 public interface HolidayCalendar {
 

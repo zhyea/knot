@@ -16,21 +16,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 网关侧词库资源缓存：全量启用词条的单一供给点（方案 B，robin 2026-10-14 拍板）。
- *
- * <p>背景：plugin 化重构后网关曾退化为「每次插件分发直查 DB」（一个请求三个 stage
- * 各查一次，万级词库下每请求约 3MB 结果集，DB 压力随 QPS 线性涨）。本组件把词库
- * 列表按路由数据的同款节奏缓存下来，DB 查询降至最多每 30s 一次；缓存 / 编译 / 刷新
- * 的核心语义仍留在 knot-plugin 的 {@code ModerationWordCache}（编译自动机按
- * {@link ModerationTerm#versionOf(List)} 去重）——两边分工：网关缓存「词库资源」，
- * 插件缓存「编译产物」。</p>
- *
- * <p>时序语义（与 {@code GatewayConfigCacheService} 路由缓存一致）：写入 30s 后异步刷新、
- * 10min 硬过期。词库变更生效延迟约 30s；Caffeine 刷新期间旧值持续可见，不出现取词
- * 空窗。同步加载失败不缓存、逐次重试。</p>
- *
- * <p>fail-open：取词异常（含 DB 不可用）不冒泡到请求链路，降级为空列表并 warn——
- * 守卫见空词表即放行，与重构前行为一致。</p>
+ * 网关侧词库资源缓存：全量启用词条的单一供给点；编译产物缓存仍在 knot-plugin 的 {@code ModerationWordCache}。
+ * 写入 30s 后异步刷新、10min 硬过期，刷新期间旧值持续可见；同步加载失败不缓存、逐次重试。
+ * fail-open：取词异常（含 DB 不可用）降级为空列表并 warn，守卫见空词表即放行。
  */
 @Slf4j
 @Component
@@ -55,12 +43,7 @@ public class ModerationWordResource {
     private volatile int lastWordCount;
 
     /**
-     * fail-open 的指标出口：单调计数给告警用，两个 gauge 给「看板一眼看出当前是否在裸奔」。
-     *
-     * <p>⭐ <b>为什么必须接 Micrometer 而不是只留 {@link #failOpenCount()}</b>：
-     * 进程内计数器只有再加一个端点把它读出来才有意义，而那等于每次都要临时写查询；
-     * 指标准入后，{@code rate(knot_gateway_moderation_fail_open_total[5m]) > 0}
-     * 就是一条能直接挂出去的告警规则。fail-open 的语义是「放行」，它安静得像一切正常。</p>
+     * fail-open 的指标出口：单调计数给告警用，两个 gauge 反映当前是否处于 fail-open 与最近一次词条数。
      */
     private final Counter failOpenCounter;
 

@@ -8,13 +8,7 @@ import java.util.List;
 
 /**
  * 数值型枚举选项：与 {@link EnumOption}（字符串 code）并列，供业务状态类枚举实现。
- *
- * <p>存在两套接口而不是把 {@code EnumOption} 泛型化的原因：{@code EnumOption} 已有 18 个实现类，
- * 泛型化会打断全部实现，且 {@code EnumOption<C>[]} 无法在 Java 中安全构造（泛型数组禁令）。
- * 新增接口后既有枚举零改动。</p>
- *
- * <p>code 从 1 开始递增；二态枚举用 {@code 1 = 正向 / 0 = 关闭}。{@code 0} 是合法值，
- * 所有判断必须显式比较，禁止依赖 truthy。</p>
+ * code 从 1 开始递增，二态枚举用 {@code 1} = 正向 / {@code 0} = 关闭；{@code 0} 是合法值，判断必须显式比较。
  */
 public interface NumericEnumOption {
 

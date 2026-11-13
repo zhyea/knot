@@ -7,45 +7,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * 异步任务状态（落 {@code kb_async_tasks.status}，存 {@link #code()} 而非名字）。
- *
- * <p><b>2026-10-28 由「存 {@link #name()} 的 VARCHAR」改为「存 code 的 TINYINT」</b>（robin 拍板）。
- * 上一版的选择理由（运维 {@code WHERE status='POLLING'} 自解释）依然成立，翻案是因为另外两条更硬：</p>
- * <ul>
- *   <li><b>热点索引变窄</b>：{@code idx_async_tasks_due(status, next_poll_at)} 是轮询扫描的入口，
- *       status 是首列。{@code 'PENDING'} 连长度前缀要 9 字节，{@code TINYINT} 1 字节，
- *       同样 buffer pool 下索引页能装近两倍条目。</li>
- *   <li><b>全库风格统一</b>：本项目其它状态列（{@code EnabledStatusEnum}）都是 {@code TINYINT}。
- *       同一个库里两种状态存法，读代码的人要记两套规则。</li>
- * </ul>
- *
- * <p>⭐ <b>为什么住在 {@code common}（2026-10-29 二次搬迁）</b>：这套状态码有<b>三个互不依赖的消费方</b>
- * ——gateway 的编排与状态机、svc 的 SQL 在途态谓词（{@link #inFlightCodes()}）、admin 的任务查看页
- * （要 {@link #label()} 渲染）。放在任何一端都会让另外两端「反向依赖」或「复制一份枚举」，
- * 后者是同一状态集两份定义，必然漂移。common 是三者唯一的共同祖先。</p>
- *
- * <p>⚠ 由此它也进入 {@link NumericEnumOption} 的统一契约名单（{@code NumericStatusEnumContractTest}）：
- * {@code fromCode} / {@code requireCode} / {@code codes} 三件套必须齐备且与邻枚举行为一致。</p>
- *
- * <p>⭐ <b>代价与对策（整型真正危险的地方不是「不可读」，是「撞 code」）</b>：</p>
- * <ul>
- *   <li>两个常量给同一个 code，数据写进去就<b>不可区分、不可恢复</b>——信息已经丢了。
- *       字符串则撞不了名（编译器先挡住）。对策：code <b>显式声明、只增不改、不复用废号</b>。</li>
- *   <li>⚠ <b>严禁用 {@link #ordinal()}</b>：调整常量顺序（比如把 CANCELLED 挪到前面）会让历史数据
- *       整体错位，且没有任何编译信号。只认 {@link #code()}。</li>
- *   <li>数值本身就是<b>落库 wire format</b>：由 {@code AsyncTaskStatusEnumTest} 逐个钉死，
- *       改动即红。别处一律用枚举常量，不写裸数字。</li>
- *   <li>可读性靠 {@link #label()}（管理端展示）与列注释（{@code schema.sql} 里写全 0~5 映射）
- *       加 {@code CHECK} 约束补，不再靠「存字符串」。</li>
- * </ul>
- *
- * <p>{@code PENDING} 与 {@code POLLING} 分开是刻意的：运维要能一眼分辨「创建后从未被轮询过」
- * （poller 没接手 / 抢占失败）与「正在轮询中」，两者处置方式完全不同。</p>
- *
- * <p>⭐ 因此分界点定在<b>发起查询之前</b>（2026-11-10 robin 定），不是查询结果回来之后：
- * {@code PENDING} 只表示「一次查询都没发起过」，一旦要打上游就先置 {@code POLLING}。
- * 等结果再改的后果是「首查即终态」的任务直接 0 → 2，那次真实发生的上游调用在状态维度上不存在，
- * 两个状态也就白分了。</p>
+ * 异步任务状态，落 {@code kb_async_tasks.status}；对外即 0~5 的整型码，label 走 {@code /api/enum-options}。
+ * 判终态用 {@link #terminal()}，在途态用 {@link #inFlightCodes()}；禁用 {@link #ordinal()}。
  */
 public enum AsyncTaskStatusEnum implements NumericEnumOption {
 
@@ -95,15 +58,8 @@ public enum AsyncTaskStatusEnum implements NumericEnumOption {
     }
 
     /**
-     * 是否可被管理端「重试」重新打开。
-     *
-     * <p>⭐ <b>只放两种：{@link #FAILED} 与 {@link #EXPIRED}</b>——它们的共同点是
-     * 「没出货、也没计费」。{@link #SUCCEEDED} 已经算过钱，重开会让同一笔任务二次计费；
-     * {@link #CANCELLED} 是人工作出的终止决定，重开会把运维的判断悄悄推翻。
-     * 判据不是「哪些状态看起来能重试」，而是<b>重开之后会不会产生第二笔钱或违背人的意志</b>。</p>
-     *
-     * <p>真实收益场景：上游瞬时 5xx 把查询次数耗光、或 knot 侧超时先到，而上游其实已出产物——
-     * 重试能把「已经发生的上游成本」捞回成可计费的终态。</p>
+     * 是否可被管理端「重试」重新打开：只含 {@link #FAILED} 与 {@link #EXPIRED}——两者都没出货、也没计费；
+     * {@link #SUCCEEDED} 已计费、{@link #CANCELLED} 是人工作出的终止决定，均不重开。
      */
     public boolean retryable() {
         return this == FAILED || this == EXPIRED;
@@ -116,10 +72,6 @@ public enum AsyncTaskStatusEnum implements NumericEnumOption {
 
     /**
      * 在途状态码集合，供 SQL 的 {@code status IN (...)} 使用。
-     *
-     * <p>⭐ 存在意义是<b>让 SQL 里不出现魔法数字</b>：{@code status in (0, 1)} 能跑通，但下一个
-     * 往枚举里加在途态的人不会想到去改 XML，症状是「新状态的任务永远查不到」。
-     * 由 Java 传参则加一个常量就自动生效。</p>
      */
     public static List<Integer> inFlightCodes() {
         return IN_FLIGHT_CODES;

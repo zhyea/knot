@@ -3,20 +3,9 @@ package org.chobit.knot.adapter.protocol;
 import java.util.List;
 
 /**
- * 流式响应适配器：SSE 单行进、<b>0..N 行</b>出。
- *
- * <p>为什么是行级而不是 {@code data} 载荷级：协议级流式转换经常要动「非 data 行」——
- * Anthropic 的 {@code event: message_start} 在 OpenAI 客户端眼里是噪音必须抑制，反向
- * （chat.completion.chunk → Messages）又必须为每个 data 行合成配套的 {@code event:} 行。
- * 只给 data 载荷钩子做不到抑制与合成，这是本接口存在的唯一理由。</p>
- *
- * <p>为什么是每请求一个实例：流式转换有跨事件的必然状态——首个 chunk 只发一次
- * {@code message_start}、chunk id 必须全程一致、tool_use 块的序号要连续递增。
- * 适配器是单例 Bean，状态不能挂在适配器上，故由 {@link UpstreamAdapter#streamAdapter}
- * 按请求新建。</p>
- *
- * <p>返回列表语义：空列表 = 抑制该行；单元素 = 改写；多元素 = 合成（如 data 行 + 配套 event 行）。
- * 默认实现 {@link #PASSTHROUGH} 原样返回，逐字节不改。</p>
+ * 流式响应适配器：SSE 单行进、0..N 行出，粒度为整行（含非 {@code data} 行，可抑制或合成 {@code event:} 行）。
+ * 每请求一个实例（由 {@link UpstreamAdapter#streamAdapter} 新建），跨事件状态挂在实例上，不挂在单例 Bean 上。
+ * 返回列表语义：空列表 = 抑制该行；单元素 = 改写；多元素 = 合成。默认实现 {@link #PASSTHROUGH} 原样返回。
  */
 @FunctionalInterface
 public interface StreamLineAdapter {

@@ -17,9 +17,8 @@ public interface RoutingRuleMapper {
                                                           @org.apache.ibatis.annotations.Param("ruleCode") String ruleCode);
 
     /**
-     * 按规则业务码取规则（含 status）。
-     *
-     * <p>供裁判链路校验「裁判规则存在且启用」使用（v7 §6.1）。返回 null 表示规则不存在。</p>
+     * 按规则业务码取规则（含 status）。供裁判链路校验「裁判规则存在且启用」；
+     * 返回 {@code null} 表示规则不存在。
      */
     RoutingRuleEntity getByRuleCode(@org.apache.ibatis.annotations.Param("ruleCode") String ruleCode);
 
@@ -33,9 +32,7 @@ public interface RoutingRuleMapper {
 
     /**
      * 删除守卫：统计按应用业务码绑定、且处于启用态的路由规则数。
-     *
-     * <p>与改码守卫的 {@link #countByAppCode} 不同：只关心启用态规则——
-     * 停用规则不会在运行时被解析，删掉应用不会制造「启用但无可用应用」的孤儿规则。</p>
+     * 与改码守卫的 {@link #countByAppCode} 不同，这里只统计启用态规则。
      */
     Long countEnabledByAppCode(@Param("appCode") String appCode);
 

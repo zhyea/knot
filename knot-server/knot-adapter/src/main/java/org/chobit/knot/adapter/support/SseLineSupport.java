@@ -3,14 +3,9 @@ package org.chobit.knot.adapter.support;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * SSE 行语法原语：{@code data:} / {@code event:} 前缀的读写与 {@code [DONE]} 标记判断。
- *
- * <p>归属判据：SSE 是 HTTP 传输层语法，<b>与供应商和 AI 协议都无关</b>——Anthropic、OpenAI、
- * 任何 SSE 上游用的是同一套行格式。故本类住 {@code support} 根，不住
- * {@code support.anthropic}：协议转换类只回答「事件语义怎么映射」，不重复实现行格式。</p>
- *
- * <p>与 {@code ProxyStreamingFlux} 的分工：那边做字节流切行（跨 chunk 半行、UTF-8 边界、
- * 1MB 上行保护）并直接用本类判断行类型；本类只管「一行 SSE 文本长什么样」。</p>
+ * SSE 行语法原语：{@code data:} / {@code event:} 前缀的读写与 {@code [DONE]} 标记判断，
+ * 与供应商和 AI 协议无关。字节流切行（跨 chunk 半行、UTF-8 边界、1MB 上行保护）归
+ * {@code ProxyStreamingFlux}，本类只管「一行 SSE 文本长什么样」。
  */
 public final class SseLineSupport {
 

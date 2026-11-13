@@ -8,18 +8,8 @@ import java.time.ZonedDateTime;
 
 /**
  * 限流 / 限额计数键的拼装入口。
- *
- * <p>键格式：{@code <prefix>:<维度族>:<资源类型>:<资源ID>:<维度>[:<币种>]:<窗口>}，例如：</p>
- * <pre>
- * knot:traffic:rl:MODEL:12:RPM:29333333
- * knot:traffic:rl:MODEL:12:TPM:29333333
- * knot:traffic:qt:APP:3:TOKENS:202610
- * knot:traffic:qt:APP:3:COST:USD:20261005
- * </pre>
- *
- * <p>限流键用 epoch 分钟序号（与时区无关），限额键用按时区换算的窗口标识
- * （{@code 202610} 表示 2026 年 10 月，{@code 20261005} 表示 10 月 5 日当天）。
- * 换窗口即换键、旧键随 TTL 过期，因此两类键都不需要后台清理任务。</p>
+ * 键格式：{@code <prefix>:<维度族>:<资源类型>:<资源ID>:<维度>[:<币种>]:<窗口>}，例如 {@code knot:traffic:rl:MODEL:12:RPM:29333333}、{@code knot:traffic:qt:APP:3:COST:USD:20261005}。
+ * 限流键用 epoch 分钟序号（与时区无关），限额键用按时区换算的窗口标识（{@code 202610} 表示 2026 年 10 月，{@code 20261005} 表示 10 月 5 日当天）；换窗口即换键，旧键随 TTL 过期，无需后台清理任务。
  */
 public final class TrafficCounterKeys {
 

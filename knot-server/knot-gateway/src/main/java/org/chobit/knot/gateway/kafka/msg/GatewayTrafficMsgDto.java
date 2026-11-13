@@ -25,58 +25,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * <b>网关流量事件（单条消息）</b>：一次客户端请求从入口到终态的完整事实。
- *
- * <p>2026-10-18 robin 拍板合并——原「请求层 + 响应层」两条 Kafka 消息收敛为<b>一条</b>：
- * 数仓是离线批处理，不需要请求层早期发出的「实时流量入口」信号（流式长连接期间入口维度
- * 延迟到终态才可见可接受），合并后能少一次发布、消除两层乱序、入口即拒不再需要 left join 识别。</p>
- *
- * <p>发送时机是<b>请求终态</b>：非流式在用量记账后发；流式在响应体写完的 finally 发；
- * 异常路径（含入口即拒）在 catch 发。一条消息同时携带「谁在调、走哪条规则、落到哪个应用 / 部门 /
- * 用户」（路由维度快照）与「真正请求的模型 + 结果 / 用量 / 计费 / 错误 / 上游调用明细」（处置结果），
- * 由 {@code traceId} 自关联，不再需要两层消息的关联与乱序修正。</p>
- *
- * <p>入口即拒（鉴权 / Rule 头校验失败）同样发一条：{@code routing} 为 null、{@code hit} 为 null、
- * {@code error.stage} 为 {@code header_validate}——这是设计口径，一条记录即可表达，无需 left join。</p>
- *
- * <p>维度<b>全部是业务码与 username，没有主键 id、没有 secretKey</b>：业务码跨环境稳定，
- * 主键 id 换个部署就变，落到数仓无法归因。</p>
- *
- * <p>{@code hit}（真正请求的模型）取自候选循环落定后实际调用上游的那个候选（hit target，
- * 与旧请求层模型三字段同口径），不是候选链首位、也不是备选清单；池命中时带 {@code poolCode}
- * 供数仓归因到具体模型池。</p>
- *
- * <p><b>用量三视图，单向派生</b>（2026-10-27）：{@code upstream_usage}（上游 {@code usage} 原文，
- * 只透传不加工）→ {@code usage}（归一化用量 + 本次请求的计费属性）→ {@code billing}（本网关按规则算出的价格）。
- * 三者并列下发是因为下游要能<b>自行复算</b>（转卖 token、成本分摊、毛利核算）：
- * 归一化口径若有争议，靠 {@code upstream_usage} 可回溯；网关<b>不下发计费规则内容</b>，
- * 所以复算所需的分档键（分辨率 / 画幅 / 模式 / 有声…）必须随 {@code usage.attributes} 一起给出。</p>
- *
- * <p><b>三个 id 语义分明，不可互相替代</b>（2026-10-23）：</p>
- * <ul>
- *   <li>{@code trace_id} —— W3C 追踪 id，可能<b>继承自调用方</b>的 traceparent，不保证是我方发的；</li>
- *   <li>{@code request_id} —— 网关<b>入口生成</b>的请求编号（32 位 hex），已以 {@code X-Request-Id}
- *       透传给上游，是对账时的「我方 id」；</li>
- *   <li>{@code attempts[].upstream_request_id} —— 上游<b>返回</b>的编号，是「对方 id」。</li>
- * </ul>
- * <p>双向对账的检索路径：拿 {@code request_id} 去供应商侧查（他们日志里有这个头），
- * 拿 {@code upstream_request_id} 去我们数仓查（它来自对方响应头）。</p>
- *
- * <p><b>异步任务是「1 次提交 + N 次查询」，不是「1 次请求」</b>（2026-10-28 改口径）：
- * 一次异步调用的真实上游开销是 {@code create} 一次 + {@code query} N 次（N 由产物耗时与轮询间隔决定，
- * 视频任务可达数百）。所以这类请求<b>发 1 + N 条事件</b>，靠 {@code task_code} 归到同一笔任务，
- * 用 {@code task_phase}（{@code submit} / {@code query}）与 {@code task_terminal} 区分每条的身份。</p>
- *
- * <p>⚠ <b>数仓聚合必须带口径，否则每条都会算错</b>：</p>
- * <ul>
- *   <li>客户端请求数 —— {@code where task_phase is null or task_phase = 'submit'}</li>
- *   <li>上游调用数 —— 不加条件（同步 1 条 = 1 次调用；异步 1 + N 条 = 1 + N 次调用）</li>
- *   <li>计费金额 —— {@code where task_phase is null or task_terminal = true}（同步事件不带
- *       {@code task_phase}，天然全计）</li>
- *   <li>失败率 —— <b>必须</b>加 {@code where task_phase is null or task_terminal = true}：
- *       中间查询的失败（上游 5xx 后重试成功）会各自发一条带 {@code error} 的事件，
- *       不过滤就会把「重试 5 次后成功」算成 5 次失败</li>
- * </ul>
+ * 网关流量事件（单条消息）：一次客户端请求从入口到终态的完整事实，在请求终态发出（非流式记账后、流式响应写完的 finally、异常路径的 catch）；入口即拒也发一条，{@code routing} 与 {@code hit} 为 null、{@code error.stage} 为 {@code header_validate}。
+ * 携带路由维度快照（业务码与 username，无主键 id / secretKey）与处置结果（真正请求的模型 + 结果 / 用量 / 计费 / 错误 / 上游调用明细），由 {@code traceId} 自关联；{@code hit} 取实际调用上游的候选，池命中带 {@code poolCode}。
+ * 用量三视图单向派生：{@code upstream_usage}（原文透传）→ {@code usage}（归一化 + 计费属性，分档键随 {@code usage.attributes} 给出）→ {@code billing}（按规则算价）；{@code trace_id} 为可继承的追踪 id，{@code request_id} 为网关入口生成（32 位 hex），{@code attempts[].upstream_request_id} 为上游返回。
+ * 异步请求发 1 + N 条事件（{@code create} 1 次 + {@code query} N 次），靠 {@code task_code} 归组、{@code task_phase} / {@code task_terminal} 区分；数仓聚合：客户端请求数取 {@code where task_phase is null or task_phase = 'submit'}，计费金额与失败率取 {@code where task_phase is null or task_terminal = true}，上游调用数不加条件。
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
@@ -111,34 +63,16 @@ public record GatewayTrafficMsgDto(String schema,
                                    Integer taskRetryRound,
                                    ErrorMsgDto error) implements Msg {
 
-    /**
-     * 契约版本。
-     *
-     * <p>⭐ <b>1.0 → 1.1 不是加字段，是改基数</b>（2026-10-28）：异步请求从「1 次请求 1 条事件」
-     * 变成「1 次提交 + N 次查询 = 1 + N 条事件」。字段层面完全向后兼容，但
-     * <b>任何按「一条消息 = 一次请求」写的消费逻辑都会静默多算</b>——这正是 {@code schema}
-     * 存在的意义，所以必须升版本，而不是沿用 1.0 只加字段。</p>
-     */
+    /** 消息契约版本号。 */
     private static final String SCHEMA = "knot.gateway.traffic/1.1";
 
     /**
-     * 异步任务身份：本次事件属于<b>哪一笔任务、哪个阶段</b>。
-     *
-     * <p>走 context 属性传递（{@link #ATTRIBUTE}）而不是给 {@link #of} 加参数：{@code of} 有三个调用点，
-     * 加参数要么改三处签名，要么让其中两处传 {@code null}。属性方案下模板层<b>完全不需要知道异步的存在</b>——
-     * 它照常发事件，事件自己带着身份走。这是与「抑制创建事件」路线的根本差别：
-     * 抑制丢掉了「提交」这次上游调用，而它确实发生过。</p>
+     * 异步任务身份：本次事件属于哪一笔任务、哪个阶段；经 context 属性（{@link #ATTRIBUTE}）传递。
      *
      * @param phase    {@link #PHASE_SUBMIT}（create 调用）或 {@link #PHASE_QUERY}（查询上游任务状态）
      * @param terminal 该阶段是否已落终态；{@code submit} 恒 {@code false}
-     * @param querySeq 第几次查询，从 1 开始；{@code submit} 为 {@code null}。
-     *                 有它才能算出「第几次查询才拿到产物」，是异步任务延迟分布的唯一来源
-     * @param retryRound 重试轮次，0 = 从未被管理端重试。
-     *                 ⚠ <b>它进的是去重键</b>：管理端重试会把 {@code attempts} 归零，
-     *                 于是 {@code task_query_seq} 从 1 重来，与上一轮完全同键。
-     *                 数仓按 {@code (task_code, task_phase, task_query_seq)} 去重时必须再带上
-     *                 {@code task_retry_round}，否则两轮真实上游调用会被压成一条（方向是少记，
-     *                 事后无从还原）
+     * @param querySeq 第几次查询，从 1 开始；{@code submit} 为 {@code null}
+     * @param retryRound 重试轮次，0 = 从未被管理端重试；进去重键，数仓按 {@code (task_code, task_phase, task_query_seq)} 去重时须带上 {@code task_retry_round}
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
@@ -257,11 +191,8 @@ public record GatewayTrafficMsgDto(String schema,
     }
 
     /**
-     * 异步任务身份；同步请求为 {@code null}，五个 {@code task_*} 字段随 {@code NON_NULL} 整段省略。
-     *
-     * <p>⚠ 同步事件<b>不带</b> {@code task_terminal}，所以数仓口径写的是
-     * {@code task_phase is null or ...} 而不是 {@code task_terminal = true}——
-     * 后者会把全部同步请求过滤掉。这条口径在类 javadoc 里也写了一遍，两处必须一致。</p>
+     * 异步任务身份；同步请求为 {@code null}，五个 {@code task_*} 字段随 {@code NON_NULL} 整段省略，不带 {@code task_terminal}。
+     * 数仓口径按 {@code task_phase is null or ...} 过滤同步事件。
      */
     private static TaskTrace taskTraceOf(GatewayRequestContext context) {
         return context == null ? null : context.attribute(TaskTrace.ATTRIBUTE);
@@ -281,10 +212,9 @@ public record GatewayTrafficMsgDto(String schema,
 
     /**
      * 真正请求的模型 = 本次请求实际调用上游的那个候选（hit target）。
-     *
-     * <p>候选调用成功后由 {@link GatewayRequestHandler} 写入上下文属性
+     * 候选调用成功后由 {@link GatewayRequestHandler} 写入上下文属性
      * {@link GatewayRequestHandler#HIT_TARGET_ATTRIBUTE}；取不到即没有候选真正承接
-     * （路由解析后的拒绝 / 上游全失败路径），{@code hit} 为 null。</p>
+     * （路由解析后的拒绝 / 上游全失败路径），{@code hit} 为 null。
      */
     private static HitSnapshot hitSnapshot(GatewayRequestContext context) {
         if (context == null) {

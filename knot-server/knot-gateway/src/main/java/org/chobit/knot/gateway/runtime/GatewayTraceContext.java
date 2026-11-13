@@ -9,34 +9,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 单个请求的 W3C 追踪上下文：traceparent 的解析、生成与回写。
- *
- * <p>2026-10-20（WebFlux 批2）：<b>去掉 ThreadLocal</b>。线程本地属性在 Reactor 线程模型下
- * 无处安放（同一请求会跨多个线程），改为放进 <b>Reactor Context</b>
- * （{@link #CONTEXT_KEY}）：{@code GatewayTraceFilter} 在入口写入一次，
- * 模板用 {@code Mono.deferContextual} 读取，链路任何位置都能取到同一个 trace。</p>
- *
- * <p>2026-10-23：本上下文<b>同时承载网关自生成的 {@code request_id}</b>（{@link #requestId()}）。
- * 它和 trace 一样是「每请求一个、随链路传递」的东西，因此共用一个载体、一次
- * {@code contextWrite} 即可贯穿到上游请求头与数仓消息；但语义上它<b>不属于 W3C trace</b>——
- * 不写进 traceparent、不受入站 traceparent 影响（外部 traceId 再长也是别人的 id）。
- * 客户端传入的 request-id 类头一律忽略，网关是唯一权威。</p>
+ * 单个请求的 W3C 追踪上下文：traceparent 的解析、生成与回写，同时承载网关自生成的 {@code request_id}。
+ * 上下文放在 Reactor Context（{@link #CONTEXT_KEY}）：{@code GatewayTraceFilter} 在入口写入，模板用 {@code Mono.deferContextual} 读取。
+ * {@code request_id} 不写进 traceparent、不受入站 traceparent 影响；客户端传入的 request-id 类头一律忽略，网关是唯一权威。
  */
 public final class GatewayTraceContext {
 
     /**
-     * Reactor Context 键：本次请求的 {@link GatewayTraceContext}。
-     *
-     * <p>由 {@code GatewayTraceFilter} 在入口 {@code contextWrite} 写入；
-     * 这是请求级追踪信息在链路里的唯一传递方式（不再有 ThreadLocal）。</p>
+     * Reactor Context 键：本次请求的 {@link GatewayTraceContext}，由 {@code GatewayTraceFilter} 在入口 {@code contextWrite} 写入。
      */
     public static final String CONTEXT_KEY = "knot.trace";
 
     /**
-     * 日志 MDC 键（{@code logging.pattern.level} 里引用的就是这三个名字）。
-     *
-     * <p>2026-10-20（WebFlux 批2）：MDC 本身仍是线程本地，跨线程不会自己传播——
-     * 由 {@link MdcContextSupport} 在每个阻塞段的任务线程上重绑。</p>
+     * 日志 MDC 键（{@code logging.pattern.level} 引用的就是这三个名字）；由 {@link MdcContextSupport} 在阻塞段的任务线程上重绑。
      */
     public static final String MDC_TRACE_ID = "traceId";
     public static final String MDC_SPAN_ID = "spanId";
@@ -57,9 +42,7 @@ public final class GatewayTraceContext {
     private final boolean generatedTraceId;
     /**
      * 网关自生成的请求标识（32 位小写 hex）：构造时固定，整条链路唯一。
-     *
-     * <p>与 traceId 的区别：traceId 可能来自<b>入站</b> traceparent（别人的链路 id），
-     * requestId 恒由网关生成，是「我方对这次请求的编号」，透传给上游后供应商侧可检索。</p>
+     * traceId 可能来自入站 traceparent，requestId 恒由网关生成，透传给上游后供应商侧可检索。
      */
     private final String requestId;
 
@@ -106,17 +89,8 @@ public final class GatewayTraceContext {
     }
 
     /**
-     * 按既有 traceparent <b>原样重放</b>同一次逻辑请求的追踪上下文：沿用它的 span，并复用给定 requestId。
-     *
-     * <p>⭐ <b>为什么需要这个入口</b>：{@link #fromTraceparent} 的语义是「解析入站 trace + 为<b>本次</b>请求
-     * 生成一个新 span」（{@code spanId = randomHex(8)}）。用它去重建<b>已经发生过的那次请求</b>，
-     * traceId 虽然对得上，spanId 与 requestId 每次都会变 —— 异步任务的 N 次查询各发一条流量事件，
-     * 就会变成「同一笔任务、N 个不同 span」，数仓按 {@code (trace_id, span_id)} 找不到一组。</p>
-     *
-     * <p>语义澄清（避免误读成 bug）：这里 spanId 取 traceparent 的第 3 段，而 {@link #parentId()} 也叫这个名字。
-     * <b>不是笔误</b>——W3C traceparent 的第 3 段本就是「发起这次调用的父 span」，把它复用为本次的 span，
-     * 正是「回到同一次请求」这个动作。异步任务的 1 + N 条事件共用这一个坐标，
-     * 代价是它们不再是 N 个可区分 span（要区分用流量事件里的 {@code task_query_seq}）。</p>
+     * 按既有 traceparent 原样重放同一次逻辑请求的追踪上下文：沿用它的 span，并复用给定 requestId。
+     * {@code spanId} 取 traceparent 的第 3 段（发起该次调用的父 span），异步任务的 1 + N 条事件共用这一个坐标，区分靠流量事件的 {@code task_query_seq}。
      *
      * @param traceparent 提交时快照下来的 traceparent（含提交那次的 span）
      * @param requestId   提交时的网关请求编号；{@code null}/空则新生成（脏数据兜底）
@@ -135,12 +109,7 @@ public final class GatewayTraceContext {
     }
 
     /**
-     * 从 traceparent 头部解析 traceId：只做格式解析，<b>缺失或非法时返回 {@code null}</b>，
-     * 不生成新 trace。
-     *
-     * <p>2026-10-20：原先 {@code UpstreamProxyClient} 从线程本地取 traceId，但上游代理调用跑在
-     * 异步线程上，线程本地永远为空 → 每次都生成一个与请求链路<b>无关的随机 traceId</b>。
-     * 改为从上游请求携带的 traceparent（已由模板归一）解析。</p>
+     * 从 traceparent 头部解析 traceId：只做格式解析，缺失或非法时返回 {@code null}，不生成新 trace。
      */
     public static String traceIdOf(String traceparent) {
         String trimmed = StringUtils.trimToNull(traceparent);
@@ -176,10 +145,8 @@ public final class GatewayTraceContext {
     }
 
     /**
-     * 网关自生成的请求标识（32 位小写 hex，非空）：透传给上游的 {@code X-Request-Id}，
-     * 也是数仓消息的 {@code request_id}。
-     *
-     * <p>⚠ 与 {@code upstream_request_id}（上游返回的 id）是两个东西，勿混用。</p>
+     * 网关自生成的请求标识（32 位小写 hex，非空）：透传给上游的 {@code X-Request-Id}，也是数仓消息的 {@code request_id}。
+     * 与 {@code upstream_request_id}（上游返回的 id）是两个东西，勿混用。
      */
     public String requestId() {
         return requestId;
@@ -194,10 +161,8 @@ public final class GatewayTraceContext {
     }
 
     /**
-     * 把本追踪上下文写进当前线程的 MDC（日志pattern 的 {@code %X{traceId}} 从这里取）。
-     *
-     * <p>只在<b>阻塞段任务线程</b>上调用（见 {@link MdcContextSupport}）：Netty 的 event loop
-     * 线程被成百上千个请求复用，在那里写 MDC 会把 A 请求的 traceId 印到 B 请求的日志上。</p>
+     * 把本追踪上下文写进当前线程的 MDC（日志 pattern 的 {@code %X{traceId}} 从这里取）。
+     * 只在阻塞段任务线程上调用（见 {@link MdcContextSupport}）。
      */
     public void bindMdc() {
         MDC.put(MDC_TRACE_ID, traceId);
@@ -206,7 +171,7 @@ public final class GatewayTraceContext {
     }
 
     /**
-     * 清掉 {@link #bindMdc()} 写入的三个键（任务收尾时调用，避免线程复用时残留上一条请求的 traceId）。
+     * 清掉 {@link #bindMdc()} 写入的三个键，任务收尾时调用。
      */
     public void clearMdc() {
         MDC.remove(MDC_TRACE_ID);
@@ -215,11 +180,7 @@ public final class GatewayTraceContext {
     }
 
     /**
-     * 生成一个新的网关请求标识：128 位随机数的 32 位小写 hex 形态（与 traceId 同格式）。
-     *
-     * <p>不用 UUID 带横线形态：项目内 traceId 已是 32 位 hex，日志检索与人工比对
-     * 统一一种形状更省事；这里也不复用 traceId——traceId 可能继承自入站
-     * traceparent（别人的 id），而 requestId 必须是我方自己的编号。</p>
+     * 生成一个新的网关请求标识：128 位随机数的 32 位小写 hex 形态（与 traceId 同格式），不复用 traceId。
      */
     public static String newRequestId() {
         return randomHex(16);

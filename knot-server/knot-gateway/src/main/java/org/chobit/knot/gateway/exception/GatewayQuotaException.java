@@ -5,9 +5,7 @@ import org.chobit.knot.gateway.model.TrafficRejectDetail;
 
 /**
  * 额度耗尽：窗口内累计 token 或成本达到策略上限。
- *
- * <p>与限流一样按 429 返回——调用方只需一套重试处置；用 {@code type=quota_error}、
- * {@code code=QUOTA_EXCEEDED} 与限流区分开。</p>
+ * 按 429 返回，以 {@code type=quota_error}、{@code code=QUOTA_EXCEEDED} 与限流区分。
  */
 public class GatewayQuotaException extends GatewayTrafficRejectException {
 

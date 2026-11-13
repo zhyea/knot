@@ -16,19 +16,10 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * AWS Signature Version 4（SigV4）纯函数签名器。
- *
- * <p>零 Spring 依赖、零新增第三方依赖：只用 JDK 自带的 {@link MessageDigest}（SHA-256）与
- * {@link Mac}（HmacSHA256），因此 knot-adapter 无需引入任何 AWS SDK。</p>
- *
- * <p>两个必须记住的坑：</p>
- * <ol>
- *   <li><b>时钟必须 UTC</b>：{@code X-Amz-Date} 与凭据作用域里的日期戳都按 UTC 取，
- *       用 {@code LocalDateTime.now()} 带本地时区会直接签名失败（AWS 时间窗 5 分钟）。</li>
- *   <li><b>签名覆盖的路径必须与实际发出的字节一致</b>：payload 的 SHA-256 与实际请求体
- *       必须是同一份字节（见 {@code AbstractUpstreamProtocolExecutor} 的签名钩子）；
- *       百分号编码只做一次（本类不再对已编码路径二次编码）。</li>
- * </ol>
+ * AWS Signature Version 4（SigV4）纯函数签名器，只用 JDK 自带的 {@link MessageDigest}（SHA-256）
+ * 与 {@link Mac}（HmacSHA256），不依赖 AWS SDK。
+ * 时钟必须 UTC（{@code X-Amz-Date} 与凭据作用域日期戳），AWS 时间窗 5 分钟；
+ * 签名路径须与实际发出的字节一致，百分号编码只做一次。
  */
 public final class AwsSigV4Support {
 
@@ -76,11 +67,8 @@ public final class AwsSigV4Support {
     }
 
     /**
-     * 规范 URI：入参须是<b>已完成 RFC3986 百分号编码</b>的路径原文。
-     *
-     * <p>刻意不再二次编码：Bedrock 的模型 ID 含 {@code :}（如
-     * {@code anthropic.claude-sonnet-4-20250514-v1:0}），路径在拼 URL 时已编成 {@code %3A}；
-     * 这里再编一次会变成 {@code %253A}，与 AWS 侧按实际收到路径算出的规范 URI 不一致 → 全站 403。</p>
+     * 规范 URI：入参须是已完成 RFC3986 百分号编码的路径原文，本方法不再二次编码
+     * （模型 ID 里的 {@code :} 在拼 URL 时已编成 {@code %3A}）。
      */
     public static String canonicalUri(String encodedPath) {
         if (encodedPath == null || encodedPath.isBlank()) {

@@ -18,23 +18,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@link BillingConfig} 的校验链（12 条规则）。
+ * {@link BillingConfig} 的校验链（12 条规则）：无状态静态判定，只读配置字段、彼此不共享状态。
  *
- * <p>⭐ <b>为什么从 BillingConfig 里拆出来</b>：拆分前该类同时承担数据契约、解析、定价方案实现、
- * 校验四个职责，1304 行。校验链是其中<b>抽象层级独立</b>的一块 —— 12 个无状态静态判定，
- * 只读 {@link BillingConfig} 的字段、彼此不共享状态。数据类只该回答「我是什么」，
- * 「我合不合法」是另一件事。</p>
- *
- * <p>⚠ <b>没有保留 {@code BillingConfig#validate()} 的一行委托</b>：那是纯转发壳
- * （单实现接口/单行委托都不抽），留着会让「校验在哪」这个问题有两个答案。
- * 调用方直接调这里。</p>
- *
- * <p>约束：本类<b>不持有任何状态</b>，全部入参传递；返回值统一是「null 表示合法，否则是错误描述」。</p>
- *
- * <p>⚠ <b>为什么留在 {@code common.model} 而不是搬到 {@code common.pricing}</b>：本类要调
- * {@link BillingConfig#blankToNull}、{@code BillingConfig.RATE_MODE_ABSOLUTE} 等<b>包私有</b>成员，
- * 换包就编译不过。别为了「校验器跟计费类放一起更好看」去改那些成员的可见性——那等于把
- * 只该在包内共享的实现细节提成对外契约。</p>
+ * 返回值统一为「{@code null} 表示合法，否则返回错误描述」，全部入参传递。
  */
 public final class BillingConfigSupport {
 
@@ -224,24 +210,11 @@ public final class BillingConfigSupport {
     }
 
     /**
-     * DIMENSION_TIERED 专属：把「维度键拼错」从<b>静默回落</b>变成<b>拒绝保存</b>。
+     * DIMENSION_TIERED 专属校验：把「维度键拼错」从静默回落变成拒绝保存。
      *
-     * <p>⭐ 本方案的取价算法与 {@link PricingPlanEnum#FIXED} 完全一致（都在
-     * {@code FixedPricePolicy}），真正的增量就是这条校验。原因：维度键是<b>自由文本</b>，
-     * 而取价是「逐级去尾找第一个命中的键」——键拼错时不会报错，而是悄悄退回
-     * {@code defaultUnitPrice}，界面上看配置生效了、实际那档价从未命中过。</p>
-     *
-     * <p>四类拦截：</p>
-     * <ol>
-     *   <li><b>档位表不能空</b>：本方案存在的意义就是按档位取价，一张表没有等于退化成固定价。</li>
-     *   <li><b>键形状必须合法</b>：{@code 720P:SOUND}（拼错维度名）、{@code 720P:AUDIO:REFERENCE}
-     *       （顺序颠倒，永远进不了候选链）、{@code :AUDIO}（空档位名）一律拒绝。</li>
-     *   <li><b>默认单价必填</b>：档位未命中时的兜底（厂商档位不可枚举，总有配不到的档）。
-     *       缺它就是「识别不了的请求免费出账」，是资损。</li>
-     *   <li><b>输入秒不得双计</b>（已上移到所有视频方案的基础校验 {@code validateVideo}）：
-     *       {@code quantityMode=SUM/OUTPUT_PLUS_MAX} 已把输入秒折进计费量，再配
-     *       {@code video.inputVideoPerSecond} 会同一批秒收两次；本方案不再重复校验。</li>
-     * </ol>
+     * 四类拦截：档位表不能为空；键形状必须合法（{@code 720P:SOUND} 这类拼错维度名、
+     * {@code 720P:AUDIO:REFERENCE} 这类顺序颠倒、{@code :AUDIO} 这类空档位名一律拒绝）；
+     * 默认单价必填；输入秒不得双计（由基础校验 {@code validateVideo} 负责，本方案不重复校验）。
      */
     private static String validateDimensionTiered(BillingConfig config) {
         if (config.resolutionPrices() == null || config.resolutionPrices().isEmpty()) {
@@ -376,10 +349,9 @@ public final class BillingConfigSupport {
     // ==================== 高低峰校验 ====================
 
     /**
-     * PEAK_OFF_PEAK 专属：pricing 必填，且 rateMode / timezone / 相位 / 倍率 / 星期 / 时段全部合法。
+     * PEAK_OFF_PEAK 专属校验：{@code pricing} 必填，且 rateMode / timezone / 相位 / 倍率 / 星期 / 时段全部合法。
      *
-     * <p>与时区、幅值相关的白名单收在这里：{@code timezone} 使用 UTC 偏移（例如 {@code UTC+8}），
-     * {@code holidayPolicy} 首期只允许 {@code OFF_PEAK}，倍率必须落在 {@code (0, 1]}。
+     * {@code timezone} 取 UTC 偏移（如 {@code UTC+8}）；{@code holidayPolicy} 只允许 {@code OFF_PEAK}；倍率必须落在 {@code (0, 1]}。
      */
     private static String validatePricing(Pricing pricing) {
         if (pricing == null) {

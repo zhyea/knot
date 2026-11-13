@@ -23,50 +23,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 异步任务的<b>编排</b>：抢占 → 查询 → 判定 → 走状态机 → 落终态/计费/发事件。
- *
- * <p>⭐ <b>为什么它在 {@code gateway}（2026-10-29 定稿，中间走过一次来回）</b>：第一版把它抽进了
- * {@code svc.async}（当时的包名，后来 Store 全撤、数据访问并入 {@code svc.service}），
- * 理由是「svc 只剩 Store 就是 DAO」。抽完量了一个事实——<b>{@code knot-admin}
- * 对这套能力的引用是 0</b>，消费方只有 gateway；而它依赖的每一样东西都是网关运行时
- * （WebClient 与渠道凭据、Kafka 流量事件、计费管线、traceparent 重放）。把只服务一个 app 的编排
- * 放进两 app 共用的 svc，结果是 svc 长出 gateway 专用语义，另一个 app 永远用不到。
- * 判据因此改成「<b>编排跟随使用方</b>」：svc 只留真正被两端共用的东西（这里是
- * {@code kb_async_tasks} 的读写与状态码），编排回它唯一的家。</p>
- *
- * <p>⚠ 它与改造前那个 496 行 {@code AsyncTaskPoller} 的差别不是「搬到哪」，而是<b>拆成了两层</b>：
- * poller 只管节拍（cron / 重叠拍跳过 / 并发扇出 / 预算校验），本类只管一条任务怎么推进。
- * 两者即便同模块，也不该写在同一个类里——搬迁只是副产品。</p>
- *
- * <p>⚠ <b>为什么不叫 {@code AsyncTaskService}</b>：svc 侧的数据访问类占用了这个名字
- * （{@code org.chobit.knot.svc.service.AsyncTaskService}），而本类要 import 它。同名会让 gateway
- * 里的引用永远指向自己，只能靠全限定名绕——那才是真的把读者搞晕。叫 {@code Runner} 也更准：
- * 它跑一轮、推进一行的位置，不持有任何表。</p>
- *
- * <h3>它不该做什么（边界比职责更重要）</h3>
- * <ul>
- *   <li><b>不做定时</b>：{@code @Scheduled}、cron 表达式、{@code AtomicBoolean} 节拍守卫都留在
- *       app 侧（{@code AsyncTaskPoller}）。「这个进程要不要跑定时任务」是部署问题，
- *       与「异步任务怎么推进」无关。</li>
- *   <li><b>不发 HTTP</b>：查询走 {@link AsyncTaskQueryPort}。换客户端、改签名、加渠道
- *       都不该动这里一行。</li>
- *   <li><b>不碰 Reactor</b>：并发由调用方用 {@code flatMap} 扇出，本类只提供
- *       「处理单条任务」的同步方法 {@link #process}。业务层知道线程模型就是分层倒退。</li>
- *   <li><b>不算钱</b>：用量由 {@link AsyncTaskSettlementPort#charge} 算（复用既有提取与计费管线），
- *       本类只负责<b>顺序</b>——先算钱、再落终态、最后发事件。</li>
- * </ul>
- *
- * <h3>两条硬规则（改了就是线上事故）</h3>
- * <ol>
- *   <li><b>占位是租约，不是锁</b>：拿到只是「这一轮由我来做」，<b>每一次写都要带着它</b>
- *       （{@code scheduleNext} / {@code complete} 的 {@code claim_id} 条件）。少了这一条，
- *       租约过期后原节点仍能写库：它会把新主人刚立的占位抹成 null，第三个节点随即再领一次同一行，
- *       重复处理就这么滚起来。并发最多到此为止——结果唯一性由 {@code complete} 的 CAS 兜底，
- *       租约只负责「不要把上游调用算两遍」。</li>
- *   <li><b>状态迁移只问状态机</b>：本类只「取出事实」+「把事实翻译成一个事件」，
- *       「该落哪个状态、要不要计费」一律问 {@link AsyncTaskStateMachine}。
- *       在这里补 {@code if (event == ...)} 会让状态机退化成装饰。</li>
- * </ol>
+ * 异步任务的编排：抢占 → 查询 → 判定 → 走状态机 → 落终态/计费/发事件。
+ * 边界：不做定时（{@code @Scheduled} / cron / 节拍守卫留在 app 侧 {@code AsyncTaskPoller}）、不发 HTTP（查询走 {@link AsyncTaskQueryPort}）、不碰 Reactor（只提供同步方法 {@link #process}）。
+ * 不算钱：用量由 {@link AsyncTaskSettlementPort#charge} 算，本类只保证「先算钱、再落终态、最后发事件」的顺序。
+ * 占位是租约不是锁：每次写都带 {@code claim_id} 条件（{@code scheduleNext / complete}），结果唯一性由 {@code complete} 的 CAS 兜底；状态迁移只问 {@link AsyncTaskStateMachine}。
  */
 @Slf4j
 public class AsyncTaskRunner {
@@ -77,9 +37,7 @@ public class AsyncTaskRunner {
 
     /**
      * 产物转储；单测可为 {@code null}，此时直接用供应商地址（与 {@code passthrough} 同效）。
-     *
-     * <p>⚠ 生产环境不会是 null：默认实现由 {@code PassthroughArchiveStore} 兜底。
-     * 这里允许 null 只是为了不让单测被迫构造一个转储器。</p>
+     * 生产环境由默认实现 {@code PassthroughArchiveStore} 兜底，不会是 null。
      */
     @Nullable
     private final ArchiveStore archiveStore;
@@ -100,15 +58,8 @@ public class AsyncTaskRunner {
 
     /**
      * 回收超时任务：先抢占，再逐条走状态机（{@link AsyncTaskEvent#TIMEOUT}）。
-     *
-     * <p>⭐ 不能再用一条批量 {@code UPDATE} 收掉：那会绕过状态机，也绕过 {@link #finish} 里的
-     * 终态事件发布，结果是这笔任务在数仓里<b>永远没有 {@code task_terminal=true} 的那一条</b>——
-     * 按终态口径算的计费与成功率都会漏掉它（提交与中间查询两条还在，反而更容易被误读成
-     * 「任务卡住了」）。代价是每行一次 PK 更新而非一次批量更新，
-     * 批量上限仍由 {@link AsyncTaskRunPolicy#expireBatchSize()} 控制。</p>
-     *
-     * <p>⭐ 也不能「读到就改」：读到的那一刻别的节点可能正在处理这行。先 {@code claimExpired}
-     * 拿下租约，才敢说这行的终态由我定——否则本节点会用一个过期结论覆盖别人即将得出的真实结论。</p>
+     * 逐条走状态机而非一条批量 {@code UPDATE}（每行一次 PK 更新），批量上限由 {@link AsyncTaskRunPolicy#expireBatchSize()} 控制。
+     * 先 {@code claimExpired} 拿下租约再定终态，不「读到就改」。
      *
      * @param claimId 本轮占位号（由发起方按节点身份生成：一个节点一台机器一条号，便于事后追溯）
      */
@@ -132,10 +83,7 @@ public class AsyncTaskRunner {
     }
 
     /**
-     * 抢占一批到期任务，返回「这一轮归我处理」的行。
-     *
-     * <p>⚠ 返回后<b>必须在租约有效期内处理完</b>（{@link AsyncTaskRunPolicy#claimTtlMs()}）：
-     * 处理不完时行会被别的节点回收，本次的写入会被 CAS 挡掉，表现为「查了上游但没报数」。</p>
+     * 抢占一批到期任务，返回「这一轮归我处理」的行；返回后必须在租约有效期（{@link AsyncTaskRunPolicy#claimTtlMs()}）内处理完。
      */
     public List<AsyncTaskDto> claimDue(String claimId) {
         return taskService.claim(claimId, Duration.ofMillis(policy.claimTtlMs()), policy.batchSize());
@@ -155,17 +103,9 @@ public class AsyncTaskRunner {
     }
 
     /**
-     * 在<b>已持有租约</b>的行上施加一个事件并落终态（运维动作的唯一执行口）。
-     *
-     * <p>⭐ <b>为什么运维动作也走这里，而不是让管理端直接 UPDATE 状态</b>：落终态不只是改一行，
-     * 它还要（a）过状态机确认这个事件在当前离线语义下合法、（b）通过 {@code claim_id} 的 CAS 确认
-     * 写入权、（c）发 {@code task_terminal=true} 的终态事件。管理端自己改库会跳过 (c)，
-     * 于是这笔任务在数仓里<b>永远没有终态那条</b>——按终态口径算的计费与成功率都会漏掉它，
-     * 而库里看起来一切正常。这条边界与 {@code expireTimedOut} 拒绝批量 UPDATE 的理由是同一条。</p>
-     *
-     * <p>⚠ <b>不查上游、不算钱</b>：{@link AsyncTaskEvent#CANCEL} 在状态机里是
-     * {@code SETTLE}（不计费），这里也不该出现查询调用——运维终止的语义是「到此为止」，
-     * 不是「再确认一次」。耗时与失败口径都由 {@code finish} 统一处理。</p>
+     * 在已持有租约的行上施加一个事件并落终态（运维动作的唯一执行口）。
+     * 落终态要（a）过状态机确认事件合法、（b）通过 {@code claim_id} 的 CAS 确认写入权、（c）发 {@code task_terminal=true} 的终态事件。
+     * 不查上游、不算钱：{@link AsyncTaskEvent#CANCEL} 在状态机里是 {@code SETTLE}（不计费）；耗时与失败口径由 {@code finish} 统一处理。
      *
      * @param task  已经由 {@code claimById} / {@code claim} 抢到租约的行（其 {@code claimId} 必须是本次的）
      * @param event 要施加的事件；只接受会落终态的那几种，其他事件会在这里被判成 REJECT
@@ -182,16 +122,8 @@ public class AsyncTaskRunner {
 
     /**
      * 处理一个任务：取数 → 判定事件 → 交给状态机 → 按动作执行副作用。
-     *
-     * <p>⭐ <b>先标「轮询中」再查上游</b>（2026-11-10 robin 定）：{@code PENDING(0)} 的含义是
-     * 「提交后一次查询都没发起过」，所以要打上游之前就要离开它。写在查询之后会让「首查即终态」
-     * 的任务直接 0 → 2，那次真实发生的上游调用在状态维度上就不存在——而这两个状态分开的初衷
-     * 正是让运维一眼看出「poller 有没有接手」（{@code AsyncTaskStatusEnum} 类注释）。</p>
-     *
-     * <p>⭐ 这里只做两件事：<b>把事实取出来</b>（快照、次数、上游响应），
-     * 以及<b>把事实翻译成一个事件</b>。「这个事件该落哪个状态、要不要计费」一律问
-     * {@link AsyncTaskStateMachine}，不再在这里堆 if——否则加一种失败原因就要同时改判断、改错误码、
-     * 改话术三处。</p>
+     * 发起上游查询前先把状态置为 {@code POLLING}。
+     * 只把事实取出来（快照、次数、上游响应）并翻译成一个事件；该落哪个状态、要不要计费一律问 {@link AsyncTaskStateMachine}。
      *
      * @return 是否落定了终态（供日志与未来统计使用）
      */
@@ -228,11 +160,8 @@ public class AsyncTaskRunner {
     }
 
     /**
-     * 上游查询结果 → 事件（<b>唯一的语义判定点</b>）。
-     *
-     * <p>只回答「上游说了什么」，不决定「落哪个状态」。三值必须穷尽，其中
-     * 「上游说成功但取不到产物」是独立事件（{@link AsyncTaskEvent#RESULT_MISSING}）——
-     * 并进成功侧会算错钱，并进失败侧会丢掉"上游行为异常"这个信号。</p>
+     * 上游查询结果 → 事件（唯一的语义判定点）。
+     * 只回答「上游说了什么」，不决定「落哪个状态」；三值必须穷尽，「上游说成功但取不到产物」是独立事件（{@link AsyncTaskEvent#RESULT_MISSING}）。
      */
     private AsyncTaskEvent pollEventOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
         return switch (AsyncTaskSpecRules.terminalOf(queryBody, spec)) {
@@ -245,10 +174,8 @@ public class AsyncTaskRunner {
     }
 
     /**
-     * 状态机结果的<b>唯一执行口</b>：写库、计费、发事件都从这里出去。
-     *
-     * <p>严格按 {@link AsyncTaskTransition.Action} 分派，不做二次判断——一旦在这里补
-     * {@code if (event == ...)}，状态机就又退化成装饰。</p>
+     * 状态机结果的唯一执行口：写库、计费、发事件都从这里出去。
+     * 严格按 {@link AsyncTaskTransition.Action} 分派，不做二次判断。
      */
     private boolean apply(Polling polling, AsyncTaskEvent event) {
         AsyncTaskDto task = polling.task();
@@ -300,10 +227,7 @@ public class AsyncTaskRunner {
 
     /**
      * 发布一次中间查询事件（非终态）。
-     *
-     * <p>只在 {@code RESCHEDULE} 分支调用，理由不是省事而是事实：{@code REJECT} 那次查询属于
-     * 跟别的节点抢同一个任务的重复劳动，记进去会让上游调用数虚高；落终态的分支由
-     * {@link #finish} 自己发终态事件。</p>
+     * 只在 {@code RESCHEDULE} 分支调用；落终态的分支由 {@link #finish} 自己发终态事件。
      */
     private void publishQuery(Polling polling, AsyncTaskEvent event) {
         if (polling.context() == null) {
@@ -319,16 +243,9 @@ public class AsyncTaskRunner {
 
     /**
      * 把产物搬到可控位置，返回客户端最终拿到的地址；失败一律回退供应商原地址。
-     *
-     * <p>⭐ <b>转储不是交付前置条件</b>。它挂在「上游说成功、产物 URL 已取到」之后，
-     * 此时任务必然落 {@code SUCCEEDED}、钱必然要算。为一个可以事后补搬的旁路去否定整个终态，
-     * 等于把「地址将来会过期」升级成「这次调用彻底失败」，亏得更多。</p>
-     *
-     * <p>三种回退情形都记 ERROR 且不向上抛：未配转储器（仅单测出现）、转储返回空白、转储抛异常。
-     * 事后补搬的依据就是日志里的 {@code taskCode} 与 {@code sourceUrl}。</p>
-     *
-     * <p>只从 {@code SETTLE_BILLED} 调用，那条路径的 {@code context} 必非 null
-     * （{@link #process} 在快照不可读时就提前返回了），故此处不做空判——真出现也会被下面的 catch 兜住。</p>
+     * 转储不是交付前置条件：挂在「上游说成功、产物 URL 已取到」之后，任务照常落 {@code SUCCEEDED} 并计费。
+     * 三种回退（未配转储器 / 转储返回空白 / 转储抛异常）都记 ERROR 且不向上抛，依据日志里的 {@code taskCode} 与 {@code sourceUrl} 事后补搬。
+     * 只从 {@code SETTLE_BILLED} 调用，该路径 {@code context} 必非 null（{@link #process} 在快照不可读时已提前返回），此处不做空判。
      */
     private String archive(AsyncTaskDto task, AsyncTaskContext context, String sourceUrl) {
         if (archiveStore == null || StringUtils.isBlank(sourceUrl)) {
@@ -362,8 +279,7 @@ public class AsyncTaskRunner {
 
     /**
      * 错误话术：上游给了具体原因就用它，否则用事件自带的兜底话术。
-     *
-     * <p>只管「怎么说」，不管「去哪儿」——那是状态机的事。</p>
+     * 只管「怎么说」，不管「去哪儿」（由状态机决定）。
      */
     private String messageOf(Polling polling, AsyncTaskEvent event) {
         return switch (event) {
@@ -380,12 +296,11 @@ public class AsyncTaskRunner {
     }
 
     /**
-     * 一次轮询采集到的事实。攒成一个 record 而不是六个参数一路传：
-     * 出事时只看这一处就知道「状态机执行时到底掌握了什么」。
+     * 一次轮询采集到的事实，攒成一个 record。
      *
      * @param attempts 本次查询是第几次（写进事件的 {@code task_query_seq}，也用于退避计算）。
-     *                 ⚠ 没有真的发出查询的事件（快照不可读、次数用尽、knot 侧超时）传的是
-     *                 <b>行上已有的查询次数</b>，不是 +1——它们不代表又查了一次上游
+     *                 没有真的发出查询的事件（快照不可读、次数用尽、knot 侧超时）传的是
+     *                 行上已有的查询次数，不是 +1——它们不代表又查了一次上游
      */
     private record Polling(AsyncTaskDto task,
                            AsyncTaskContext context,
@@ -397,10 +312,7 @@ public class AsyncTaskRunner {
 
     /**
      * 落终态并发布事件：CAS 成功才发，「一条任务一条终态消息」由此保证。
-     *
-     * <p>CAS 的条件是「在途态 + 仍持有占位」两个：前者挡「别人已经落了终态」，
-     * 后者挡「我这一轮处理超时、行已被回收」。两者都表现为 {@code complete} 返回 false，
-     * 处理方式相同——写不进的行就不再由我报数。</p>
+     * CAS 条件是「在途态 + 仍持有占位」：分别挡「别人已落终态」与「本轮超时、行已回收」；两者都表现为 {@code complete} 返回 false，写不进的行不再由本节点报数。
      *
      * @param querySeq     本次任务一共查了几次上游；写进终态事件的 {@code task_query_seq}，
      *                     它是「产物要等多久」的唯一量化口径（与提交事件配对即得延迟分布）
@@ -446,14 +358,9 @@ public class AsyncTaskRunner {
     }
 
     /**
-     * 终态证据：上游原文 + 结算快照，与终态<b>同一条 UPDATE</b> 落库。
-     *
-     * <p>⭐ 结算快照直接复用 {@link KnotExtendPayload}（同步链路 {@code knot_extend} 的同一类型），
-     * 于是「异步的账」与「同步的账」在存储层就是同一种形状：读取侧、离线重算、裁判 state
-     * 都不必为异步单独分叉。自己另拼一份 {@code {usage, billing}} 的 Map 等于制造第二种口径。</p>
-     *
-     * <p>⚠ 不计费的终态（失败 / 超时 / 取消）{@code usage == null} → 结算段为 {@code null}，
-     * <b>不写零账</b>：零账会被读成「这次算出来是 0 元」，而事实是「这次不该收钱」。</p>
+     * 终态证据：上游原文 + 结算快照，与终态同一条 {@code UPDATE} 落库。
+     * 结算快照复用 {@link KnotExtendPayload}（同步链路 {@code knot_extend} 的同一类型），异步与同步在存储层同形。
+     * 不计费的终态（失败 / 超时 / 取消）{@code usage == null} → 结算段为 {@code null}，不写零账。
      */
     private static AsyncTaskTerminalDto terminalEvidenceOf(String upstreamBody, UsageAccounting usage) {
         if (usage == null) {
@@ -468,11 +375,7 @@ public class AsyncTaskRunner {
 
     /**
      * 终态产物 JSON。
-     *
-     * <p>⚠ <b>两个键不是冗余</b>：{@code result_url} 是既有对外契约（客户端按它取产物，
-     * 归档替换后的地址也写在这里），{@code result_urls} 是 2026-10-29 新增的多产物全集
-     * （视频协议一次生成 N 个）。只写数组会破既有客户端，只写单值会丢产物——
-     * 少交付一个视频比多一个键严重得多。</p>
+     * {@code result_url} 是既有对外契约（客户端按它取产物，归档替换后的地址也写在这里）；{@code result_urls} 是多产物全集（视频协议一次生成 N 个）。
      */
     private String resultJson(List<String> resultUrls) {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -483,9 +386,7 @@ public class AsyncTaskRunner {
 
     /**
      * 首个产物换成归档地址（其余保留上游地址）；归档未启用时原样返回。
-     *
-     * <p>只换第一个是因为 {@code ArchiveStore} 是单产物旁路：它按任务号搬一个文件，
-     * 把第 2..N 个也传进去会让同一个 taskCode 产生多个归档副本，而归档本身是按任务号幂等的。</p>
+     * 只换第一个：{@code ArchiveStore} 是单产物旁路，按任务号搬一个文件。
      */
     private static List<String> deliveredUrls(List<String> resultUrls, String archivedUrl) {
         if (resultUrls.isEmpty() || StringUtils.isBlank(archivedUrl)

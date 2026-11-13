@@ -6,15 +6,8 @@ import org.chobit.knot.common.model.EjectionPolicy;
 
 /**
  * 判断一次上游失败是否算「这个模型本身的异常」，即是否计入摘除判定。
- *
- * <p>与 {@link org.chobit.knot.gateway.retry.RetryableClassifier} 的区别：重试关心「再试一次有没有用」，
- * 摘除关心「这个目标是不是坏了」。两者的交集很大（5xx、网络超时），但有明确分歧：</p>
- * <ul>
- *   <li><b>上游 429</b>：重试有意义（等 Retry-After），摘除更有意义（上游已在限流，应尽快把流量切走）；</li>
- *   <li><b>4xx 业务错误</b>：可能重试（默认 retryOn 含 4xx），但绝不摘除——参数错、鉴权错是调用方的锅；</li>
- *   <li><b>配置类错误</b>（模型/供应商缺失、协议未配置）：重试与摘除都不该发生，重试多少次结果都一样，
- *       摘了反而把「配置没配好」伪装成「上游挂了」。</li>
- * </ul>
+ * 与 {@link org.chobit.knot.gateway.retry.RetryableClassifier} 的分工：重试关心「再试一次有没有用」，摘除关心「这个目标是不是坏了」。
+ * 计入：5xx、网络超时 / 连接错误、上游 429；不计入：4xx 业务错误与配置类错误（模型 / 供应商缺失、协议未配置）。
  */
 public final class OutageClassifier {
 
@@ -53,13 +46,11 @@ public final class OutageClassifier {
 
     /**
      * 无 HTTP 状态时按错误码兜底：只有网络/传输层失败才说明目标可能坏了。
-     *
-     * <p>配置类错误（模型缺失、供应商缺失、协议未配置）与网关自身频控/额度拒绝都不计。</p>
-     *
-     * <p><b>注意码表归属</b>：入参是 {@link GatewayUpstreamException#code()}，走
+     * 配置类错误（模型缺失、供应商缺失、协议未配置）与网关自身频控/额度拒绝都不计。
+     * 注意码表归属：入参是 {@link GatewayUpstreamException#code()}，走
      * {@link ProxyErrorCodeEnum} 族（构造点见 {@code AbstractUpstreamProtocolExecutor}）；
      * 与 {@link org.chobit.knot.common.constants.enums.GatewayErrorTypeEnum#UPSTREAM_ERROR}
-     * 只是字符串同名，属另一个码表，不可互换。</p>
+     * 只是字符串同名，属另一个码表，不可互换。
      */
     private static boolean countableByCode(String code) {
         if (code == null) {

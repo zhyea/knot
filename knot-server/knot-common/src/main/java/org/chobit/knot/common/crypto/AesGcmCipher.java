@@ -16,12 +16,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * AES-256-GCM 对称加解密工具。
  *
- * <p>密文格式唯一：{@code ENC:v2:} + Base64(salt[16] + IV[12] + ciphertext + tag)，
- * 密钥由 {@code PBKDF2WithHmacSHA256(passphrase, salt)} 派生。随机盐随每条密文存储，
- * 同一口令不同盐派生出不同密钥，抗彩虹表 / 预计算；迭代次数取 OWASP 推荐值。
- *
- * <p>解密只接受 v2 格式：非 {@link #PREFIX_V2} 前缀的值（含历史 v1 格式与未加密明文）
- * 一律抛错，不静默透传——宁可启动失败，也不把未加密串当密钥使用。</p>
+ * 密文格式唯一：{@code ENC:v2:} + Base64(salt[16] + IV[12] + ciphertext + tag)，
+ * 密钥由 {@code PBKDF2WithHmacSHA256(passphrase, salt)} 按随机盐派生。
+ * 解密只接受 {@code ENC:v2:} 前缀，其余值一律抛错，不静默透传。
  */
 public final class AesGcmCipher {
 
@@ -38,8 +35,7 @@ public final class AesGcmCipher {
     private final String passphrase;
     private final SecureRandom random = new SecureRandom();
     /**
-     * 派生密钥缓存：按 base64(salt) 缓存。规模等于「不同盐的数量」（即不同凭据数），
-     * 天然有界；避免每次取凭据都跑一次 PBKDF2。
+     * 派生密钥缓存：键为 base64(salt)，规模等于不同盐（即不同凭据）的数量。
      */
     private final Map<String, SecretKey> keyCache = new ConcurrentHashMap<>(64);
 
@@ -63,7 +59,7 @@ public final class AesGcmCipher {
     /**
      * 加密明文，统一产出 v2 格式（随机盐 + PBKDF2 派生密钥）。
      *
-     * <p>空 / 空白 / 已是密文的值原样返回，避免重复加密。</p>
+     * 空 / 空白 / 已是密文的值原样返回，不重复加密。
      */
     public String encrypt(String plaintext) {
         if (plaintext == null || plaintext.isBlank()) {

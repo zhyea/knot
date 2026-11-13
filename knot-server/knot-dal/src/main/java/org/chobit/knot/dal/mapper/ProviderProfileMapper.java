@@ -20,9 +20,8 @@ public interface ProviderProfileMapper {
                      @Param("excludeId") Long excludeId);
 
     /**
-     * 统计该供应商档案下挂的供应商账户数（kb_provider_accounts.provider_code）。
-     *
-     * <p>绑定一律走 code 不落 id（跨模块绑定约定），故入参是档案 code 而非主键 id。</p>
+     * 统计该供应商档案下挂的供应商账户数（{@code kb_provider_accounts.provider_code}）。
+     * 绑定一律走 code 不落 id，故入参是档案 code 而非主键 id。
      */
     Long countAccountsByProviderCode(@Param("providerCode") String providerCode);
 

@@ -1,18 +1,8 @@
 package org.chobit.knot.gateway.outage;
 
 /**
- * 单个「规则 × 供应商模型」的异常摘除状态快照。
- *
- * <p>不可变值对象，所有状态转换都产出新实例（见 {@link OutageStateMachine}），
- * 便于 Caffeine 的 {@code compute} 与 Redis Lua 各自保证原子性。</p>
- *
- * <p>状态语义：</p>
- * <ul>
- *   <li><b>健康</b>：{@code ejectedUntil <= now} 且窗口内异常数未达阈值；</li>
- *   <li><b>摘除中</b>：{@code ejectedUntil > now}；</li>
- *   <li><b>探活中</b>：{@code ejectedUntil <= now && probeUntil > now}——冷却已过，
- *       已放行一个探活请求，其结果决定恢复还是再次冷却。</li>
- * </ul>
+ * 单个「规则 × 供应商模型」的异常摘除状态快照，为不可变值对象，状态转换产出新实例（见 {@link OutageStateMachine}）。
+ * 状态语义：健康为 {@code ejectedUntil <= now} 且窗口内异常数未达阈值；摘除中为 {@code ejectedUntil > now}；探活中为 {@code ejectedUntil <= now && probeUntil > now}（冷却已过、放行一个探活请求，其结果决定恢复或再次冷却）。
  */
 public record OutageState(
         /** 窗口内失败类异常计数 */
@@ -67,8 +57,7 @@ public record OutageState(
 
     /**
      * 条目的自然回收时刻：窗口、摘除、探活三者中最晚者 + 宽限。
-     *
-     * <p>用作缓存 TTL——窗口过期后无人续期即自动消失，无需清理任务。</p>
+     * 用作缓存 TTL——窗口过期后无人续期即自动消失，无需清理任务。
      */
     public long expireAtMillis(long graceMillis) {
         long latest = Math.max(windowEndAt, Math.max(ejectedUntil, probeUntil));

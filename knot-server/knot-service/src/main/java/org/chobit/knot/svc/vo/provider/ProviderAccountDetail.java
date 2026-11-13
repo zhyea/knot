@@ -10,13 +10,8 @@ import java.util.Map;
 import jakarta.validation.Valid;
 
 /**
- * 供应商账户详情：详情查询的响应，同时作为新建与更新的请求体。
- *
- * <p>与列表项 {@link ProviderAccountItem} 分开，是因为列表不需要这里的任何字段，
- * 而写操作又必须能提交认证配置与策略。两者合并成一个 VO 时，
- * 列表就被迫承担解密凭据与查询策略的开销。
- *
- * <p>{@code id / providerName / createdAt / updatedAt} 在新建请求中为 {@code null}。
+ * 供应商账户详情：详情查询的响应，同时作为新建与更新的请求体，与列表项 {@link ProviderAccountItem} 分开。
+ * 写操作经此提交认证配置与策略；{@code id / providerName / createdAt / updatedAt} 在新建请求中为 {@code null}。
  */
 public record ProviderAccountDetail(Long id, String providerCode, String providerName,
                                     String code, String baseUrl, boolean enabled,

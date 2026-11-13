@@ -30,9 +30,7 @@ import java.util.stream.Collectors;
 /**
  * 频控与额度策略支持：独立策略表加 {@code resource_traffic_policies} 资源绑定（限流），
  * 额度走 {@code resource_quota_bindings} 子表，一个资源可挂多套不同统计窗口的额度策略。
- *
- * <p>绑定列一律存业务码（resource_code / rate_limit_policy_code / quota_policy_code），
- * 资源主键 id 由 mapper 多态 join 派生，对外接口仍按 id 收发，调用方零感知。</p>
+ * 绑定列存业务码（resource_code / rate_limit_policy_code / quota_policy_code），资源主键 id 由 mapper 多态 join 派生，对外接口按 id 收发。
  */
 @Component
 public class ResourceTrafficPolicySupport {
@@ -132,11 +130,8 @@ public class ResourceTrafficPolicySupport {
     }
 
     /**
-     * 统计某资源业务码上的频控 + 额度绑定行数。
-     *
-     * <p>改码守卫用：两张绑定表的 resource_code 存业务码，资源改码后行还在、join 落空，
-     * 限流与额度会静默失效（不报错、不生效），因此「有绑定就不许改码」。
-     * 注意 PROVIDER 层指向的是 {@code kb_provider_accounts.code}（供应商账户），不是供应商主表。</p>
+     * 统计某资源业务码上的频控 + 额度绑定行数，供改码守卫使用（有绑定就不许改码）。
+     * 两张绑定表的 resource_code 存业务码；PROVIDER 层指向 {@code kb_provider_accounts.code}（供应商账户），不是供应商主表。
      */
     public long countBindings(String resourceType, String resourceCode) {
         if (resourceType == null || resourceCode == null || resourceCode.isBlank()) {

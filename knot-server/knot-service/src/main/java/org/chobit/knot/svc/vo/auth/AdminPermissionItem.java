@@ -2,8 +2,7 @@ package org.chobit.knot.svc.vo.auth;
 
 /**
  * 管理面「权限项」载体（授权管理 → 权限维护）。
- *
- * <p>{@code builtIn} 为内置标记：内置权限不可删除（判据在 svc 的 validate 里，不在本载体）。</p>
+ * {@code builtIn} 为内置标记：内置权限不可删除（判据在 svc 的 validate 里，不在本载体）。
  */
 public record AdminPermissionItem(
         Long id,

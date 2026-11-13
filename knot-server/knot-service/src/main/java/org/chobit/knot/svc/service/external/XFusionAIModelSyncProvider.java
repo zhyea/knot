@@ -25,17 +25,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * XFusionAI（{@code llm.azopenai.com}）模型与价目目录同步。
- *
- * <p>该站点是 New-API（One API 衍生）部署，{@code /api/pricing} 是它对未登录访客开放的
- * 价目表：一次返回 186 个模型 + 39 个 vendor + 9 种 endpoint。模型名是它自己的内部名
- * （{@code deepseek-flash} / {@code gemini-3.8-flash}），不是厂商官方名，转统一模型时
- * 要注意这一点。</p>
- *
- * <p><b>本次只同步目录，不落定价</b>：{@code model_ratio / completion_ratio / cache_ratio /
- * model_price} 全部留在 {@code rawJson} 里。原因是这些值是 New-API 的相对倍率，quota→金额
- * 的换算基准不在响应里，实测同一 family 的 ratio 能差 100 倍且都不落在官价量级上——
- * 在拿到换算口径前把它们解析成价格，等于把猜测写进计费。等口径定了再单独做定价字段。</p>
+ * XFusionAI（{@code llm.azopenai.com}）模型与价目目录同步；{@code /api/pricing} 对未登录访客开放。
+ * 模型名是站点内部名（如 {@code deepseek-flash}），不是厂商官方名，转统一模型时需注意。
+ * 只同步目录，不落定价：{@code model_ratio / completion_ratio / cache_ratio / model_price} 留在 {@code rawJson} 里。
  */
 @Component
 public class XFusionAIModelSyncProvider extends AbstractExternalModelSyncProvider {
@@ -61,9 +53,6 @@ public class XFusionAIModelSyncProvider extends AbstractExternalModelSyncProvide
 
     /**
      * 外部目录同步专用客户端（JDK 同步 {@link HttpClient}）。
-     *
-     * <p>与 {@code OpenRouterModelSyncProvider} 同款取舍：不复用 {@code RestClientSupport}，
-     * 那边服务的是管理面转发，这里是一次性拉取公开目录的低频链路。等出现第三个源再一起收口。</p>
      */
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
@@ -193,10 +182,7 @@ public class XFusionAIModelSyncProvider extends AbstractExternalModelSyncProvide
     }
 
     /**
-     * {@code text/image/video/audio/embedding} → {@link ModelTypeEnum} 码；未命中落 CHAT。
-     *
-     * <p>未命中不返回 {@code null}：条目类型为空会在建统一模型时被兜底成 CHAT，
-     * 不如这里就写清楚，列表页和落库口径一致。</p>
+     * {@code text/image/video/audio/embedding} → {@link ModelTypeEnum} 码；未命中落 CHAT，不返回 {@code null}。
      */
     private String modelType(String raw) {
         if (raw == null || raw.isBlank()) {

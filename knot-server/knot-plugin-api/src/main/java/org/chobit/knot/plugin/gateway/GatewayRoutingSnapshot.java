@@ -6,13 +6,7 @@ import lombok.Getter;
 
 /**
  * 网关路由快照：一次请求命中路由规则后的固定上下文，供插件日志直接携带。
- *
- * <p>原先由 {@code Map<String, Object>} + 字符串键拼装，字段集合虽固定但无法在类型上约束；
- * 这里改为具名类型，字段名由 Java 成员决定。</p>
- *
- * <p>{@code appId} / {@code department} 只在路由信息存在时取值，缺失时序列化中省略该字段
- * （保持与原先「不 put 该 key」一致的 JSON 形状）；其余固定字段即使为 null 也照旧输出，
- * 与原先无条件 put 的行为一致。</p>
+ * {@code appId} / {@code department} 只在路由信息存在时取值，缺失时序列化省略；其余固定字段即使为 null 也照旧输出。
  */
 @Getter
 @AllArgsConstructor

@@ -36,24 +36,16 @@ public record PageQuery(
     }
 
     /**
-     * null 安全的分页转换：请求体未传（{@code query == null}）时给默认分页。
+     * null 安全的分页转换：{@code query == null} 时给默认分页。
      *
-     * <p>⭐ <b>为什么要有这个静态入口</b>：20 多个列表接口原来各自写
-     * {@code query == null ? PageRequest.of(1, 20) : query.toPageRequest()}，
-     * 默认页大小散落在 controller 里——改一次默认值要改 20 处，漏一处就是「某个列表
-     * 默认 20 条、另一个默认 10 条」这种只在体感上被发现的偏差。
-     * 现在默认值的唯一来源仍是 {@link PageRequest#of(Integer, Integer)}（null → 1 / 20），
-     * 这里只负责把 null 查询体折进去。</p>
+     * 默认页大小的唯一来源是 {@link PageRequest#of(Integer, Integer)}（{@code null} → 1 / 20）。
      */
     public static PageRequest toPageRequest(PageQuery query) {
         return query == null ? PageRequest.of(null, null) : query.toPageRequest();
     }
 
     /**
-     * 空查询：所有筛选项为 null，仅供「请求体未传」时占位。
-     *
-     * <p>替掉 controller 里 {@code new PageQuery(null, null, ...)} 那种 15 个 null 的构造——
-     * 多一个字段就要改所有调用点，而这里只需改一处。</p>
+     * 空查询：所有筛选项为 {@code null}，供「请求体未传」时占位。
      */
     public static PageQuery empty() {
         return new PageQuery(null, null, null, null, null, null, null, null,

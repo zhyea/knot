@@ -11,16 +11,8 @@ import java.util.Set;
 
 /**
  * 启动期安全守卫：生产 profile 下若 {@code spring.sql.init.mode} 仍为 {@code ALWAYS}（即未显式设
- * {@code KNOT_SQL_INIT_MODE=NEVER}），直接中断启动。
- *
- * <p>application.yml 中 {@code spring.sql.init.mode} 解析自 {@code ${KNOT_SQL_INIT_MODE:ALWAYS}}，
- * 缺省为 {@code ALWAYS}，意味着每次启动都会重新执行 schema.sql / data.sql。在开发/测试环境这是便利的
- * 自动建库行为；但在生产环境，重复初始化可能重跑数据脚本、覆盖或破坏线上表结构，极具风险。</p>
- *
- * <p>因此采用安全默认：生产 profile（dev / test / local / development / dev-local / unit / integration / ci
- * 之外）下，只要模式仍是 {@code ALWAYS}（含未设置时的默认值），即拒绝启动，逼出显式配置
- * {@code KNOT_SQL_INIT_MODE=NEVER} 并由独立的迁移脚本（docs/database/migration/）负责 schema 演进。
- * 非生产 profile 下 {@code ALWAYS} 是期望行为，放行。</p>
+ * {@code KNOT_SQL_INIT_MODE=NEVER}），直接中断启动；该配置缺省为 {@code ALWAYS}。
+ * 非生产 profile 下 {@code ALWAYS} 是期望行为，放行。
  */
 @Slf4j
 @Configuration

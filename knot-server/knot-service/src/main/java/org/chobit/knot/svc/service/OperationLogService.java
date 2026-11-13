@@ -41,7 +41,7 @@ public class OperationLogService {
     }
 
     /**
-     * 系统侧操作日志分页（原 SystemService 职责，2026-10-15 并入）。
+     * 系统侧操作日志分页。
      */
     public PageResult<OperationLogDto> listOperationLogs(PageRequest pageRequest) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {

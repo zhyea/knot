@@ -51,16 +51,9 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
 
     /**
      * 按计费模式取计费量：token 类模式取 token 维度，媒体模式取各自的计量
-     * （IMAGE 张数 / AUDIO、VIDEO 秒数），类型即契约。
-     *
-     * <p>⚠ VIDEO 的量纲由<b>规则单位</b>声明：选了 {@code 1M_TOKENS} 等 token 单位时取 token 量
-     * （豆包 Seedance「元/百万token」），否则取秒。token 取数与 {@code VideoBillingModeCalculator}
-     * 共用 {@code AbstractBillingModeCalculator} 上的同一份实现，两条路径（绑定 VIDEO 提取器 /
-     * 走通用兜底）不会漂移——换一次提取器绑定就换一套算法是最难察觉的资损。</p>
-     *
-     * <p>⚠ 已知边界：本类只解析<b>默认价</b>，不做分辨率 / 尺寸分档（那是模式专属计算器的职责）。
-     * 即同一条配了 {@code resolutionPrices} 的 VIDEO 规则，走通用兜底会按 {@code defaultUnitPrice}
-     * 出账。这是既有行为，靠「视频模型绑定 VIDEO 提取器」保证走对路径，不在此处复制一份维度逻辑。</p>
+     * （IMAGE 张数 / AUDIO、VIDEO 秒数）。VIDEO 的量纲由规则单位声明：选 {@code 1M_TOKENS}
+     * 等 token 单位时取 token 量，否则取秒。
+     * 只按默认价（{@code defaultUnitPrice}）出账，不做分辨率 / 尺寸分档。
      */
     private long billingAmount(BillingUsage usage, BillingModeEnum mode, BillingRuleRef rule) {
         if (mode == BillingModeEnum.VIDEO && tokenQuantity(rule, mode)) {

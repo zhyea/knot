@@ -15,11 +15,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * AWS Bedrock Converse 适配器：Anthropic Messages → Converse。
- *
- * <p><b>只服务 {@code MESSAGES} 一种入协议</b>：先把 Anthropic Messages 形状（system 消息提升、
- * content blocks 折文本）归一成 OpenAI chat 形状，再走 {@link AwsBedrockConverseSupport}
- * 折成 Converse 请求。只服务 {@code bedrock-runtime} 端点。</p>
+ * AWS Bedrock Converse 适配器：Anthropic Messages → Converse，只服务 {@code MESSAGES} 入协议与 {@code bedrock-runtime} 端点。
+ * 先把 Messages 形状（system 消息提升、content blocks 折文本）归一成 OpenAI chat 形状，再走 {@link AwsBedrockConverseSupport} 折成 Converse 请求。
  */
 @Component
 @Order(30)

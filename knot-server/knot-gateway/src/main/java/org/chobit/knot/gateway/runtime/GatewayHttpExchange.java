@@ -5,13 +5,8 @@ import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.MediaType;
 
 /**
- * HTTP 请求/响应的最小读写入口：网关链路唯一允许碰「容器对象」的地方。
- *
- * <p>2026-10-20（WebFlux 批1-B）引入：原先链路靠 {@code RequestContextHolder} 的线程本地属性
- * 到处隐式取 response —— 异步回调要手工重绑，换成 Reactor 线程模型后这套隐式传递必然失效
- * 且<b>不报错</b>（写头静默丢失）。改成显式传参后，链路里没有任何 ThreadLocal 依赖。</p>
- *
- * <p>批2 起实现方是 {@link ReactiveHttpExchange}（Netty / {@code ServerWebExchange}）。</p>
+ * HTTP 请求/响应的最小读写入口：网关链路唯一允许碰「容器对象」的地方，链路中没有 ThreadLocal 依赖。
+ * 实现方是 {@link ReactiveHttpExchange}（Netty / {@code ServerWebExchange}）。
  */
 public interface GatewayHttpExchange {
 

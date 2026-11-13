@@ -5,8 +5,7 @@ import java.util.Map;
 
 /**
  * {@link JevBillingJudge} 的裁判输入载体：仅携带判定所需的「已产出 + 底层依据」，
- * <b>不含</b>影子重算账（shadowAmount）、解析用量视图（parsedUsage）与任何自检结论——
- * 这是 v7 双盲硬约束（§4.2 / §5.2）：JEV 是独立裁判，不得读取别的老师的阅卷结果。
+ * 不含影子重算账（shadowAmount）、解析用量视图（parsedUsage）与任何自检结论。
  *
  * @param subject        主体（被测调用身份）
  * @param gatewayUsage   被告用量：网关实际注入的 {@code knot_extend.usage} 原样（非影子视图）

@@ -19,29 +19,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Anthropic Messages SSE ↔ OpenAI 系 SSE 的双向流式转换（协议级，不隶属单一供应商）。
- *
- * <p>与整包侧 {@link AnthropicMessagesResponseSupport} 对称：那边一个方法服务一个适配器的
- * {@code handleResponse}，这边一个工厂方法服务一个适配器的 {@link StreamLineAdapter}。
- * 逐事件语义的知识只住本类，词表（{@code stop_reason} ↔ {@code finish_reason}）仍归
- * {@code AnthropicMessagesResponseSupport}——同一张表不能有两个所有者。</p>
- *
- * <p>为什么工厂方法而不是静态无状态：流式转换有<b>必然的跨事件状态</b>——chunk id 必须全程一致、
- * {@code message_start} 只许合成一次、{@code tool_use} 块序号要连续。适配器是单例 Bean，
- * 状态挂在实例上会被并发请求互相污染，故每次请求新建一个。</p>
- *
- * <p>四条约定：</p>
- * <ul>
- *   <li><b>抑制噪音</b>：{@code event:} 行对 OpenAI 客户端无意义、{@code ping} 事件无对应物，
- *       一律不发；空白行（SSE 事件分隔符）必须保留，否则两个事件会黏成一条；</li>
- *   <li><b>不认识就原样发</b>：非 JSON 载荷、未知事件类型、{@code error} 事件逐字节透传，
- *       绝不为了「形状统一」吞掉上游消息；</li>
- *   <li><b>只转有对应物的事件</b>：{@code thinking_delta} / {@code signature_delta} 在 OpenAI 系
- *       没有承载位，丢弃（这类内容属于扩展推理，OpenAI 客户端本就无法消费）；</li>
- *   <li><b>工具块按需合成</b>：{@code content_block_start(tool_use)} 要翻译成 OpenAI 的
- *       {@code delta.tool_calls} 首片（带 id 与 name），后续 {@code input_json_delta} 是
- *       {@code arguments} 增量；反向则合成 {@code event: content_block_start} 等整套事件行。</li>
- * </ul>
+ * Anthropic Messages SSE ↔ OpenAI 系 SSE 的双向流式转换（协议级），工厂方法每次请求新建实例，
+ * 供各适配器的 {@link StreamLineAdapter} 使用；{@code stop_reason} ↔ {@code finish_reason} 词表归
+ * {@link AnthropicMessagesResponseSupport}。
+ * 输出约定：不发 {@code event:} 行与 {@code ping}，保留空白行；非 JSON 载荷、未知事件、{@code error}
+ * 事件逐字节透传；{@code thinking_delta} / {@code signature_delta} 丢弃；工具块翻译为 {@code delta.tool_calls}。
  */
 public final class AnthropicStreamSupport {
 

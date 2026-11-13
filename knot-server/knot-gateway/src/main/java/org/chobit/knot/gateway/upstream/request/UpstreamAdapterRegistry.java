@@ -14,10 +14,7 @@ public class UpstreamAdapterRegistry {
 
     /**
      * 解析上游适配器；绑定未指定（留空）时兜底为透传。
-     *
-     * <p>兜底与下拉首项一致（{@link PassthroughUpstreamAdapter} 以 @Order(0) 排在
-     * {@link UpstreamAdapterCatalog#definitions()} 第一位），保证「留空 = 透传」在
-     * 界面与运行时是同一条语义。</p>
+     * 兜底与下拉首项一致：{@link PassthroughUpstreamAdapter} 以 {@code @Order(0)} 排在 {@link UpstreamAdapterCatalog#definitions()} 第一位。
      */
     public UpstreamAdapter resolve(String requestAdapter) {
         UpstreamAdapter adapter = upstreamAdapterCatalog.resolve(requestAdapter);

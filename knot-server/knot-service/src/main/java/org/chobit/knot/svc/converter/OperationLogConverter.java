@@ -35,9 +35,7 @@ public interface OperationLogConverter {
     /**
      * 日志页 / 实体操作记录抽屉用的完整行。
      *
-     * <p>⭐ <b>刻意跳过 Dto</b>：{@link OperationLogDetailItem} 与实体的字段逐字同名，
-     * 中间那层 Dto 的唯一作用是把 4 个字段改别名（那是看板瘦投影的口径），对完整行毫无意义。
-     * 硬插一层就是纯拷贝——判据同 {@code AuthorizationConverter} 的类注释。</p>
+     * {@link OperationLogDetailItem} 与实体字段逐字同名，故不设中间 Dto。
      */
     OperationLogDetailItem toDetailItem(OperationLogEntity entity);
 

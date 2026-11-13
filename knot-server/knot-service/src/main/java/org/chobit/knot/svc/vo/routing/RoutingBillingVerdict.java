@@ -6,10 +6,8 @@ import lombok.Setter;
 import java.util.List;
 
 /**
- * JEV 计费裁判结论（v7 §6 / §9 输出）。
- *
- * <p>统一原则（§6.5）：判定失败绝不阻塞——被告链、影子链与自检照常返回，本对象以
- * {@code available=false + reason} 表达降级，而非抛异常炸抽屉。</p>
+ * JEV 计费裁判结论。
+ * 判定失败不阻塞：被告链、影子链与自检照常返回，本对象以 {@code available=false + reason} 表达降级，不抛异常。
  */
 @Getter
 @Setter

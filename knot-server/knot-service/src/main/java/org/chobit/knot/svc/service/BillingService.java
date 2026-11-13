@@ -88,13 +88,9 @@ public class BillingService {
     }
 
     /**
-     * 方案试算：给定规则与时点，**复用** {@code PeakOffPeakResolver} 算出相位与最终单价。
-     *
-     * <p>用途有两个：管理端配置页的「时间判定测试」，以及排障时确认某个时刻实际按多少收费。
-     * 因此这里不能用另一套判定实现兜底 —— 判定错了就说明线上错了。
-     *
-     * <p>日历来源：首期为 {@code HolidayCalendar.EMPTY}（不建表），即节假日/调休一律不命中，
-     * 判定结果只反映「星期 + 时段」；接入真实日历时改这一个入参即可。
+     * 方案试算：给定规则与时点，复用 {@code PeakOffPeakResolver} 算出相位与最终单价，
+     * 供管理端「时间判定测试」与排障使用。
+     * 日历为 {@code HolidayCalendar.EMPTY}（不建表），结果只反映星期 + 时段，节假日 / 调休不命中。
      */
     public PricingPreviewResult previewPricing(Long ruleId, PricingPreviewRequest request) {
         BillingRuleDto rule = getRuleById(ruleId);
@@ -176,10 +172,8 @@ public class BillingService {
     }
 
     /**
-     * 计费能力矩阵：模式 -> 单位/默认单位/支持的进阶方案；方案列表（仅已开放的）。
-     *
-     * <p>方案的下发口径即 {@link PricingPlanEnum#supports}，与保存端 {@link #validateRule} 同源，
-     * 因此「某模式能看到哪些方案」在前后端不会走偏。
+     * 计费能力矩阵：模式 → 单位 / 默认单位 / 支持的进阶方案；方案列表只含已开放的，
+     * 口径为 {@link PricingPlanEnum#supports}，与 {@link #validateRule} 同源。
      */
     public BillingCapabilities listModeCapabilities() {
         List<BillingCapabilities.BillingModeCapability> modes = Arrays.stream(BillingModeEnum.values())
@@ -331,9 +325,7 @@ public class BillingService {
 
     /**
      * Lifecycle-deletes the rule（{@code is_deleted = 1} 且 {@code status = 0}，不做物理删除）。
-     *
-     * <p>删时强制停用：避免恢复后立刻参与计费。恢复后是否启用由调用方显式调
-     * {@code PUT /rules/{id}/status} 决定。</p>
+     * 删时强制停用；恢复后是否启用由调用方调 {@code PUT /rules/{id}/status} 决定。
      */
     @Transactional
     public void deleteRule(Long id) {
@@ -347,9 +339,8 @@ public class BillingService {
 
     /**
      * 恢复已逻辑删除的计费规则：{@code is_deleted = 0}，{@code status} 保持 0（不自动生效）。
-     *
-     * <p>code 唯一性按物理行判定（uk_billing_rules_code 不区分 is_deleted），所以逻辑删除后同
-     * {@code code} 无法新建，只能恢复。</p>
+     * {@code code} 唯一性按物理行判定（{@code uk_billing_rules_code} 不区分 {@code is_deleted}），
+     * 逻辑删除后同 {@code code} 无法新建，只能恢复。
      */
     @Transactional
     public BillingRuleDto restoreRule(Long id) {
@@ -373,11 +364,9 @@ public class BillingService {
     }
 
     /**
-     * 更新规则时同步其唯一版本：原地覆盖配置内容（计费字段 + config_json + 生效期 + 状态），
-     * 不生成新版本、不复用历史版本。版本仅占位预留，无实际迭代语义（见 MEMORY.md §七）。
-     *
-     * <p>按 {@code ruleId} 定位版本行（不按 code）：版本是主体的从属明细，
-     * code 改动不该让版本查询落空、更不该在改码时另起一条版本行。</p>
+     * 更新规则时同步其唯一版本：原地覆盖配置内容（计费字段 + {@code config_json} + 生效期 + 状态），
+     * 不生成新版本、不复用历史版本；版本仅占位预留，无实际迭代语义。
+     * 版本行按 {@code ruleId} 定位，不按 code。
      */
     private void syncVersion(Long ruleId, BillingRuleDto request, boolean enabled) {
         BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(ruleId);
@@ -439,9 +428,8 @@ public class BillingService {
     }
 
     /**
-     * 版本内容指纹投影：只含参与版本判断的 5 个字段，字段名由 Java 成员决定，不再依赖魔数字符串键。
-     * configJson 保持规范化后的 JSON 值语义（对象 / 数组 / 数字 / null），不能先转成 JSON 字符串，
-     * 否则序列化结果会从 JSON 对象变成带引号的字符串，破坏既有 MD5。
+     * 版本内容指纹投影：只含参与版本判断的 5 个字段，字段名由 Java 成员决定。
+     * {@code configJson} 保持规范化后的 JSON 值语义（对象 / 数组 / 数字 / {@code null}），不能先转成 JSON 字符串。
      */
     private record BillingVersionFingerprint(String billingMode,
                                              String pricingPlan,
@@ -495,8 +483,7 @@ public class BillingService {
     }
 
     /**
-     * 校验计费模式与计费单位的组合。此前这条规则只存在于前端 unitsByMode，
-     * 后端不校验，移除前端映射后必须由这里兜住，否则会写入「TOKEN + PER_IMAGE」这类组合。
+     * 校验计费模式与计费单位的组合是否合法。
      */
     private void validateModeAndUnit(String billingMode, String unit) {
         BillingModeEnum mode = BillingModeEnum.fromCode(billingMode);
@@ -521,14 +508,9 @@ public class BillingService {
     }
 
     /**
-     * 规则编码可改，但原编码一旦被引用就不许改：模型绑定存的是 code，改码会让存量模型掉绑。
-     *
-     * <p><b>版本行不是引用方</b>：{@code kb_billing_rule_versions} 按 {@code rule_id}（规则主键）
-     * 归属主体，与 code 无关。此前按 code 关联，导致每条规则恒有版本行 → 改码守卫恒判「已引用」，
-     * 规则编码实际永远改不了；且改码后 {@code syncVersion} 按新码查不到旧版本行，会另起一条
-     * {@code v1} 并把旧行留成孤儿（旧码永久占用）。改为按主键绑定后这两个问题一并消失。</p>
-     *
-     * <p>唯一性由 {@link #validateRule} 的 countByCode 保证。</p>
+     * 规则编码可改，但原编码一旦被模型绑定引用就不许改（绑定存的是 code）。
+     * 版本行不是引用方：{@code kb_billing_rule_versions} 按 {@code rule_id} 归属主体，与 code 无关。
+     * 唯一性由 {@link #validateRule} 的 countByCode 保证。
      */
     private void assertCodeChangeAllowed(BillingRuleEntity existing, String newCode) {
         String oldCode = normalizeCode(existing.getCode());
@@ -544,7 +526,7 @@ public class BillingService {
     }
 
     /**
-     * 规则编码归一：仅去空白，不再强制大写（编码大小写由用户自定，唯一性按原值校验）
+     * 规则编码归一：仅去空白，不强制大写（大小写由用户自定，唯一性按原值校验）。
      */
     private static String normalizeCode(String value) {
         return value == null ? "" : value.trim();
@@ -559,7 +541,7 @@ public class BillingService {
         return normalized.isEmpty() ? null : normalized;
     }
 
-    /** 预览同样不许把非法配置静默映射为零价（60-business-rules §8）。 */
+    /** 预览同样不许把非法配置静默映射为零价。 */
     private static BillingConfig parseConfigOrThrow(String json) {
         try {
             return BillingConfig.parse(json);
@@ -592,13 +574,8 @@ public class BillingService {
 
     /**
      * 计费单位归一化：空白 / 非法编码 / 该模式不支持时，取模式的默认单位。
-     *
-     * <p><b>必须带模式</b>：单位基数是金额公式的分母，{@code PER_SECOND}(1) 与
-     * {@code 1K_TOKENS}(1000) 差 1000 倍。此前这里不分模式一律兜底成 {@code 1K_TOKENS}，
-     * 于是「VIDEO 规则忘了给 unit」会落成每秒价再除 1000（少收 1000 倍），
-     * 「TOKEN 规则忘了给 unit」也拿不到 TOKEN 模式声明的 {@code 1M_TOKENS}。
-     * 口径在 {@link BillingModeEnum#normalizeUnit(String)} 里只有一份，
-     * 与管理端表单、与网关计算器的热路径同源。</p>
+     * 必须带模式：单位基数是金额公式的分母（{@code PER_SECOND} 与 {@code 1K_TOKENS} 差 1000 倍）。
+     * 口径在 {@link BillingModeEnum#normalizeUnit(String)} 里只有一份，与管理端表单、网关计算器同源。
      */
     private static String normalizeUnit(String value, BillingModeEnum mode) {
         return mode.normalizeUnit(value);

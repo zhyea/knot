@@ -42,9 +42,7 @@ record TieredPricePolicy(PriceSet basePrices,
     }
 
     /**
-     * 维度分档价：查表与回落顺序在 {@link BillingConfig#dimensionPriceOrDefault}。
-     *
-     * <p>⚠ 别在这里再抄一份。它与 {@link FixedPricePolicy} 的同名方法曾经逐字重复（diff 差 0 行）。</p>
+     * 维度分档价：查表与回落顺序在 {@link BillingConfig#dimensionPriceOrDefault}，本类不重复实现。
      */
     @Override
     public BigDecimal resolveDimensionPrice(List<String> candidateKeys, PricingContext context, BigDecimal fallback) {
@@ -63,13 +61,7 @@ record TieredPricePolicy(PriceSet basePrices,
 
     /**
      * PROGRESSIVE：把用量拆成 {@code amount} 个单位，逐单位判定档位后累加单价。
-     *
-     * <p>与 {@link #resolvePrice} 共用一个「按数值命中档位」的判定（{@link #resolveFromTier}），
-     * 区别只在代入的是<b>单位序号 i</b> 而不是<b>本笔总用量</b>：</p>
-     * <pre>
-     * Vidu Q2-turbo 720P（第1秒 8，第2秒 10，第3秒起 +10），8 秒：
-     *   8 + 10 + 10×6 = 78
-     * </pre>
+     * 与 {@link #resolvePrice} 共用 {@link #resolveFromTier}，区别是代入单位序号 i 而非本笔总用量。
      */
     @Override
     public BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback) {
@@ -90,10 +82,8 @@ record TieredPricePolicy(PriceSet basePrices,
     }
 
     /**
-     * 按数值命中档位单价：{@code from} 含、{@code to} 含（null 表示上不封顶）。
-     *
-     * <p>{@code usageAmount <= 0} 或没配档位时返回 null，由调用方决定回落方向——
-     * 单笔取价落基础价，逐单位累加落 {@code defaultUnitPrice}。</p>
+     * 按数值命中档位单价：{@code from} 含、{@code to} 含（{@code null} 表示上不封顶）。
+     * {@code usageAmount <= 0} 或未配档位时返回 {@code null}，回落方向由调用方决定。
      */
     private BigDecimal resolveFromTier(PriceKind kind, long usageAmount) {
         if (usageAmount <= 0 || tier == null) {

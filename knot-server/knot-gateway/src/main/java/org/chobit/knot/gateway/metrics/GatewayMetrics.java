@@ -9,13 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 网关域指标出口（Micrometer / Prometheus）。
- *
- * <p>网关是「限流 / 额度 / 摘除 / 重试 / failover」这些高风险决策的唯一发生地，
- * 而这些决策在正常路径上都是<b>静默</b>的——没有指标就等于线上盲飞：
- * 限流是否误伤、某个上游是否被摘除、重试是否掩盖了故障，全都观测不到。</p>
- *
- * <p>只覆盖决策类指标，HTTP 层面的吞吐与延迟由 Spring 自带的
- * {@code http.server.requests} 提供，两者叠加即为网关的完整可观测面。</p>
+ * 只覆盖决策类指标（限流 / 额度 / 摘除 / 重试 / failover）；HTTP 吞吐与延迟由 Spring 自带的 {@code http.server.requests} 提供。
  */
 @Component
 public class GatewayMetrics {
@@ -96,10 +90,7 @@ public class GatewayMetrics {
 
     /**
      * 记一次流式记账失败。
-     *
-     * <p>流式响应已经提交，记账异常不能上抛（会截断已开始的响应），只能吞；
-     * 而吞掉的后果是<b>这次请求的配额 / 成本没有落账</b>。日志有采样（每 100 次一条），
-     * 所以必须有单调计数给告警用——否则「有人在白用额度」这件事只在日志里闪一下。</p>
+     * 流式响应已提交，记账异常不上抛；日志按每 100 次一条采样，并提供单调计数供告警。
      */
     public void usageRecordFailure() {
         Counter.builder(USAGE_RECORD_FAILURE)

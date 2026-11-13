@@ -5,11 +5,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /**
- * 供应商模型下拉候选查询。value 语义=modelCode。资源专属过滤：按统一模型过滤；按模型族过滤；按供应商账户过滤。
- * 约定见 options-refactor-constraints.md 第 0 节（R5 强类型，禁止 Map 透传）。
+ * 供应商模型下拉候选查询，value 语义为 {@code modelCode}。资源专属过滤：按统一模型、按模型族、按供应商账户。
  *
- * <p>{@code logicalModelCode} 为硬过滤（模型池编辑场景：池内模型必须归属该统一模型）；
- * {@code preferredLogicalModelCode} 为纯排序（路由规则场景：命中项置前，其余项仍可出现），两者语义分离。</p>
+ * {@code logicalModelCode} 为硬过滤（模型池：池内模型必须归属该统一模型）；{@code preferredLogicalModelCode} 为纯排序
+ * （路由规则：命中项置前，其余项仍可出现）。
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ModelOptionQuery(

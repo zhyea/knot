@@ -20,10 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Role management service for authorization administration.
- *
- * <p>⭐ 分页查询不能直接 {@code converter.toRoleItemList(PageInfo.getList())}：PageHelper 的
- * {@code Page} 对象在 {@code PageResult.of} 里既取 {@code getTotal()} 又取列表，
- * 这里必须在<b>同一个 PageInfo</b> 上取 total，否则 total 会丢（列表只剩当前页条数）。</p>
+ * 分页查询须在同一个 {@code PageInfo} 上取 total 与列表，否则 total 会退化成当前页条数。
  */
 @Service
 public class AuthorizationRoleService {
@@ -114,9 +111,7 @@ public class AuthorizationRoleService {
 
     /**
      * Returns a role snapshot for operation log auditing.
-     *
-     * <p>仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @authorizationRoleService.roleAuditSnapshot(#p0)}）
-     * 反射调用，Java 侧无直接引用，IDE 会误报 unused。</p>
+     * 仅由 {@code @OperationLog} 的 SpEL 表达式反射调用，Java 侧无直接引用。
      */
     @SuppressWarnings("unused")
     public AdminRoleItem roleAuditSnapshot(Long id) {

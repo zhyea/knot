@@ -26,12 +26,8 @@ public record GatewayErrorResponse(ErrorBody error) {
     }
 
     /**
-     * Creates an upstream error response carrying the <b>original upstream status</b>.
-     *
-     * <p>网关对上游非 2xx 统一以 502 回给客户端（错误码隔离，避免上游语义穿透），但若同时丢弃
-     * 上游原状态码，调用方就无法区分「余额不足 402」「限流 429」与「真故障 5xx」。此处仅在响应体
-     * 里透出原状态码与摘要（HTTP 状态码仍为 502），供有诊断需求的调用方（如管理端计费裁判）
-     * 做语义还原——对既有调用方是纯新增字段，向后兼容。</p>
+     * Creates an upstream error response carrying the original upstream status.
+     * 网关对上游非 2xx 统一以 502 回给客户端，仅在响应体里透出原状态码与摘要（HTTP 状态码仍为 502）。
      */
     public static GatewayErrorResponse ofUpstream(String message, String type, String code,
                                                   Integer upstreamStatus, String upstreamMessage) {

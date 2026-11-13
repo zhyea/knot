@@ -5,11 +5,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /**
- * 下拉候选（options）接口统一请求体。
+ * 下拉候选（options）接口统一请求体：有传参一律 POST {@code /api/{resource}/options}，仅完全无传参才 GET。
  *
- * <p>约定见 {@code .workbuddy/memory/options-refactor-constraints.md} 第 0/1 节：
- * 有传参一律 POST /api/{resource}/options；仅完全无传参才 GET。
- * 资源专属过滤字段由各资源在自身 OptionQuery 中显式声明，禁止通用 Map 透传（R5）。</p>
+ * 资源专属过滤字段由各资源在自身 OptionQuery 中显式声明，禁止通用 Map 透传。
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record OptionQuery(

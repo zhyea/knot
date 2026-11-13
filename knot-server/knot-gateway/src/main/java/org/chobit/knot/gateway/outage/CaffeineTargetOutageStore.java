@@ -13,19 +13,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 单节点摘除状态存储：Caffeine。
- *
- * <p>三条实现要点（与 {@code CaffeineModelLoadStore} 同构）：</p>
- * <ol>
- *   <li><b>原子性</b>：走 {@code cache.asMap().compute}，Caffeine 对同一 key 的计算是排他的，
- *       并发请求不会丢计数、也不会重复抢占探活租约。</li>
- *   <li><b>逐键过期</b>：用 {@link Expiry} 按条目自身携带的到期时刻计算 TTL，
- *       窗口 / 冷却 / 租约全部过期后条目自动消失，无需清理任务。</li>
- *   <li><b>恢复即删</b>：状态回到健康时直接移除条目，不保留零值条目占堆。</li>
- * </ol>
- *
- * <p>局限：只反映本进程观测到的异常，多节点部署下各节点各自摘除（近似口径）；
- * 需要全局一致切到 {@code RedisTargetOutageStore}。</p>
+ * 单节点摘除状态存储：Caffeine，与 {@code CaffeineModelLoadStore} 同构。
+ * 走 {@code cache.asMap().compute} 保证并发原子，不丢计数、不重复抢占探活租约；用 {@link Expiry} 按条目到期时刻逐键计算 TTL，窗口 / 冷却 / 租约全部过期后条目自动消失。
+ * 状态回到健康时直接移除条目；只反映本进程观测到的异常，多节点下各节点各自摘除（近似口径）。
  */
 public class CaffeineTargetOutageStore implements TargetOutageStore {
 

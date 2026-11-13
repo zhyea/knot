@@ -6,10 +6,8 @@ import org.chobit.knot.common.error.ErrorCode;
 import java.util.List;
 
 /**
- * 定时任务运行状态：从 ks_enum_configs 的通用 status 字典中拆分出来的领域枚举，
- * 通过 /api/enum-options 以 ScheduledTaskRunStatusEnum 键下发前端。
- *
- * <p>RUNNING 是一次执行中的瞬时状态，SUCCESS / FAILURE 是终态。</p>
+ * 定时任务运行状态：通过 {@code /api/enum-options} 以 {@code ScheduledTaskRunStatusEnum} 键下发前端。
+ * {@code RUNNING} 是执行中的瞬时状态，{@code SUCCESS} / {@code FAILURE} 是终态。
  */
 public enum ScheduledTaskRunStatusEnum implements NumericEnumOption {
     RUNNING(1, "运行中"),

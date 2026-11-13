@@ -12,18 +12,10 @@ import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 事件死信落盘：直推失败（同步异常 / 异步回调失败）的统一兜底。
- *
- * <p>robin 2026-10-18 拍板「数据宝贵，不能丢失」后，本类从「可选观测」升级为
- * <b>数据不丢的关键路径</b>：投递不到 Kafka 的事件必须落到本地文件，事后再回流。
- * 因此默认路径开启（{@code kafka.dlq-path} 默认 {@code logs/kafka-dlq}）。</p>
- *
- * <p>调用方有两个：请求线程（同步异常路径）与 Kafka 生产者的回调线程（异步失败路径），
- * 故 {@link #write} 必须线程安全；行格式为
- * {@code 时间 \t topic \t key \t 失败原因 \t payload}（JSONL，事后按 trace_id 回流）。</p>
- *
- * <p><b>唯一的丢失窗口</b>：死信文件本身写不进去（磁盘满 / 权限）。此时计数
- * {@code lost} 并打 ERROR 日志——已无可投之地，只能报警，不能抛回去影响请求链路。</p>
+ * 事件死信落盘：直推失败（同步异常 / 异步回调失败）的统一兜底，投递不到 Kafka 的事件落到本地文件，事后再回流。
+ * 默认开启，路径由 {@code kafka.dlq-path} 指定（默认 {@code logs/kafka-dlq}）。
+ * {@link #write} 线程安全；行格式 {@code 时间 \t topic \t key \t 失败原因 \t payload}（JSONL，按 {@code trace_id} 回流）。
+ * 死信文件写入失败时计数 {@code lost} 并打 ERROR 日志，不影响请求链路。
  */
 @Slf4j
 public class EventDeadLetterWriter {

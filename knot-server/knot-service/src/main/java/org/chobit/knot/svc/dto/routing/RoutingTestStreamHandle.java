@@ -9,12 +9,9 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * 流式路由测试持有的网关响应句柄。
- *
- * <p>由 {@code RestClient.exchange(ExchangeFunction, false)} 构造：不自动关闭响应，
- * 因此响应体保持可增量读取。必须实现 {@link Closeable}，由
- * {@code StreamingResponseBody.writeTo()} 以 try-with-resources 关闭，
- * 确保浏览器取消、上游异常等路径都能把连接归还连接池。</p>
+ * 流式路由测试持有的网关响应句柄：响应不自动关闭，响应体可增量读取。
+ * 实现 {@link Closeable}，由 {@code StreamingResponseBody.writeTo()} 以 try-with-resources 关闭，
+ * 浏览器取消、上游异常等路径都能把连接归还连接池。
  */
 public class RoutingTestStreamHandle implements Closeable {
 
