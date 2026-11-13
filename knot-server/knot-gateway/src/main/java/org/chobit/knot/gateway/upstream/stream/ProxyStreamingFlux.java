@@ -163,6 +163,8 @@ public final class ProxyStreamingFlux {
                                           UsageState state) {
         // 首行数据到达即首 token：写出前记录端到端耗时（响应头此刻尚未 commit，仍可写）
         writer.mark();
+        // 证据侧取未适配的行：适配后的载荷里 usage 已是网关重建的键名，拿去对账等于对自家转换结果
+        String wireData = SseLineSupport.dataOf(line);
         List<String> adapted = adaptedLines(adapter, stream, line);
         if (!appendUsage) {
             return Flux.fromIterable(adapted);
@@ -178,7 +180,7 @@ public final class ProxyStreamingFlux {
             }
             String data = SseLineSupport.dataOf(current);
             if (data != null && !SseLineSupport.isDone(current)) {
-                state.merge(extractUsage(stream, registry, data));
+                state.latest(extractUsage(stream, registry, data, wireData));
             }
             output.add(current);
         }
@@ -270,14 +272,15 @@ public final class ProxyStreamingFlux {
      */
     private static UsageAccounting extractUsage(UpstreamStreamResponse stream,
                                                 UsageExtractorRegistry registry,
-                                                String data) {
+                                                String data,
+                                                String wireData) {
         if (registry == null
                 || StringUtils.isEmpty(data)
                 || DONE_MARKER.equals(data)
                 || !data.contains(USAGE_FIELD)) {
             return null;
         }
-        return registry.extractEvent(data, stream.context());
+        return registry.extractEvent(data, wireData, stream.context());
     }
 
     private static byte[] concat(byte[] left, byte[] right) {
@@ -316,14 +319,21 @@ public final class ProxyStreamingFlux {
         private UsageAccounting value;
         private boolean appended;
 
-        void merge(UsageAccounting candidate) {
-            if (candidate == null) {
-                return;
-            }
-            // 整份选择（不是逐字段合并）：取 token 总量更大的一份，相等时后者覆盖前者。
-            // 纯媒体事件的 totalTokens 恒 0，会永久输给任一 token>0 的事件 —— 已知遗留，
-            // 与 UsageExtractItem.mergeMax 的逐字段口径不同层（见 60-business-rules §8.6）
-            if (value == null || candidate.totalTokens() >= value.totalTokens()) {
+        /**
+         * 后到覆盖前一个（2026-11-13 robin 定：上游 usage 通常在最后一个事件）。
+         *
+         * <p>⭐ <b>代价是明知的，不是没想到</b>：Anthropic 原生 {@code messages} 流式把用量拆在两个事件里 ——
+         * {@code message_start.usage.input_tokens} 与 {@code message_delta.usage.output_tokens}，
+         * 只留最后一个事件时<b>输入侧 token 记 0</b>。走适配器的协议不受影响：
+         * {@code AnthropicStreamSupport} 把整轮用量合进最后一个 chunk 的 {@code usage}（含
+         * {@code prompt_tokens}），最后一个事件本身就是全量。</p>
+         *
+         * <p>此前是「取 token 总量更大的一份」：同一场景下也只是二选一，并非逐字段合并，
+         * 且谁大谁赢会让结果随请求内容跳变，比固定取最后一个更难解释。逐字段合并
+         * （{@code UsageExtractItem.mergeMax}）只存在于提取器内部，不在这一层。</p>
+         */
+        void latest(UsageAccounting candidate) {
+            if (candidate != null) {
                 value = candidate;
             }
         }

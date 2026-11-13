@@ -28,7 +28,8 @@ import java.util.Map;
  * <h3>策略：系统属性 {@code knot.plugin.log.body}</h3>
  * <ul>
  *   <li>{@code none}：只留字节数与字段数，正文内容一律不透出（最安全）。</li>
- *   <li>{@code truncated}（默认）：保留结构，文本值按 {@value #BODY_BUDGET} 字符总预算截断。</li>
+ *   <li>{@code truncated}（默认）：保留结构，文本值按总预算截断（默认 {@value #DEFAULT_BODY_BUDGET}
+ *       字符，系统属性 {@code knot.plugin.log.body.budget} 可改）。</li>
  *   <li>{@code full}：原样输出，仅供短时排障——会落完整 prompt / 模型输出，用完必须改回。</li>
  * </ul>
  *
@@ -36,8 +37,21 @@ import java.util.Map;
  */
 public final class PluginLogSupport {
 
-    /** 截断模式下的文本总预算（字符数，整份正文共享） */
-    private static final int BODY_BUDGET = 512;
+    /**
+     * 截断模式下正文总预算的默认值（字符数，整份正文共享）。
+     *
+     * <p>512 是首版取值，实测连一个普通 chat completion 都装不下——对账时两个 body
+     * 只有一个能留正文，等于把「有原文」退化成「有原文的标点」。默认放到 4096，
+     * 仍由 {@code knot.plugin.log.body.budget} 覆盖：日志体积与留存策略是部署侧的事，
+     * 不该写死在代码里。</p>
+     */
+    private static final int DEFAULT_BODY_BUDGET = 4096;
+
+    /** 正文总预算的系统属性键 */
+    private static final String BUDGET_PROPERTY = "knot.plugin.log.body.budget";
+
+    /** 实际生效的文本预算：类加载时解析一次，与 {@link #MODE} 同口径 */
+    private static final int BODY_BUDGET = parseBudget(System.getProperty(BUDGET_PROPERTY));
 
     /** 正文落盘策略开关 */
     private static final String PROPERTY = "knot.plugin.log.body";
@@ -53,6 +67,15 @@ public final class PluginLogSupport {
     private static final BodyMode MODE = parseMode(System.getProperty(PROPERTY, "truncated"));
 
     private PluginLogSupport() {
+    }
+
+    /**
+     * 本次进程实际生效的文本预算（字符数）：供测试按预算构造尺寸，不写死数字。
+     *
+     * <p>包级可见而非公开：预算的取值口径属于本类内部，调用方只该拿到「已脱敏的节点」。</p>
+     */
+    static int budget() {
+        return BODY_BUDGET;
     }
 
     /**
@@ -116,6 +139,21 @@ public final class PluginLogSupport {
             return TextNode.valueOf(TRUNCATED_MARK);
         }
         return node;
+    }
+
+    /**
+     * 预算解析：非法、非正数一律回落默认值（与 {@link #parseMode} 同一条「宁可少落」原则）。
+     */
+    private static int parseBudget(String value) {
+        if (value == null || value.isBlank()) {
+            return DEFAULT_BODY_BUDGET;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : DEFAULT_BODY_BUDGET;
+        } catch (NumberFormatException e) {
+            return DEFAULT_BODY_BUDGET;
+        }
     }
 
     private static BodyMode parseMode(String value) {

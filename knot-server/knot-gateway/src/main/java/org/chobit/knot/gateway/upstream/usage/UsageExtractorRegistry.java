@@ -59,16 +59,36 @@ public class UsageExtractorRegistry {
     }
 
     public UsageAccounting extract(String responseBody, UpstreamRequestContext context) {
-        return extract(responseBody, isEventStream(responseBody), context);
+        return extract(responseBody, null, isEventStream(responseBody), context);
+    }
+
+    /**
+     * 整包提取：<b>算账用适配后 body，留证据用 wire 原文</b>，两者不许合成一份。
+     *
+     * <p>⭐ {@code responseBody} 只用来算账：提取器的口径就是统一协议（{@code prompt_tokens} /
+     * {@code completion_tokens}），喂原文会让跨协议绑定全部提取失败。
+     * {@code wireResponseBody} 只用来留证据：跨协议绑定时原文的键名是供应商口径
+     * （{@code input_tokens} / {@code output_tokens}），用适配后的 body 记 {@code rawUsage}
+     * 等于「拿网关重建的值去对供应商的账」—— 提工单会被一句「我们没返回这个字段」打回。</p>
+     *
+     * @param wireResponseBody 供应商原文；{@code null} 表示手头只有一份（异步查询 / 单测），回落到 {@code responseBody}
+     */
+    public UsageAccounting extract(String responseBody, String wireResponseBody,
+                                   UpstreamRequestContext context) {
+        return extract(responseBody, wireResponseBody, isEventStream(responseBody), context);
     }
 
     /**
      * 流式转发场景：对单个 SSE {@code data:} 事件提取用量。
      *
-     * <p>与整包提取走同一套提取器与归一化逻辑，由调用方对多个事件的结果取最大值合并。</p>
+     * <p>与整包提取走同一套提取器与归一化逻辑。<b>后到覆盖前一个</b>（2026-11-13 定：
+     * 上游 usage 通常在最后一个事件），代价与判据见 {@code ProxyStreamingFlux.UsageState#latest}。</p>
+     *
+     * @param wireEventData 该事件未适配前的 {@code data} 载荷，仅作证据；{@code null} 时回落 {@code eventData}
      */
-    public UsageAccounting extractEvent(String eventData, UpstreamRequestContext context) {
-        return extract(eventData, true, context);
+    public UsageAccounting extractEvent(String eventData, String wireEventData,
+                                       UpstreamRequestContext context) {
+        return extract(eventData, wireEventData, true, context);
     }
 
     /**
@@ -93,6 +113,7 @@ public class UsageExtractorRegistry {
     }
 
     private UsageAccounting extract(String body,
+                                    String wireBody,
                                     boolean eventStream,
                                     UpstreamRequestContext context) {
         // 适配层只见自有投影（改进清单 2.5）：实体到投影的转换发生在网关侧这一边界上
@@ -101,15 +122,17 @@ public class UsageExtractorRegistry {
         UsageExtractor<?> extractor = requireExtractor(eventStream, context);
         Map<String, Object> requestBody = requestBody(context);
 
-        Map<String, Object> rawBody = null;
+        // 能不能出账只看 body：那是真正要解析出账的一份，原文畸形不该让账跑不动
         ExtractFailure failure = null;
         Throwable cause = null;
         try {
-            rawBody = UsageRawReader.readBody(body);
+            UsageRawReader.readBody(body);
         } catch (JsonProcessingException e) {
             failure = ExtractFailure.INVALID_JSON;
             cause = e;
         }
+        // 证据另取一份：原文解析失败只丢证据、不阻断计费
+        Map<String, Object> rawBody = readWireBody(wireBody == null ? body : wireBody, context);
         Map<String, Object> rawUsage = rawBody == null ? null : UsageRawReader.readUsage(rawBody);
         // 已判定非法 JSON 就不再调提取器：在垃圾输入上二次解析只会换一种报错方式
         // 请求体一并给提取器：像素 / 是否有声音 / 是否有参考等计费属性只在请求侧
@@ -128,6 +151,26 @@ public class UsageExtractorRegistry {
         // 发生时点：一次提取一个值，整包/逐事件各归各自（首期网关进程 UTC）
         Instant occurredAt = Instant.now();
         return normalize(item, rawBody, rawUsage, billingRule, requestBody, occurredAt, extractor.calculator());
+    }
+
+    /**
+     * 证据侧的原文对象：解析失败返回 {@code null}（只丢证据、不阻断计费）并留一条 WARN。
+     *
+     * <p>与上面的 {@link ExtractFailure#INVALID_JSON} 判定刻意不共用一次 try：那份决定
+     * 「这单能不能出账」，这份只决定「事后有没有原文可查」，失败后果不同级。
+     * 静默降级成 {@code null} 会让「上游没报 usage」与「原文读不出来」在日志里长得一样，故留 WARN。</p>
+     */
+    private static Map<String, Object> readWireBody(String wireBody, UpstreamRequestContext context) {
+        if (StringUtils.isBlank(wireBody)) {
+            return null;
+        }
+        try {
+            return UsageRawReader.readBody(wireBody);
+        } catch (JsonProcessingException e) {
+            log.warn("wire response is not valid json, raw usage evidence dropped: protocol={}",
+                    context == null ? null : context.protocol(), e);
+            return null;
+        }
     }
 
     /**

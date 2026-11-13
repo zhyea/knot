@@ -14,6 +14,7 @@ import org.chobit.knot.plugin.PluginStageCode;
 import org.chobit.knot.plugin.log.PluginLogWriter;
 
 import org.chobit.knot.plugin.log.UpstreamResponsePayload;
+import org.chobit.knot.plugin.log.PluginBodySourceEnum;
 
 import org.chobit.knot.plugin.upstream.UpstreamPluginContext;
 
@@ -67,7 +68,8 @@ public class UpstreamResponseLoggingPlugin implements PluginHandler<UpstreamPlug
                 context.protocol(),
                 context.upstreamRequestId(),
                 JsonKit.toTree(context.responseSnapshot()),
-                context.upstreamUrl());
+                context.upstreamUrl(),
+                PluginBodySourceEnum.ADAPTED);
 
         PluginLogWriter.log(log, context.stageCode(), binding, context.traceId(), payload);
     }

@@ -156,7 +156,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 handledResponseBody,
                 context.provider().id(),
                 context.model().id(),
-                usageExtractorRegistry.extract(handledResponseBody, context),
+                // 算账吃适配后 body，rawUsage/rawBody 吃 wire 原文：证据不许是网关重建的那份
+                usageExtractorRegistry.extract(handledResponseBody, buffered.body(), context),
                 null,
                 buffered.upstreamRequestId(),
                 upstreamUrl,

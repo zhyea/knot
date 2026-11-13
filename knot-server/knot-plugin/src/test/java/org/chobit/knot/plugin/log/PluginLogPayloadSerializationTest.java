@@ -75,7 +75,7 @@ class PluginLogPayloadSerializationTest {
     void shouldTagUpstreamRequestPayload() throws Exception {
         PluginLogPayload payload = new UpstreamRequestPayload(
                 "OPENAI", "gpt-4o", "OPENAI", "OPENAI", "application/json", null,
-                JsonKit.toTree(Map.of("stream", true)), null);
+                JsonKit.toTree(Map.of("stream", true)), null, PluginBodySourceEnum.CLIENT);
 
         JsonNode json = mapper.valueToTree(payload);
         assertEquals("provider-request", json.get("payloadType").asText());
@@ -87,6 +87,8 @@ class PluginLogPayloadSerializationTest {
         assertTrue(json.get("upstreamRequestId").isNull());
         // 请求阶段已可算出上游地址，但本次测试不校验具体值，仅确认字段存在且为 null
         assertTrue(json.get("upstreamUrl").isNull());
+        assertEquals("client", json.get("bodySource").asText(),
+                "requestBody 是客户端发来的，不是供应商实际收到的——标记必须显式，别让人靠猜");
     }
 
     @Test
@@ -94,12 +96,15 @@ class PluginLogPayloadSerializationTest {
         PluginLogPayload payload = new UpstreamResponsePayload(
                 "OPENAI", "gpt-4o", "OPENAI", "req_abc123",
                 JsonKit.toTree(Map.of("usage", Map.of("total_tokens", 42))),
-                "https://openrouter.ai/api/v1/chat/completions");
+                "https://openrouter.ai/api/v1/chat/completions",
+                PluginBodySourceEnum.ADAPTED);
 
         JsonNode json = mapper.valueToTree(payload);
         assertEquals("provider-response", json.get("payloadType").asText());
         assertEquals(42, json.get("response").get("usage").get("total_tokens").asInt());
         assertEquals("req_abc123", json.get("upstreamRequestId").asText());
+        assertEquals("adapted", json.get("bodySource").asText(),
+                "responseBody 是适配后的体：跨协议绑定时字段是网关重建的，标记不能写 wire");
     }
 
     @Test
@@ -109,7 +114,8 @@ class PluginLogPayloadSerializationTest {
                 JsonKit.toTree(Map.of("model", "gpt-4o")),
                 "https://openrouter.ai/api/v1/chat/completions",
                 400,
-                JsonKit.toTree("{\"error\":{\"message\":\"invalid model\"}}"));
+                JsonKit.toTree("{\"error\":{\"message\":\"invalid model\"}}"),
+                PluginBodySourceEnum.CLIENT);
 
         JsonNode json = mapper.valueToTree(payload);
         assertEquals("provider-error", json.get("payloadType").asText());
@@ -117,6 +123,8 @@ class PluginLogPayloadSerializationTest {
         assertEquals("boom", json.get("errorMessage").asText());
         // 排障工单 90% 在错误场景：失败日志的供应商 id 是最关键的检索键
         assertEquals("req_abc123", json.get("upstreamRequestId").asText());
+        assertEquals("client", json.get("bodySource").asText(),
+                "标的是 requestBody 的层次；upstreamResponseBody 恒为 wire 原文，不随之变");
     }
 
     @Test
@@ -127,7 +135,8 @@ class PluginLogPayloadSerializationTest {
                 JsonKit.toTree(Map.of("model", "gpt-4o")),
                 "https://openrouter.ai/api/v1/chat/completions",
                 400,
-                JsonKit.toTree("{\"error\":{\"message\":\"invalid model\"}}"));
+                JsonKit.toTree("{\"error\":{\"message\":\"invalid model\"}}"),
+                PluginBodySourceEnum.CLIENT);
 
         JsonNode json = mapper.valueToTree(payload);
         // ⭐ 上游 4xx/5xx 的排障主证据：没有这两项，工单只能写「上游报 400」
@@ -142,7 +151,8 @@ class PluginLogPayloadSerializationTest {
         // 超时 / 连接失败：没有响应就没有状态码与错误体，两个字段必须是 null 而不是 0 / 空串
         PluginLogPayload payload = new UpstreamErrorPayload(
                 "OPENAI", "gpt-4o", "OPENAI", null, "ReadTimeoutException", "read timed out",
-                JsonKit.toTree(Map.of("model", "gpt-4o")), null, null, null);
+                JsonKit.toTree(Map.of("model", "gpt-4o")), null, null, null,
+                PluginBodySourceEnum.CLIENT);
 
         JsonNode json = mapper.valueToTree(payload);
         assertTrue(json.get("httpStatus").isNull());

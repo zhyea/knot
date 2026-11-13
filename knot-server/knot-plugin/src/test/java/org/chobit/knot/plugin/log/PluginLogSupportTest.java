@@ -36,18 +36,21 @@ class PluginLogSupportTest {
     @Test
     void longTextValueIsTruncatedAndMarked() throws Exception {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("x".repeat(2000));
+        // 按实际预算构造：预算可配（knot.plugin.log.body.budget），写死 2000 会随配置失效
+        prompt.append("x".repeat(PluginLogSupport.budget() * 2));
         JsonNode node = MAPPER.readTree("{\"prompt\":\"" + prompt + "\"}");
 
         JsonNode body = PluginLogSupport.body(node);
         String value = body.get("prompt").asText();
         assertTrue(value.contains("truncated"), "截断必须显式标注，否则读日志的人会以为看到的是全文");
-        assertTrue(value.length() < 600, "默认模式下正文不得整篇落盘，实际长度=" + value.length());
+        assertTrue(value.length() < PluginLogSupport.budget() * 2,
+                "默认模式下正文不得整篇落盘，实际长度=" + value.length());
     }
 
     @Test
     void truncationSharesOneBudgetAcrossFields() throws Exception {
-        JsonNode node = MAPPER.readTree("{\"a\":\"" + "x".repeat(400) + "\",\"b\":\"" + "y".repeat(400) + "\"}");
+        String filler = "x".repeat(PluginLogSupport.budget());
+        JsonNode node = MAPPER.readTree("{\"a\":\"" + filler + "\",\"b\":\"" + filler + "\"}");
 
         JsonNode body = PluginLogSupport.body(node);
         assertTrue(body.get("b").asText().contains("truncated"),

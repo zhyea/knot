@@ -148,6 +148,25 @@ class ProxyStreamingFluxTest {
     }
 
     @Test
+    @DisplayName("⭐ 用量取最后一个事件，不取 token 更多的那一份")
+    void keepsLatestUsageInsteadOfLargest() {
+        // 第二个事件更小：旧的「取总量更大一份」会留下第一个，结果随请求内容跳变
+        String payload = "data: {\"choices\":[],\"usage\":{\"input_tokens\":30,\"output_tokens\":9}}\n"
+                + "\n"
+                + "data: {\"choices\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":5}}\n"
+                + "\n"
+                + "data: [DONE]\n";
+
+        String out = collect(ProxyStreamingFlux.wrap(stream(payload, true), stubRegistry(), true, FACTORY,
+                null, null, null));
+        String extendEvent = out.lines()
+                .filter(line -> line.startsWith("data: {\"knot_extend\"")).findFirst().orElseThrow();
+
+        assertTrue(extendEvent.contains("\"input_tokens\":10"),
+                "后到覆盖：收尾 chunk 才是全量 usage，即使它更小。实际：" + extendEvent);
+    }
+
+    @Test
     @DisplayName("上游不发 [DONE] 时 knot_extend 兜底追加在流末尾")
     void appendsKnotExtendEventAtEndWithoutDone() {
         String payload = "data: {\"choices\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":5}}\n"
@@ -268,6 +287,7 @@ class ProxyStreamingFluxTest {
     @DisplayName("流式事件经适配器转换后转发，用量提取吃转换后的数据")
     void adaptsStreamEventBeforeForwardAndExtraction() {
         AtomicReference<String> extracted = new AtomicReference<>();
+        AtomicReference<String> extractedWire = new AtomicReference<>();
         String payload = "data: {\"choices\":[],\"usage\":{\"inputTokens\":10,\"output_tokens\":5}}\n"
                 + "data: [DONE]\n";
         // camelCase 别名转 snake_case 的 stub：模拟「上游流式口径与网关不同」的适配器
@@ -306,8 +326,10 @@ class ProxyStreamingFluxTest {
         };
         UsageExtractorRegistry registry = new UsageExtractorRegistry(null, null, new UsageExtractionProperties()) {
             @Override
-            public UsageAccounting extractEvent(String eventData, UpstreamRequestContext context) {
+            public UsageAccounting extractEvent(String eventData, String wireEventData,
+                                               UpstreamRequestContext context) {
                 extracted.set(eventData);
+                extractedWire.set(wireEventData);
                 return null;
             }
         };
@@ -319,6 +341,8 @@ class ProxyStreamingFluxTest {
         assertFalse(out.contains("inputTokens"), "上游 camelCase 不应出现在转发数据里");
         assertEquals("{\"choices\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":5}}", extracted.get(),
                 "用量提取必须吃转换后的数据（与整包路径同构）");
+        assertEquals("{\"choices\":[],\"usage\":{\"inputTokens\":10,\"output_tokens\":5}}", extractedWire.get(),
+                "证据侧必须吃未适配的上游行 —— rawUsage 是给供应商对账用的，不能是网关重建的键名");
     }
 
     @Test
@@ -550,9 +574,9 @@ class ProxyStreamingFluxTest {
     private static UsageExtractorRegistry stubRegistry() {
         return new UsageExtractorRegistry(null, null, new UsageExtractionProperties()) {
             @Override
-            public UsageAccounting extractEvent(String eventData,
-                                                UpstreamRequestContext context) {
-                // 按事件内容返回不同 token 数，用于验证「取更大一份」的累计口径
+            public UsageAccounting extractEvent(String eventData, String wireEventData,
+                                               UpstreamRequestContext context) {
+                // 按事件内容返回不同 token 数，用于验证「后到覆盖」的累计口径
                 int input = eventData.contains("_tokens\":30") ? 30 : 10;
                 int output = eventData.contains("output_tokens\":9") ? 9 : 5;
                 Map<String, Object> usage = Map.of("input_tokens", input, "output_tokens", output);

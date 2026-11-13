@@ -213,6 +213,38 @@ class UsageExtractorRegistryTest {
                         + "宽松行为必须显式打开，不能靠字段初始化兜");
     }
 
+    @Test
+    @DisplayName("⭐ rawUsage 取 wire 原文：证据里不许出现网关重建的键名")
+    void rawUsageComesFromWireOriginal() {
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()));
+
+        UsageAccounting accounting = registry.extract(
+                "{\"choices\":[],\"usage\":{\"prompt_tokens\":30,\"completion_tokens\":20}}",
+                "{\"type\":\"message\",\"usage\":{\"input_tokens\":120,\"output_tokens\":45}}",
+                context(binding(DefaultTokenUsageExtractor.CODE)));
+
+        assertNotNull(accounting);
+        assertEquals(30L, ((TokenBillingUsage) accounting.billing()).inputTokens(),
+                "计费输入必须吃适配后 body —— 提取器口径是统一协议，喂原文会全线提取失败");
+        assertEquals(120, accounting.rawUsage().get("input_tokens"),
+                "证据必须吃 wire 原文，否则等于拿网关重建的值去问供应商");
+        assertNull(accounting.rawUsage().get("prompt_tokens"),
+                "原文里没有的键名不许出现在证据里");
+    }
+
+    @Test
+    @DisplayName("wire 原文缺省时证据回落响应体：异步查询与单测只有一份")
+    void rawUsageFallsBackToResponseBodyWhenWireAbsent() {
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()));
+
+        UsageAccounting accounting = registry.extract(
+                "{\"usage\":{\"prompt_tokens\":7,\"completion_tokens\":3}}",
+                context(binding(DefaultTokenUsageExtractor.CODE)));
+
+        assertEquals(7, accounting.rawUsage().get("prompt_tokens"),
+                "只有一份时回落：至少还能查到上游报了什么，不做二次猜");
+    }
+
     private static UsageExtractorRegistry registry(UsageExtractor<?> stub) {
         return registry(stub, new UsageExtractionProperties());
     }

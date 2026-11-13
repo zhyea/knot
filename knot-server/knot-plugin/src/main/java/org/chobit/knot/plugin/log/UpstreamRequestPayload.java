@@ -18,6 +18,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
  *
  * <p>{@code upstreamUrl} 是本次上游调用的完整请求地址（scheme + host + path）：
  * 请求阶段在请求发起前已可算出，供日志直接呈现「请求打到了哪个供应商端点」。</p>
+
+ * <p>{@code bodySource} 恒为 {@link PluginBodySourceEnum#CLIENT}：显式标出 {@code requestBody} 的层次，
+ * 不让读日志的人靠键名去猜（见 {@link PluginBodySourceEnum}）。</p>
  */
 public record UpstreamRequestPayload(String providerCode,
                                      String modelCode,
@@ -26,5 +29,6 @@ public record UpstreamRequestPayload(String providerCode,
                                      String contentType,
                                      String upstreamRequestId,
                                      @JsonSerialize(using = PluginLogBodySerializer.class) JsonNode requestBody,
-                                     String upstreamUrl) implements PluginLogPayload {
+                                     String upstreamUrl,
+                                     PluginBodySourceEnum bodySource) implements PluginLogPayload {
 }

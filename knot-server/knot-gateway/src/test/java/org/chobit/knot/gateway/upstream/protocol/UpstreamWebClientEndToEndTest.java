@@ -239,6 +239,7 @@ class UpstreamWebClientEndToEndTest {
                 null, new UsageExtractionProperties()) {
             @Override
             public UsageAccounting extract(String responseBody,
+                                           String wireResponseBody,
                                            UpstreamRequestContext context) {
                 return null;
             }

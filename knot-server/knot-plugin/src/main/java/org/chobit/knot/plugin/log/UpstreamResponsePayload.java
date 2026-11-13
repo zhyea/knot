@@ -31,11 +31,16 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
  *
  * <p>{@code upstreamUrl} 是本次上游调用的完整请求地址（scheme + host + path）：
  * 响应阶段与请求同值，便于三阶段日志按同一端点串联。</p>
+ *
+ * <p>{@code bodySource} 恒为 {@link PluginBodySourceEnum#ADAPTED}：标的是快照里
+ * {@code responseBody} 那一份的层次。<b>不覆盖</b> {@code upstreamResponseBody} ——
+ * 那个键名本身就是 wire 原文的自证，再挂一个字段只会让人以为它可以变。</p>
  */
 public record UpstreamResponsePayload(String providerCode,
                                       String modelCode,
                                       String protocol,
                                       String upstreamRequestId,
                                       @JsonSerialize(using = PluginLogBodySerializer.class) JsonNode response,
-                                      String upstreamUrl) implements PluginLogPayload {
+                                      String upstreamUrl,
+                                      PluginBodySourceEnum bodySource) implements PluginLogPayload {
 }

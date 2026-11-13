@@ -22,6 +22,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
  *
  * <p>{@code upstreamUrl} 是本次上游调用的完整请求地址（scheme + host + path）：
  * 失败候选也带，failover 排障能直接看出失败的是哪个具体端点。</p>
+ *
+ * <p>{@code bodySource} 恒为 {@link PluginBodySourceEnum#CLIENT}：标的是 {@code requestBody}
+ * 的层次；{@code upstreamResponseBody} 恒为 wire 原文，不随之变化。</p>
  */
 public record UpstreamErrorPayload(String providerCode,
                                    String modelCode,
@@ -32,5 +35,6 @@ public record UpstreamErrorPayload(String providerCode,
                                    @JsonSerialize(using = PluginLogBodySerializer.class) JsonNode requestBody,
                                    String upstreamUrl,
                                    Integer httpStatus,
-                                   @JsonSerialize(using = PluginLogBodySerializer.class) JsonNode upstreamResponseBody) implements PluginLogPayload {
+                                   @JsonSerialize(using = PluginLogBodySerializer.class) JsonNode upstreamResponseBody,
+                                   PluginBodySourceEnum bodySource) implements PluginLogPayload {
 }
