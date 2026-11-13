@@ -38,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -549,6 +550,86 @@ class ProxyStreamingFluxTest {
                 return factory.apply(ctx);
             }
         };
+    }
+
+    @Test
+    @DisplayName("⭐ tee 短流：wire 原文逐字节留全，转发内容一字不改")
+    void teeKeepsShortWireBodyVerbatim() {
+        AtomicReference<String> tailed = new AtomicReference<>();
+        String payload = "data: {\"id\":\"msg_01\",\"usage\":{\"input_tokens\":10}}\n"
+                + "\n"
+                + "data: [DONE]\n";
+
+        String out = collect(ProxyStreamingFlux.wrap(stream(payload, true), null, false, FACTORY,
+                null, null, null, tailed::set));
+
+        assertEquals(payload, tailed.get(), "旁路留的是适配之前的 wire 原文（含空行与 [DONE]）");
+        assertEquals(payload, out, "tee 不能动主链：readPosition / 引用计数都不许碰");
+    }
+
+    @Test
+    @DisplayName("非 SSE 裸流同样旁路：只读拷贝不消费 DataBuffer")
+    void rawStreamTeeDoesNotConsumeBuffer() {
+        AtomicReference<String> tailed = new AtomicReference<>();
+
+        String out = collect(ProxyStreamingFlux.wrap(stream("hello-stream", false), null, false, FACTORY,
+                null, null, null, tailed::set));
+
+        assertEquals("hello-stream", tailed.get(), "裸流走 asByteBuffer().duplicate()，读的是副本");
+        assertEquals("hello-stream", out, "主链必须还能读到同一块缓冲的完整内容");
+    }
+
+    @Test
+    @DisplayName("⭐ 长流头尾双留：中间记省略量，末尾 usage 不能丢")
+    void teeKeepsHeadAndTailAndMarksOmission() {
+        ProxyStreamingFlux.BodyTee tee = new ProxyStreamingFlux.BodyTee(64);
+        tee.append("HEAD".getBytes(StandardCharsets.UTF_8));
+        StringBuilder middle = new StringBuilder();
+        for (int i = 0; i < 50; i++) {
+            middle.append("middle-line-").append(i).append("\n");
+        }
+        tee.append(middle.toString().getBytes(StandardCharsets.UTF_8));
+        tee.append("data: {\"usage\":{\"input_tokens\":999}}".getBytes(StandardCharsets.UTF_8));
+
+        String snapshot = tee.snapshot();
+
+        assertTrue(snapshot.startsWith("HEAD"), "头部留得住，实际：" + snapshot);
+        assertTrue(snapshot.contains("...(omitted "), "截断必须显式标注，实际：" + snapshot);
+        assertTrue(snapshot.contains("\"input_tokens\":999"),
+                "只留前 N 字节会把末尾 usage 丢掉 —— 这正是头尾双留的理由，实际：" + snapshot);
+    }
+
+    @Test
+    @DisplayName("tee 空流返回 null，不造空快照")
+    void teeEmptyStreamYieldsNull() {
+        assertNull(new ProxyStreamingFlux.BodyTee(8).snapshot());
+    }
+
+    @Test
+    @DisplayName("客户端提前取消：doFinally 仍补记一次已收到的正文")
+    void teeStillFiresOnCancellation() {
+        AtomicInteger calls = new AtomicInteger();
+        String payload = "data: {\"a\":1}\ndata: {\"b\":2}\ndata: [DONE]\n";
+
+        Flux<DataBuffer> body = ProxyStreamingFlux.wrap(stream(payload, true), null, false, FACTORY,
+                null, null, null, ignored -> calls.incrementAndGet());
+        body.take(1).collectList().block();
+
+        assertEquals(1, calls.get(), "doFinally（不是 doOnComplete）才能覆盖取消 / 出错");
+    }
+
+    @Test
+    @DisplayName("旁路日志写失败不能打断在途释放与记账")
+    void teeSinkFailureDoesNotBreakCleanup() {
+        AtomicInteger released = new AtomicInteger();
+
+        collect(ProxyStreamingFlux.wrap(stream("x", false), null, false, FACTORY,
+                null, null, released::incrementAndGet,
+                ignored -> {
+                    throw new IllegalStateException("log sink down");
+                }));
+
+        assertEquals(1, released.get(), "日志是旁路：它挂了，主流程的收尾照旧");
     }
 
     private static String collect(Flux<DataBuffer> body) {        return body.map(buffer -> buffer.toString(StandardCharsets.UTF_8))

@@ -39,6 +39,7 @@ import org.chobit.knot.gateway.traffic.TrafficDecision;
 import org.chobit.knot.gateway.traffic.TrafficUsage;
 import org.chobit.knot.gateway.kafka.CallTraceContext;
 import org.chobit.knot.gateway.kafka.KafkaPublisher;
+import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
 import org.chobit.knot.gateway.upstream.stream.ProxyStreamingFlux;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
@@ -59,6 +60,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
@@ -70,6 +72,14 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      * 请求上下文属性：流式响应写完时释放本请求在途计数的回调（{@code Runnable}）。
      */
     private static final String ATTR_LOAD_RELEASE = "loadRelease";
+
+    /**
+     * 请求上下文属性：本次候选实际发给上游的 {@code UpstreamRequestContext}。
+     *
+     * <p>流式响应日志要等正文读完才发，那时的分发点已经离开 {@link UpstreamProxyClient}；
+     * 把上下文挂在请求属性里，让补记与请求阶段用同一份 provider / model / trace 数据。</p>
+     */
+    private static final String ATTR_UPSTREAM_CONTEXT = "upstreamContext";
 
     /** 记账失败日志节流：每 N 次打一条，避免 Redis 故障时把日志打爆 */
     private static final int USAGE_FAILURE_LOG_EVERY = 100;
@@ -309,10 +319,15 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         // 流式成功把释放推迟到流写完（见 streamResponse 的 onComplete），置位后 doFinally 不再兜底；
         // 只在 map 正常返回前才置位——中途抛错保持 false，仍由 doFinally 释放，不会漏。
         final AtomicBoolean releaseDeferred = new AtomicBoolean(false);
-        Supplier<ProxyResult> attempt = () -> proxyClient.proxy(
-            // 客户端无需传 model：请求体 model 恒按路由目标的上游模型覆盖（kb_models.upstream_model）
-            withTargetModel(requestBody, candidate),
-            exchange.contentType(), candidate, protocol, traceparent, requestId);
+        Supplier<ProxyResult> attempt = () -> {
+            // 每次重试都重建上下文（凭据可能刷新），并把这一版挂到请求属性供流式收尾补记日志
+            UpstreamRequestContext upstreamContext = proxyClient.buildRequestContext(
+                // 客户端无需传 model：请求体 model 恒按路由目标的上游模型覆盖（kb_models.upstream_model）
+                withTargetModel(requestBody, candidate),
+                exchange.contentType(), candidate, protocol, traceparent, requestId);
+            context.putAttribute(ATTR_UPSTREAM_CONTEXT, upstreamContext);
+            return proxyClient.proxy(upstreamContext);
+        };
         final long attemptStartedAt = System.nanoTime();
         Mono<ProxyResult> retryMono = invokeWithRetry(retryPolicy, candidate, draft, attempt);
         if (metrics != null) {
@@ -632,8 +647,12 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             // 也让「终态事件从哪发」只有一处可数（非流式 / 终态异常 / 流式收尾）
             publishTraffic(context, exchange, terminalUsage.get(), firstTokenWriter.elapsedMillis(), null);
         };
+        // 流式正文只有读完了才有：旁路一份有界原文，流结束时补记上游响应日志
+        UpstreamRequestContext upstreamContext = context.attribute(ATTR_UPSTREAM_CONTEXT);
+        Consumer<String> streamBodySink = upstreamContext == null ? null
+            : tail -> proxyClient.logStreamTail(upstreamContext, result, tail);
         Flux<DataBuffer> body = ProxyStreamingFlux.wrap(stream, usageExtractorRegistry, appendUsage,
-            exchange.http().bufferFactory(), firstTokenWriter, terminalUsage::set, onComplete);
+            exchange.http().bufferFactory(), firstTokenWriter, terminalUsage::set, onComplete, streamBodySink);
         return new GatewayStreamingResponse(stream.contentType(), body);
     }
 

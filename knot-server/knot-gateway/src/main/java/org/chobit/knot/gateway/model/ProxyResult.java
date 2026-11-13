@@ -58,4 +58,15 @@ public record ProxyResult(String responseBody,
         return new ProxyResult(responseBody, providerId, modelId, null,
                 streamResponse, upstreamRequestId, upstreamUrl, upstreamResponseBody);
     }
+
+    /**
+     * 流式正文 tee 的补记出口：正文只有流读完才拿得到，那时才把 wire 快照填回结果。
+     *
+     * <p>⭐ 复用第 8 组件而不是加新字段：日志快照只认 {@code upstreamResponseBody} 这一个键，
+     * 补记出来的结果与「一开始就有整包」的非流式结果形状完全一致，插件侧不需要分叉。</p>
+     */
+    public ProxyResult withUpstreamResponseBody(String body) {
+        return new ProxyResult(responseBody, providerId, modelId, usage,
+                streamResponse, upstreamRequestId, upstreamUrl, body);
+    }
 }

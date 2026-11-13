@@ -123,7 +123,12 @@ public class UpstreamProxyClient {
         dispatchPlugin(context, PluginStageCode.UPSTREAM_REQUEST, null, null, upstreamUrl);
         try {
             ProxyResult result = protocolExecutor.execute(context, requestAdapter);
-            dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE, result, null, upstreamUrl);
+            // ⭐ 流式响应此刻只有响应头、一个字节正文都没有：这条日志只能得到 body=null。
+            // 改由 logStreamTail 在流结束（doFinally）补记一条带 wire 快照的响应日志，
+            // 同一请求不会留下两条同形的 UPSTREAM_RESPONSE。
+            if (!result.streaming()) {
+                dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE, result, null, upstreamUrl);
+            }
             return result;
         } catch (RuntimeException ex) {
             dispatchPlugin(context, PluginStageCode.UPSTREAM_ERROR, null, ex, upstreamUrl);
@@ -131,7 +136,7 @@ public class UpstreamProxyClient {
         }
     }
 
-    private UpstreamRequestContext buildRequestContext(Map<String, Object> requestBody,
+    public UpstreamRequestContext buildRequestContext(Map<String, Object> requestBody,
                                                        MediaType contentType,
                                                        RoutingRuleTargetDto target,
                                                        ModelApiProtocolEnum protocol,
@@ -205,7 +210,28 @@ public class UpstreamProxyClient {
                 .orElse(null);
     }
 
-    private void dispatchPlugin(UpstreamRequestContext context,
+    /**
+     * 流式正文读完后补记 {@code UPSTREAM_RESPONSE}：{@code upstreamResponseBody} 装的是
+     * 有界 tee 快照（头尾双留，不是整包），{@code streaming=true} 保持原义。
+     *
+     * <p>由 {@code GatewayRequestHandler#streamResponse} 的 {@code doFinally} 出口调用，
+     * 正常结束 / 客户端取消 / 上游出错都会走到 —— 客户端断连不再意味着「这条请求没日志」。</p>
+     */
+    public void logStreamTail(UpstreamRequestContext context, ProxyResult result, String streamBody) {
+        if (context == null || result == null) {
+            return;
+        }
+        UpstreamAdapter adapter = requestAdapterRegistry.resolve(context.requestAdapter());
+        String upstreamUrl = resolveUpstreamUrl(context, adapter);
+        dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE,
+                result.withUpstreamResponseBody(streamBody), null, upstreamUrl);
+    }
+
+    /**
+     * 包级可见：分发时序（流式延后到流结束）本身是契约，需要被接线测试直接驱动，
+     * 否则「跳过了开始前那条」与「补记了那一条」都只能靠读代码相信。
+     */
+    void dispatchPlugin(UpstreamRequestContext context,
                                 PluginStageCode stageCode,
                                 ProxyResult result,
                                 Throwable error,

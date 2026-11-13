@@ -18,6 +18,8 @@ import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import reactor.core.publisher.Flux;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +39,12 @@ import java.util.function.Consumer;
  * <p>SSE 场景额外做一件事：逐事件累计用量，并在上游 {@code data: [DONE]} <b>之前</b>插入独立的
  * {@code knot_extend} 事件（上游原始 usage 以并列 {@code usage} 字段透出；上游不发 [DONE] 时在流结束处
  * 兜底插入），不改动上游原有 chunk，与整包缓冲模式下的行为保持一致。</p>
+ *
+ * <p>⭐ 正文 tee 是<b>只读旁路</b>：在 {@code lines()} 的 wire 行（非 SSE 为原始字节块）上
+ * {@code doOnNext} 复制一份，主链拿到的还是原来那块 {@code DataBuffer} —— 不动 readPosition、
+ * 不 release、不额外 {@code request(n)}、不切线程。攒进有界头尾缓冲，流结束时
+ * （{@code doFinally}，取消 / 出错同样触发）由 {@code streamBodySink} 写出。
+ * 用头尾双留而不是「只留前 N 字节」：usage 与收尾事件都在流末尾，只留头部等于留了个开头。</p>
  */
 @Slf4j
 public final class ProxyStreamingFlux {
@@ -45,6 +53,16 @@ public final class ProxyStreamingFlux {
     private static final String USAGE_FIELD = "usage";
     private static final byte NEW_LINE = (byte) '\n';
     private static final byte[] EMPTY = new byte[0];
+
+    /** 流式正文 tee 的开关：默认开启（日志插件是 opt-in，但启用后必须真的有正文可看） */
+    private static final String STREAM_BODY_PROPERTY = "knot.plugin.log.stream.body";
+
+    /** 流式正文 tee 的总字节上限（头尾各一半），属性可配 */
+    private static final String STREAM_BODY_MAX_PROPERTY = "knot.plugin.log.stream.body.max-bytes";
+
+    private static final int DEFAULT_STREAM_BODY_MAX_BYTES = 8192;
+
+    private static final String OMITTED_MARK = "\n...(omitted %d bytes)...\n";
 
     /**
      * 单行累积上限（1MB）：正常 SSE 事件是几十到几千字节，1MB 已经远超合理值。
@@ -73,18 +91,43 @@ public final class ProxyStreamingFlux {
                                         FirstTokenHeaderWriter writer,
                                         Consumer<UsageAccounting> usageSink,
                                         Runnable onComplete) {
+        return wrap(stream, registry, appendUsage, factory, writer, usageSink, onComplete, null);
+    }
+
+    /**
+     * @param streamBodySink 流结束时的正文出口（有界 tee 快照，可能为 {@code null}）；
+     *                       传 {@code null} 时整条旁路都不挂，零成本。
+     *                       生产链路必须传：不传就没有流式的上游响应正文日志。
+     */
+    public static Flux<DataBuffer> wrap(UpstreamStreamResponse stream,
+                                        UsageExtractorRegistry registry,
+                                        boolean appendUsage,
+                                        DataBufferFactory factory,
+                                        FirstTokenHeaderWriter writer,
+                                        Consumer<UsageAccounting> usageSink,
+                                        Runnable onComplete,
+                                        Consumer<String> streamBodySink) {
         FirstTokenHeaderWriter firstTokenWriter = writer == null ? FirstTokenHeaderWriter.noop() : writer;
         UsageState state = new UsageState();
         // 流式适配器按请求新建：EE 有跨事件状态（chunk id、message_start 只发一次），
         // 而适配器本身是单例 Bean，状态不能挂在那边
         StreamLineAdapter adapter = streamAdapter(stream);
+        BodyTee tee = streamBodySink == null || !streamBodyEnabled() ? null : new BodyTee(streamBodyMaxBytes() / 2);
         Flux<DataBuffer> body = stream.isEventStream()
-                ? eventStream(stream, adapter, registry, appendUsage, factory, firstTokenWriter, state)
-                : rawStream(stream, firstTokenWriter);
+                ? eventStream(stream, adapter, registry, appendUsage, factory, firstTokenWriter, state, tee)
+                : rawStream(stream, firstTokenWriter, tee);
         return emptyGuard(body)
                 // 上游中途失败：错误沿 onError 传播（批1 的管道桥接会把它变成静默截断）
                 .doOnError(thrown -> log.warn("Upstream stream failed before completion", thrown))
                 .doFinally(signal -> {
+                    // 日志是旁路：它自己的异常不能打断已经开始的记账与在途释放
+                    if (tee != null) {
+                        try {
+                            streamBodySink.accept(tee.snapshot());
+                        } catch (RuntimeException e) {
+                            log.warn("stream body tee log failed", e);
+                        }
+                    }
                     if (usageSink != null) {
                         usageSink.accept(state.usage());
                     }
@@ -116,8 +159,26 @@ public final class ProxyStreamingFlux {
     /**
      * 非 SSE：原样转发字节，只做首 token 打点。缓冲区交给下游写出方释放。
      */
-    private static Flux<DataBuffer> rawStream(UpstreamStreamResponse stream, FirstTokenHeaderWriter writer) {
-        return stream.body().doOnNext(ignored -> writer.mark());
+    private static Flux<DataBuffer> rawStream(UpstreamStreamResponse stream,
+                                              FirstTokenHeaderWriter writer,
+                                              BodyTee tee) {
+        return stream.body().doOnNext(buffer -> {
+            writer.mark();
+            if (tee != null) {
+                tee.append(readOnlyBytes(buffer));
+            }
+        });
+    }
+
+    /**
+     * 旁路只读拷贝：{@code asByteBuffer()} 是可读区视图，duplicate 后再读，
+     * 主链的 readPosition 与引用计数都不动。绝不能在这里 {@code read()} / {@code release()}。
+     */
+    private static byte[] readOnlyBytes(DataBuffer buffer) {
+        ByteBuffer view = buffer.asByteBuffer().duplicate();
+        byte[] bytes = new byte[view.remaining()];
+        view.get(bytes);
+        return bytes;
     }
 
     /**
@@ -129,8 +190,14 @@ public final class ProxyStreamingFlux {
                                                 boolean appendUsage,
                                                 DataBufferFactory factory,
                                                 FirstTokenHeaderWriter writer,
-                                                UsageState state) {
-        Flux<String> outbound = lines(stream.body())
+                                                UsageState state,
+                                                BodyTee tee) {
+        Flux<String> inbound = lines(stream.body());
+        if (tee != null) {
+            // tee 挂在适配之前的 wire 行上：适配后的行里字段名已是网关重建的，不是供应商原话
+            inbound = inbound.doOnNext(tee::appendLine);
+        }
+        Flux<String> outbound = inbound
                 .concatMap(line -> transform(line, stream, adapter, registry, appendUsage, writer, state))
                 // 上游不发 [DONE]（Anthropic 以 event: message_stop 收尾）时在流结束处兜底注入，
                 // 否则调用方永远拿不到 knot_extend
@@ -307,6 +374,91 @@ public final class ProxyStreamingFlux {
             }
         }
         return -1;
+    }
+
+    private static boolean streamBodyEnabled() {
+        return !"false".equalsIgnoreCase(System.getProperty(STREAM_BODY_PROPERTY, "true").trim());
+    }
+
+    /** 上限解析：非法 / 过小一律回落默认值，与日志正文预算的「宁可少落」同口径。 */
+    private static int streamBodyMaxBytes() {
+        String raw = System.getProperty(STREAM_BODY_MAX_PROPERTY);
+        if (raw == null || raw.isBlank()) {
+            return DEFAULT_STREAM_BODY_MAX_BYTES;
+        }
+        try {
+            int parsed = Integer.parseInt(raw.trim());
+            return parsed > 1 ? parsed : DEFAULT_STREAM_BODY_MAX_BYTES;
+        } catch (NumberFormatException e) {
+            return DEFAULT_STREAM_BODY_MAX_BYTES;
+        }
+    }
+
+    /**
+     * 有界头尾旁路：头部填满后，余下字节只进尾部环形缓冲，头尾<b>不重叠</b>。
+     *
+     * <p>⚠ 输出是 UTF-8 解码的字符串：头尾切点可能正好劈开一个多字节字符，解码会得到
+     * replacement char。作为排障 / 对账快照可接受——它不是要回放到客户端的正文。</p>
+     *
+     * <p>{@code synchronized} 不是为了并发写（Reactor 逐块串行），而是给
+     * {@code doFinally} 可能落在另一线程时提供可见性；无竞争，开销可忽略。</p>
+     */
+    static final class BodyTee {
+
+        private final byte[] head;
+        private final byte[] tail;
+        private int headLength;
+        private int tailLength;
+        private int tailStart;
+        private long total;
+
+        /** @param sideBytes 头 / 尾各保留的字节数 */
+        BodyTee(int sideBytes) {
+            this.head = new byte[Math.max(1, sideBytes)];
+            this.tail = new byte[Math.max(1, sideBytes)];
+        }
+
+        synchronized void appendLine(String line) {
+            append((line + "\n").getBytes(StandardCharsets.UTF_8));
+        }
+
+        synchronized void append(byte[] bytes) {
+            total += bytes.length;
+            int offset = 0;
+            if (headLength < head.length) {
+                int n = Math.min(bytes.length, head.length - headLength);
+                System.arraycopy(bytes, 0, head, headLength, n);
+                headLength += n;
+                offset = n;
+            }
+            // 头部之后的字节才进尾环：头尾区间不重叠，省略量才不会算成负数
+            for (int i = offset; i < bytes.length; i++) {
+                if (tailLength < tail.length) {
+                    tail[(tailStart + tailLength) % tail.length] = bytes[i];
+                    tailLength++;
+                } else {
+                    tail[tailStart] = bytes[i];
+                    tailStart = (tailStart + 1) % tail.length;
+                }
+            }
+        }
+
+        /** @return 一个字节都没收到时 {@code null}：让调用方区分「空流」与「空字符串」 */
+        synchronized String snapshot() {
+            if (total == 0) {
+                return null;
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream(headLength + tailLength + 64);
+            out.write(head, 0, headLength);
+            long omitted = total - headLength - tailLength;
+            if (omitted > 0) {
+                out.writeBytes(String.format(OMITTED_MARK, omitted).getBytes(StandardCharsets.UTF_8));
+            }
+            for (int i = 0; i < tailLength; i++) {
+                out.write(tail[(tailStart + i) % tail.length]);
+            }
+            return out.toString(StandardCharsets.UTF_8);
+        }
     }
 
     /**

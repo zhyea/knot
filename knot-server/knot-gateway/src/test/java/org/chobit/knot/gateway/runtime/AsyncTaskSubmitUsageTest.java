@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.runtime;
 
+import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
@@ -77,9 +78,17 @@ class AsyncTaskSubmitUsageTest {
         OutageKeys outageKeys = new OutageKeys("test");
         UpstreamProxyClient proxy = new UpstreamProxyClient(null, null, null, null, null, null) {
             @Override
-            public ProxyResult proxy(Map<String, Object> requestBody, MediaType contentType,
-                                     RoutingRuleTargetDto target, ModelApiProtocolEnum protocol,
-                                     String traceparent, String requestId) {
+            public UpstreamRequestContext buildRequestContext(Map<String, Object> requestBody,
+                                                             MediaType contentType,
+                                                             RoutingRuleTargetDto target,
+                                                             ModelApiProtocolEnum protocol,
+                                                             String traceparent, String requestId) {
+                // 本用例不关心上游上下文：请求处理器只把它挂在属性上供流式补记日志用
+                return null;
+            }
+
+            @Override
+            public ProxyResult proxy(UpstreamRequestContext upstreamContext) {
                 return new ProxyResult(CREATE_BODY, 7L, 7L, usage());
             }
         };
