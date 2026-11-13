@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  * 异步任务终态投影的<b>下发条件</b>（2026-11-12 robin 拍板口径）。
  *
  * <p>判据不是「某个方法被调用」，而是四个出口各自的 wire 结果：
- * {@code knot_extend} / 并列 {@code usage} 只在「终态 + 消费者配置」或测试头下出现，
+ * {@code knot_extend} / 并列 {@code upstream_usage} 只在「终态 + 消费者配置」或测试头下出现，
  * {@code upstream_body} 只跟测试头。回调与轮询共用 {@link AsyncTaskViewSupport}，
  * 所以这里验的也就是回调 body 的形状。</p>
  */
@@ -34,13 +34,13 @@ class AsyncTaskViewSupportTest {
             new KnotExtendPayload(null, new NormalizedUsage(1500L, "0.004", "USD", "v1", List.of())));
 
     @Test
-    @DisplayName("终态 + consumer 配置：下发 knot_extend 与并列 usage，但不带 upstream_body")
+    @DisplayName("终态 + consumer 配置：下发 knot_extend 与并列 upstream_usage，但不带 upstream_body")
     void terminalWithConsumerConfigReturnsAccountingPair() {
         AsyncTaskQueryResponse response = AsyncTaskViewSupport.toResponse(
                 task(AsyncTaskStatusEnum.SUCCEEDED.code(), context(true), "{}", TERMINAL_BODY, SETTLEMENT));
 
         assertNotNull(response.knotExtend(), "账目在终态结算时已落 settlement_json，缺的是下发开关");
-        assertNotNull(response.rawUsage(), "并列 usage 是上游原始用量，与 knot_extend 成对");
+        assertNotNull(response.rawUsage(), "并列 upstream_usage 是上游原始用量，与 knot_extend 成对");
         assertEquals("0.12", response.rawUsage().get("cost"), "上游 cost 口径要能直接从并列 usage 读到");
         assertNull(response.upstreamBody(), "consumer 配置只给账目，不该把上游响应原文一起泄露出去");
     }

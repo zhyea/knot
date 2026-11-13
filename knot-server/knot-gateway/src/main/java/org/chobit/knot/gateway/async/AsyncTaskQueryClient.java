@@ -9,9 +9,11 @@ import org.chobit.knot.adapter.model.ref.ProviderAccountRef;
 import org.chobit.knot.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
 import org.chobit.knot.svc.vo.gateway.ProviderAccountConfigVo;
 import org.chobit.knot.svc.vo.gateway.ProviderCredentialConfigVo;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.gateway.upstream.support.UpstreamUrlSupport;
@@ -100,7 +102,12 @@ public class AsyncTaskQueryClient implements AsyncTaskQueryPort {
                 () -> exchange(url, access, method));
     }
 
-    private String exchange(String url, UpstreamAccess access, HttpMethod method) {
+    /**
+     * 发一次查询并取回响应体原文；非 2xx 一律转成携带状态码与错误体的上游异常，
+     * 让插件侧能按状态码筛选、调用侧照旧按 {@code RuntimeException} 退避重试。
+     * 包级可见供单测直接驱动。
+     */
+    String exchange(String url, UpstreamAccess access, HttpMethod method) {
         // ⭐ 用异步任务自己的查询超时，不是 knot.gateway.upstream.response-timeout：
         // 后者是给生成型请求的（等模型吐字，默认 120s），拿它来查一次任务状态，
         // 超时会比 claim_ttl（默认 180s）之外的预算还难对齐——旧代码就是这样把
@@ -113,9 +120,15 @@ public class AsyncTaskQueryClient implements AsyncTaskQueryPort {
                 .uri(URI.create(url))
                 .headers(headers -> headers.addAll(access.headers()))
                 .retrieve()
+                // defaultIfEmpty 兜住「错误响应没有 body」：onStatus 的映射器返回空 Mono 时
+                // 错误信号会被吞掉，调用方会把一次 4xx 当成「上游没给内容」继续往下走
                 .onStatus(HttpStatusCode::isError, response -> response.bodyToMono(String.class)
-                        .map(body -> new IllegalStateException(
-                                "async task query failed: status=" + response.statusCode() + " body=" + body)))
+                        .defaultIfEmpty("")
+                        .map(body -> new GatewayUpstreamException(
+                                "upstream responded with status " + response.statusCode().value(),
+                                ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
+                                response.statusCode().value(),
+                                body)))
                 .bodyToMono(String.class)
                 .block(timeout);
     }

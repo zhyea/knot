@@ -112,7 +112,7 @@
 ```
 ① 抽屉跑路由测试（真实网关一次调用；消费者 return_usage_detail 已开）
         │
-        ▼  网关响应 = 上游响应体 + knot_extend{usage, billing} + 并列 upstreamUsage
+        ▼  网关响应 = 上游响应体 + knot_extend{usage, billing} + 并列 upstream_usage
         │  （knot_extend 由网关自产注入，不是上游返回的：见 §4）
         │
         ▼  POST /api/routing-rules/{id}/test/billing-verify
@@ -153,7 +153,7 @@ robin 纠正：「knot_extend 不是上游返回的」。代码实证：
 | 事实 | 位置 |
 |---|---|
 | 产出方是**网关自己**：`routing.returnUsageDetail()` 为 true 时，`KnotExtendPayload.of(result.usage())` 注入响应 | `GatewayRequestHandler` |
-| 流式下由 `ProxyStreamingBody` 在 `data: [DONE]` 之前插入**独立 SSE 事件**（上游不发 `[DONE]` 时流结束处兜底）；上游原始 usage 以并列 `upstreamUsage` 字段透出 | `ProxyStreamingBody` |
+| 流式下由 `ProxyStreamingBody` 在 `data: [DONE]` 之前插入**独立 SSE 事件**（上游不发 `[DONE]` 时流结束处兜底）；上游原始 usage 以并列 `upstream_usage` 字段透出 | `ProxyStreamingBody` |
 | 结构 = `{ usage: 归一化用量（跨厂商一致，业务侧以此为准）, billing: 网关按计费规则算出的总价与明细 }`；金额为十进制普通字符串（2026-10-17 契约） | `KnotExtendPayload` / `NormalizedUsage` |
 
 **角色定位：被告。** 本次校验要判断「这个账算得对不对」的那个账，就是网关对当次调用真实算出并返回给调用方的 `knot_extend.billing`。影子重算值（`BillingFact.computed`）是**基准**，上游自报 `usage.cost` 是**外部证人**（可选，仅部分厂商有）——三者构成三角，但只有「被告 + 依据」进 JEV。

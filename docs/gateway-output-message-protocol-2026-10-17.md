@@ -115,7 +115,7 @@
 | `billing` 可缺 | 无计费规则可命中时整个 `billing` 省略——调用方可区分「免费」与「未配置计费」 |
 | `detail[].cost` 是 **String** | 十进制普通字符串、不设小数位上限，绝不出科学计数法（`plainMoney`）；`price` 同为字符串（折算百万单价） |
 | `detail[].type` 取值 | token 模式：`uncachedInput`/`cachedRead`/`cachedWrite`/`cachedWrite5m`/`cachedWrite1h`/`output`；简单模式：计费模式 code（TOKEN/REQUEST/IMAGE/AUDIO/VIDEO/EMBEDDING/FREE/CUSTOM）；视频按分辨率出明细 |
-| 并列 `usage` 字段 | 上游原始 usage 原文透传（与 knot_extend 同级的 `usage` 键），仅供对照排障；上游未上报时省略 |
+| 并列 `upstream_usage` 字段 | 上游原始 usage 原文透传（与 knot_extend 同级的 `upstream_usage` 键，整包与流式一致），仅供对照排障；上游未上报时省略 |
 | SSE 注入形态 | `data: {"knot_extend":{...},"usage":{上游原文}}`，不改动上游原有 chunk |
 
 ## 5. 错误响应协议

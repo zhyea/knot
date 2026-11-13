@@ -49,7 +49,7 @@ public record UsageAccounting(Map<String, Object> rawUsage,
     }
 
     /**
-     * 计费结果中的 token 总量，用于流式逐事件挑选「信息量最大」的一份用量。
+     * 计费结果中的 token 总量（输入 + 输出），供限额与配额记账换算用量。
      * 优先取计费结果，无计费结果时退回内部计费输入的 token 总量；媒体用量经内嵌 token 部分取数（纯媒体响应为 0）。
      */
     public long totalTokens() {

@@ -1221,7 +1221,7 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
       startAsyncPolling(accepted);
       return;
     }
-    // 被告提取：整包响应体顶层 knot_extend{usage, billing} + 并列 usage（上游原文）
+    // 被告提取：整包响应体顶层 knot_extend{usage, billing} + 并列 upstream_usage（上游原文）
     captureKnotExtend(response.data);
     responseTab.value = "body";
     // 裁判第二步：不阻塞上方测试结果的渲染；开关关闭时跳过校验

@@ -66,6 +66,7 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
     /**
      * 用查询响应体跑一遍既有的提取与计费。
      * 请求体取自任务快照（客户端原始体）；转换后的上游体只用于发请求，从不回灌给提取器。
+     * 查询响应体按两份用：算账吃按档案 {@code usage_path} 加工后的 body，证据吃原文，两者的来源不许互换。
      */
     @Override
     public UsageAccounting charge(AsyncTaskDto task, AsyncTaskContext context, String queryBody) {
@@ -84,9 +85,10 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
                 ModelApiProtocolEnum.fromCode(context.protocol()),
                 context.traceparent(),
                 context.requestId());
-        // 只加工「交给提取器的输入」；落库证据仍用 polling.rawBody() 原文（见 queryBodyForUsage）。
+        // 只加工「交给提取器的输入」；证据另传原文，与落库的 terminal_body 同源
+        String evidenceBody = queryBody;
         queryBody = queryBodyForUsage(queryBody, task.pollSpecJson());
-        return usageExtractorRegistry.extract(queryBody, upstreamContext);
+        return usageExtractorRegistry.extract(queryBody, evidenceBody, upstreamContext);
     }
 
     /**

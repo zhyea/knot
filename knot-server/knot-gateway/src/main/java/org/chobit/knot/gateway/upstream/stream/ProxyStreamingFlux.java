@@ -461,7 +461,7 @@ public final class ProxyStreamingFlux {
         }
 
         /**
-         * 独立的 {@code knot_extend} 事件行（上游原始 usage 以并列 {@code usage} 字段透出，
+         * 独立的 {@code knot_extend} 事件行（上游原始 usage 以并列 {@code upstream_usage} 字段透出，
          * 供下游对照排障）；用量缺失或两视图都为空时返回 {@code null}，不塞空对象给调用方。
          */
         String usageLine() {
@@ -476,7 +476,7 @@ public final class ProxyStreamingFlux {
             event.put(AiPayloadFields.KNOT_EXTEND, payload);
             Map<String, Object> rawUsage = value.rawUsage();
             if (rawUsage != null && !rawUsage.isEmpty()) {
-                event.put(AiPayloadFields.RAW_USAGE, rawUsage);
+                event.put(AiPayloadFields.UPSTREAM_USAGE, rawUsage);
             }
             return SseLineSupport.data(JsonKit.toJson(event));
         }

@@ -142,7 +142,7 @@ class ProxyStreamingFluxTest {
                 "knot_extend 独立事件只注入一次");
         String extendEvent = lines.stream()
                 .filter(line -> line.startsWith("data: {\"knot_extend\"")).findFirst().orElseThrow();
-        assertTrue(extendEvent.contains(",\"usage\":{"), "上游原始 usage 应以并列字段 usage 注入");
+        assertTrue(extendEvent.contains(",\"upstream_usage\":{"), "上游原始 usage 应以并列字段 upstream_usage 注入");
         assertEquals("data: [DONE]", lines.get(lines.indexOf(extendEvent) + 1), "knot_extend 应插在 [DONE] 之前");
         assertTrue(out.contains("data: {\"choices\":[],\"usage\":{\"input_tokens\":20,\"output_tokens\":7}}"),
                 "上游原有 chunk 不应被改动");

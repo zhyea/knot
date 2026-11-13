@@ -52,7 +52,7 @@ public final class ModerationTextExtractor {
     }
 
     /**
-     * 插件视角的响应体抽取：{@code GatewayPluginContext#responseBody()} 是 {@code Object}，整包场景可能是上游原始
+     * 插件视角的响应体抽取：{@code GatewayPluginContext#responseBody()} 是 {@code Object}，整包场景可能是适配后的
      * JSON 字符串，也可能是已注入 {@code knot_extend} 的 Map；流式场景（{@code StreamingResponseBody}）返回空列表。
      */
     public static List<String> fromResponseObject(Object responseBody) {

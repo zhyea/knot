@@ -1,6 +1,9 @@
 package org.chobit.knot.gateway.async;
 
+import org.chobit.knot.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.plugin.PluginDispatchContext;
 import org.chobit.knot.plugin.PluginDispatcher;
 import org.chobit.knot.plugin.PluginExtensionPoint;
@@ -8,7 +11,13 @@ import org.chobit.knot.plugin.PluginStageCode;
 import org.chobit.knot.plugin.upstream.UpstreamPluginContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.client.ClientResponse;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -148,7 +157,46 @@ class AsyncTaskQueryClientTest {
         assertNull(responseCtx.responseSnapshot().get("responseBody"));
     }
 
+    @Test
+    @DisplayName("上游 4xx/5xx：抛带状态码与错误体的上游异常，不用文本拼装")
+    void errorStatusThrowsStructuredUpstreamException() {
+        AsyncTaskQueryClient client = clientReturning(HttpStatus.SERVICE_UNAVAILABLE, "{\"error\":\"busy\"}");
+
+        GatewayUpstreamException thrown = assertThrows(GatewayUpstreamException.class,
+                () -> client.exchange(URL, access(), HttpMethod.GET));
+
+        assertEquals(503, thrown.httpStatus(), "状态码要进结构化字段，插件侧才能按码筛选");
+        assertEquals("{\"error\":\"busy\"}", thrown.responseBody(), "错误体原文要随异常带出");
+        assertEquals(ProxyErrorCodeEnum.UPSTREAM_ERROR.code(), thrown.code());
+    }
+
+    @Test
+    @DisplayName("上游错误但响应体为空：仍然抛异常，不被空 body 吞成「上游没给内容」")
+    void errorStatusWithoutBodyStillThrows() {
+        AsyncTaskQueryClient client = clientReturning(HttpStatus.BAD_GATEWAY, "");
+
+        GatewayUpstreamException thrown = assertThrows(GatewayUpstreamException.class,
+                () -> client.exchange(URL, access(), HttpMethod.GET));
+
+        assertEquals(502, thrown.httpStatus());
+        assertEquals("", thrown.responseBody());
+    }
+
     // ---------- 夹具 ----------
+
+    private static AsyncTaskQueryClient clientReturning(HttpStatus status, String body) {
+        WebClient webClient = WebClient.builder()
+                .exchangeFunction(request -> Mono.just(ClientResponse.create(status)
+                        .header("Content-Type", "application/json")
+                        .body(body)
+                        .build()))
+                .build();
+        return new AsyncTaskQueryClient(webClient, new AsyncTaskProperties(), null, null, null, null);
+    }
+
+    private static UpstreamAccess access() {
+        return new UpstreamAccess("https://upstream.example.com", HttpHeaders.EMPTY);
+    }
 
     private static UpstreamRequestContext upstreamContext() {
         return new UpstreamRequestContext(

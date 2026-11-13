@@ -111,6 +111,18 @@ class GatewayRequestHandlerReturnUsageDetailTest {
     }
 
     @Test
+    @DisplayName("非流式并列 upstream_usage 走上游原文，响应体自带的 usage 保持原样")
+    void injectedSidebarDoesNotOverwriteAdaptedUsage() {
+        Object body = applyNonStreaming(true, null, "{\"usage\":{\"prompt_tokens\":999}}");
+
+        Map<?, ?> injected = assertInstanceOf(Map.class, body);
+        Map<?, ?> upstream = assertInstanceOf(Map.class, injected.get("upstream_usage"));
+        assertEquals(3, upstream.get("prompt_tokens"), "并列字段是供应商原文，键名不被归一化改写");
+        Map<?, ?> adapted = assertInstanceOf(Map.class, injected.get("usage"));
+        assertEquals(999, adapted.get("prompt_tokens"), "响应体自带的适配后 usage 不许被顶掉");
+    }
+
+    @Test
     @DisplayName("注入内容含 usage 与 billing 两视图")
     void injectedPayloadCarriesBothViews() {
         Object body = applyNonStreaming(false, "true");
@@ -140,6 +152,10 @@ class GatewayRequestHandlerReturnUsageDetailTest {
         return apply(consumerReturnUsageDetail, carrier(testHeaderValue));
     }
 
+    private Object applyNonStreaming(boolean consumerReturnUsageDetail, String testHeaderValue, String responseBody) {
+        return apply(consumerReturnUsageDetail, carrier(testHeaderValue), responseBody);
+    }
+
     /**
      * 无 HTTP 载体（{@link GatewayHttpExchange#noop()}）的降级路径。
      */
@@ -148,6 +164,10 @@ class GatewayRequestHandlerReturnUsageDetailTest {
     }
 
     private Object apply(boolean consumerReturnUsageDetail, GatewayHttpExchange http) {
+        return apply(consumerReturnUsageDetail, http, RESPONSE_BODY);
+    }
+
+    private Object apply(boolean consumerReturnUsageDetail, GatewayHttpExchange http, String responseBody) {
         ResolvedRouting routing = new ResolvedRouting(
                 1L, "rule-a", 10L, "sk-routing-key", consumerReturnUsageDetail,
                 List.of(), null, null, null);
@@ -159,7 +179,7 @@ class GatewayRequestHandlerReturnUsageDetailTest {
                 ModelUsageNormalizer.fromBilling(TokenBillingUsage.from(rawUsage), null),
                 new NormalizedUsage(5L, "0.001", "CNY", "v1", List.of()));
         GatewayExchange exchange = new GatewayExchange(Map.of(), MediaType.APPLICATION_JSON, http);
-        exchange.proxyResult(new ProxyResult(RESPONSE_BODY, 1L, 2L, usage));
+        exchange.proxyResult(new ProxyResult(responseBody, 1L, 2L, usage));
 
         GatewayRequestContext context = new GatewayRequestContext(
                 "Bearer sk-routing-key", "rule-a", null, null, null);

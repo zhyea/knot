@@ -100,20 +100,20 @@ describe("useBillingVerdict 被告提取", () => {
     expect(v.knotExtend.value).toBeNull();
   });
 
-  it("提取被告的同时取并列的上游 usage", () => {
+  it("提取被告的同时取并列的上游 upstream_usage", () => {
     const {ctx} = makeCtx();
     const v = useBillingVerdict(ctx);
-    v.captureKnotExtend({knot_extend: {usage: {a: 1}}, usage: {prompt_tokens: 9}});
+    v.captureKnotExtend({knot_extend: {usage: {a: 1}}, upstream_usage: {prompt_tokens: 9}});
     expect(v.knotExtend.value).toEqual({usage: {a: 1}});
     expect(v.upstreamUsage.value).toEqual({prompt_tokens: 9});
   });
 
-  it("并列 usage 缺失或非对象 → upstreamUsage 归 null", () => {
+  it("并列 upstream_usage 缺失或非对象 → upstreamUsage 归 null", () => {
     const {ctx} = makeCtx();
     const v = useBillingVerdict(ctx);
     v.captureKnotExtend({knot_extend: {billing: {}}});
     expect(v.upstreamUsage.value).toBeNull();
-    v.captureKnotExtend({knot_extend: {billing: {}}, usage: "not-object"});
+    v.captureKnotExtend({knot_extend: {billing: {}}, upstream_usage: "not-object"});
     expect(v.upstreamUsage.value).toBeNull();
   });
 
@@ -203,7 +203,7 @@ describe("useBillingVerdict 轮次令牌（防串台）", () => {
   it("重置后所有裁判态归零", () => {
     const {ctx} = makeCtx();
     const v = useBillingVerdict(ctx);
-    v.captureKnotExtend({knot_extend: {}, usage: {a: 1}});
+    v.captureKnotExtend({knot_extend: {}, upstream_usage: {a: 1}});
     v.verdictSkipped.value = true;
     v.verdictError.value = "x";
     v.resetVerdictState();

@@ -5,8 +5,8 @@ import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
 
 /**
  * 上游调用结果。
- * {@code responseBody} 是 {@code adapter.handleResponse} 之后的适配后响应（客户端响应的来源），{@code upstreamResponseBody} 是供应商 wire 原文（只供上游日志与对账取证，不参与计算），两者不许混用；后者只在非流式路径有值。
- * {@code streamResponse} 非空表示流式转发，正文由 {@link UpstreamStreamResponse} 持有的流逐块转发；{@code usage} 是一次调用的完整用量账目（{@link UsageAccounting}），其中 {@code rawUsage} 在适配后 body 上提取。
+ * {@code responseBody} 是 {@code adapter.handleResponse} 之后的适配后响应（客户端响应的来源），{@code upstreamResponseBody} 是供应商 wire 原文（只供上游日志与对账取证，不参与计算），两者不许混用；非流式是整包，流式由正文 tee 在流读完时回填头尾双留的有界快照。
+ * {@code streamResponse} 非空表示流式转发，正文由 {@link UpstreamStreamResponse} 持有的流逐块转发；{@code usage} 是一次调用的完整用量账目（{@link UsageAccounting}），其中 {@code rawUsage} 取自 wire 原文，与算账用的适配后 body 不是同一份。
  * {@code upstreamRequestId} 为供应商侧请求标识（响应头白名单归一），供数仓 attempt 级绑定与网关日志、不透客户端；{@code upstreamUrl} 为本次上游调用的完整请求地址（scheme + host + path），落 Kafka 流量事件与上游日志。
  */
 public record ProxyResult(String responseBody,

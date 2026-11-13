@@ -572,6 +572,10 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             return result.responseBody();
         }
         body.put(AiPayloadFields.KNOT_EXTEND, payload);
+        if (rawUsage != null) {
+            // 与 SSE 事件、异步任务查询响应同名：原文单独占一个键，不顶掉响应体自带的适配后 usage
+            body.put(AiPayloadFields.UPSTREAM_USAGE, rawUsage);
+        }
         return body;
     }
 
@@ -692,14 +696,14 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 在 {@code [DONE]} 之前插入独立的 {@code knot_extend} 事件（上游原始 usage 以并列 {@code usage} 字段透出），
+     * 在 {@code [DONE]} 之前插入独立的 {@code knot_extend} 事件（上游原始 usage 以并列 {@code upstream_usage} 字段透出），
      * 不改动上游原有 chunk；无 {@code [DONE]} 时追加在流末尾。
      */
     private String appendUsageEvent(String responseBody, KnotExtendPayload payload, Map<String, Object> rawUsage) {
         Map<String, Object> event = new LinkedHashMap<>();
         event.put(AiPayloadFields.KNOT_EXTEND, payload);
         if (rawUsage != null) {
-            event.put(AiPayloadFields.RAW_USAGE, rawUsage);
+            event.put(AiPayloadFields.UPSTREAM_USAGE, rawUsage);
         }
         String usageData = "data: " + JsonKit.toJson(event);
         String doneMarker = "data: [DONE]";

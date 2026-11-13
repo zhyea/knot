@@ -65,13 +65,14 @@ public final class AiPayloadFields {
      */
     public static final String KNOT_EXTEND = "knot_extend";
     /**
-     * 上游原始 {@code usage} 原文透传字段名，与 {@link #KNOT_EXTEND} 并列注入
-     * （整包为响应体字段，SSE 为同一独立事件的并列字段），仅供下游与归一化结果对照排障，
+     * 上游原始 {@code usage} 原文透传字段名，与 {@link #KNOT_EXTEND} 并列输出，仅供下游与归一化结果对照排障，
      * 业务口径仍以 {@code knot_extend} 的 {@code usage} / {@code billing} 为准。
-     * 字段名沿用上游通用的 {@code "usage"}：整包模式下与上游响应自带的 {@code usage}
-     * 同义覆盖（值相同），下游按既有键名即可读到原始用量。上游未上报 {@code usage} 时省略。
+     * 三处出口同名同义：同步整包为响应体顶层字段，流式为 {@code [DONE]} 前的独立 {@code data:} 事件，
+     * 异步任务查询响应为响应顶层字段（取自 {@code terminal_body} 原文）。
+     * 与响应体自带的 {@code usage} 不共存于一个键：后者是适配后口径，本字段是供应商原文，跨协议绑定时键名不同。
+     * 上游未上报 {@code usage} 时省略。
      */
-    public static final String RAW_USAGE = "usage";
+    public static final String UPSTREAM_USAGE = "upstream_usage";
     public static final String STREAM = "stream";
 
     /** 载荷类型判别字段：Anthropic 事件 {@code type}、Responses output 项 {@code type} 共用。 */

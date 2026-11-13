@@ -59,7 +59,7 @@
 - 上游流式（2026-10-20 批2 起，Netty 栈）：取流**只能** `retrieve().onStatus(...).toEntityFlux(DataBuffer.class)`。`exchangeToMono` 会在 handler 返回后调 `releaseBody()` 把未消费的响应体整个吞掉（`UpstreamWebClientStreamingTest` 钉住）。⚠ 旧规则「取原始响应用 `exchange((req,res)->res,false)`、不要再链 `.retrieve()`」作废——那是 Servlet 栈时期针对 RestClient 的写法，与现行 WebClient 实现矛盾，以代码为准。
 - 流式测试（2026-10-20 起）：**MockMvc 已不可用**（网关是 Netty 栈，无 Servlet）。流式契约靠 ① 直接调方法 + 反射注解契约检查（`WebTestClient.bindToController` 的 mock codec 管线跑不通 multipart，别走）；② 真启冒烟 s9（首字节 ≪ 总耗时、`knot_extend` 恰好 1 次且在 `[DONE]` 前）。前端 SSE 仍走 fetch（30s 超时）。
 - `knot_extend` = `{usage, billing}`；整包作响应体字段（`body.knot_extend`），SSE 作独立 `data:` 事件（`[DONE]` 前插入）；**usage 用 snake_case，billing 用驼峰**。
-- 上游 usage **原文**在 SSE 事件里以并列的 `usage` 字段透出（`{knot_extend, usage}`，与 `knot_extend` 同级；`return_usage_detail` 关闭或无原文时不出现）。⚠ 整包（非流式）路径目前**只回 `knot_extend`**，不含原文——两条路径的这一差异是现状，改前先确认下游是否依赖。
+- 上游 usage **原文**以并列的 `upstream_usage` 字段透出，三处出口同名同义：整包为响应体顶层字段、SSE 为 `{knot_extend, upstream_usage}` 独立事件、异步任务查询响应为响应顶层字段。**不复用响应体自带的 `usage` 键**——那个是适配后口径，跨协议绑定时键名已被改写；`return_usage_detail` 关闭或无原文时不出现。
 - ⭐ **错误前置**：流一开始转发，响应头即已 commit，此后任何错误都无法再用 HTTP 状态反馈，只能沉进日志。因此**能预检的错误必须在建立上游连接 / 写出响应头之前暴露**（先例：`AbstractUpstreamProtocolExecutor.executeStreaming` 前的 `requireExtractor(true, context)`）。
   ⚠ 预检必须与正式提取**共用同一套选择逻辑**。若做不到（如整包路径预检时尚无响应体、`isEventStream` 判不了），**宁可不预检，也不要传一个猜出来的标志位**——改在该路径如实标注「失败发生在提取阶段」。
 
@@ -307,7 +307,7 @@ usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
 `body` = 整个查询响应）。求值的**唯一出口**是 `AsyncTaskExpressionSupport`
 （`text` / `requireText` / `texts` / `test` / `object`），禁止各处自行 `MVEL.eval`。
 ⭐ **`usage_path` 取的是对象不是标量**（2026-11-12）：上游把 `usage`（含 `cost`）嵌在 `data.*` 时，
-顶层取不到就会丢掉 Kafka `upstream_usage` 与对外并列 `usage`。为此新增 `object()` 而**不是**放宽
+顶层取不到就会让 Kafka `upstream_usage` 与对外并列字段一起丢掉。为此新增 `object()` 而**不是**放宽
 `text()` / `scalar()` —— 后者还服务状态文本与产物地址，放宽会让「取到 Map」变成合法标量，
 静默污染终态判定。判据是「表达式的返回类型」，不是「能不能复用同一段代码」。
 **规则形态的判据**：旧的自研 JSON 路径语法只能表达「取某个节点」，而终态判定本质不是「取值相等」，

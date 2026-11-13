@@ -57,7 +57,7 @@
 ```
 ① 抽屉发测试请求（Authorization: Bearer 消费者密钥 + Rule 头 [+ X-Knot-Test-Return-Usage]）
       │
-      ▼  网关响应：上游响应体 + knot_extend{usage, billing} + 并列 upstreamUsage（原始 usage 原文）
+      ▼  网关响应：上游响应体 + knot_extend{usage, billing} + 并列 upstream_usage（原始 usage 原文）
       │  （knot_extend 由网关自产注入——被告；详见 v6 §4 实证表）
       ▼
 ② 抽屉渲染测试结果；若 knot_extend 在场 → 自动发第二步（不阻塞①的渲染）
@@ -124,7 +124,7 @@ POST /api/routing-rules/{id}/test/billing-verdict
 | `protocol` | 抽屉选择 | 接口协议 |
 | `targetCode` | 响应头 `X-Knot-Model` | 实际承接模型 |
 | `knotExtend` | 抽屉响应**原样回传**（整包=响应体顶层字段；流式=独立 SSE 事件，前端解析提取） | 被告：`{usage, billing}` |
-| `upstreamUsage` | 响应里与 `knot_extend` 并列的原始 usage 原文 | 依据：上游口径 |
+| `upstreamUsage` | 响应里与 `knot_extend` 并列的 `upstream_usage` 字段（原始 usage 原文） | 依据：上游口径 |
 | `requestBody` | 抽屉请求体 | 依据：请求侧计费属性（size 等） |
 
 **不发第二次上游请求**：被告就是「已在抽屉里显示过的那次调用」的产出（v6 附录纪律保留）。

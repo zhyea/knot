@@ -53,7 +53,7 @@ public class UsageExtractorRegistry {
      * {@code responseBody} 只用来算账：提取器口径是统一协议（{@code prompt_tokens} / {@code completion_tokens}）。
      * {@code wireResponseBody} 只用来留证据：跨协议绑定时原文键名是供应商口径（{@code input_tokens} / {@code output_tokens}），{@code rawUsage} 记的是原文。
      *
-     * @param wireResponseBody 供应商原文；{@code null} 表示手头只有一份（异步查询 / 单测），回落到 {@code responseBody}
+     * @param wireResponseBody 供应商原文；{@code null} 表示手头只有一份，回落到 {@code responseBody}
      */
     public UsageAccounting extract(String responseBody, String wireResponseBody,
                                    UpstreamRequestContext context) {

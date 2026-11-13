@@ -8,8 +8,8 @@ import type {
 
 /** 响应体里的被告负载字段名（网关注入） */
 const KNOT_EXTEND_FIELD = "knot_extend";
-/** 与 knot_extend 并列的上游原始 usage 字段名 */
-const RAW_USAGE_FIELD = "usage";
+/** 与 knot_extend 并列的上游原始 usage 字段名（同步整包 / 流式 / 异步查询三处同名） */
+const UPSTREAM_USAGE_FIELD = "upstream_usage";
 /** 承接模型响应头（小写归一后的键）；大写形式作为兼容回退 */
 const MODEL_RESPONSE_HEADER = "x-knot-model";
 
@@ -76,7 +76,7 @@ export function useBillingVerdict(ctx: BillingVerdictContext) {
       return;
     }
     knotExtend.value = extend as Dict;
-    const raw = findSiblingField(payload, KNOT_EXTEND_FIELD, RAW_USAGE_FIELD);
+    const raw = findSiblingField(payload, KNOT_EXTEND_FIELD, UPSTREAM_USAGE_FIELD);
     upstreamUsage.value = raw && typeof raw === "object" ? (raw as Dict) : null;
   }
 

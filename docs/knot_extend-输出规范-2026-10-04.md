@@ -9,14 +9,14 @@
 | 项 | 决策 |
 |---|---|
 | 对外字段名 | **`knot_extend`**（取代 `model_usage`，再上取代 `knot_usage`；一次做干净不留兼容） |
-| 输出内容 | `knot_extend` 两视图 `{usage, billing}` + 并列字段 **`usage`**（上游原始 usage 原文） |
-| **并列 `usage` 字段**（2026-10-13 恢复透传） | 与 `knot_extend` **并列**注入（整包为响应体字段——与上游自带的 `usage` 同义覆盖、值相同；SSE 为同一独立事件的并列字段），仅供下游与归一化结果对照排障；业务口径仍以 `knot_extend` 的视图为准。上游未上报 `usage` 时省略 |
+| 输出内容 | `knot_extend` 两视图 `{usage, billing}` + 并列字段 **`upstream_usage`**（上游原始 usage 原文） |
+| **并列 `upstream_usage` 字段** | 与 `knot_extend` **并列**注入：整包为响应体顶层字段，SSE 为独立 `data:` 事件的并列字段，异步任务查询响应为响应顶层字段——三处同名同义。仅供下游与归一化结果对照排障，业务口径仍以 `knot_extend` 的视图为准。**不复用响应体自带的 `usage` 键**（那个是适配后口径，跨协议绑定时键名已被改写）。上游未上报时省略 |
 | 生效条件 | 路由消费者 `return_usage_detail = true` |
 | 无计费规则时 | `billing` 整个省略（区分「免费」与「未配置计费」），`usage` 照常输出 |
 | 计费规则解析 | 模型显式绑定 → 模型族精确 → `model_family` 为空的默认规则（三级回退） |
 | 流式注入 | 独立 `data:` 事件插在 `[DONE]` 之前（无 `[DONE]` 时追加在流末尾），不改动上游原有 chunk；真流式与整包缓冲 SSE 行为一致 |
 
-## 2. `knot_extend` 两视图定义（`KnotExtendPayload`）+ 并列 `usage`
+## 2. `knot_extend` 两视图定义（`KnotExtendPayload`）+ 并列 `upstream_usage`
 
 ```json
 {
@@ -32,10 +32,10 @@
                              {"type":"cachedWrite1h","quantity":100,"unit":"1M_TOKENS","cost":"0.00020000","price":2.0},
                              {"type":"output","quantity":200,"unit":"1M_TOKENS","cost":"0.00300000","price":15.0} ] }
   },
-  "usage": { "input_tokens": 1000, "output_tokens": 200,
-             "cache_read_input_tokens": 300,
-             "cache_creation": {"ephemeral_5m_input_tokens": 400,
-                                "ephemeral_1h_input_tokens": 100} }
+  "upstream_usage": { "input_tokens": 1000, "output_tokens": 200,
+                      "cache_read_input_tokens": 300,
+                      "cache_creation": {"ephemeral_5m_input_tokens": 400,
+                                         "ephemeral_1h_input_tokens": 100} }
 }
 ```
 
@@ -51,12 +51,11 @@
 | `usage` | `ModelUsage` | 归一化统一用量，跨厂商字段一致，**业务侧以此为准** |
 | `billing` | `NormalizedUsage` | 网关按计费规则算出的总价与明细；无规则可命中时省略 |
 
-并列的 `usage` 不属于 `KnotExtendPayload`，而是与 `knot_extend` 平级的字段：
-上游 `usage` 原样透传（键名与上游通用 `usage` 一致，整包模式下为同义覆盖），
-**仅用于与归一化视图对照排障**；上游未上报时省略。
+并列的 `upstream_usage` 不属于 `KnotExtendPayload`，而是与 `knot_extend` 平级的字段：
+上游 `usage` 对象原样透传（供应商键名不被改写），**仅用于与归一化视图对照排障**；上游未上报时省略。
 
 注入位置：
-- 整包响应：`knot_extend` 与并列 `usage` 作为响应体字段；
+- 整包响应：`knot_extend` 与并列 `upstream_usage` 都是响应体顶层字段；
 - SSE 响应（`ProxyStreamingBody` 真流式 / `GatewayRequestHandler` 整包缓冲一致）：两者组成独立的
   `data:` 事件，插在 `data: [DONE]` 之前（无 `[DONE]` 时追加在流末尾），不改动上游原有 chunk。
 
@@ -73,8 +72,8 @@
 | 下发条件 | **任务已到终态**（status 2/3/4/5）**且** 提交快照 `context_json.returnUsageDetail` 为 true（即路由消费者 `return_usage_detail` 开启） |
 | 测试头 | `X-Knot-Test-Return-Usage: true` 是**叠加**开关，只看测试头也能出证据，并额外带 `upstream_body`（上游终态查询原文） |
 | 回调 body | 与轮询**同形**；回调没有请求头，所以测试头不叠加、`upstream_body` 不在回调里 —— 这是唯一的有意差异 |
-| 并列 `usage` 来源 | 从 `terminal_body` 按档案 `usage_path` 取上游 usage 对象；未配则回落 `UsageRawReader.readUsage`（顶层 `usage` / `response.usage`）。与同步链路 `rawUsage` 同口径，含供应商 cost |
-| 未结算 | 失败 / 超时 / 取消不计费，`knot_extend` 与并列 `usage` 都省略（`NON_NULL` 缺键） |
+| 并列 `upstream_usage` 来源 | 从 `terminal_body` 按档案 `usage_path` 取上游 usage 对象；未配则回落 `UsageRawReader.readUsage`（顶层 `usage` / `response.usage`）。与同步链路 `rawUsage` 同口径，含供应商 cost |
+| 未结算 | 失败 / 超时 / 取消不计费，`knot_extend` 与并列 `upstream_usage` 都省略（`NON_NULL` 缺键） |
 
 > ⚠ `upstream_body` 是内部排障证据，**不随 consumer 配置下发**：消费者开了用量明细只该拿到账目，
 > 不该连上游响应原文一起收到。投影唯一出口是 `AsyncTaskViewSupport`，轮询与回调共用，不许各写一份。
@@ -163,8 +162,8 @@ OutputTokens(long text, long image, long video, long reasoning, long unclassifie
 
 ## 7. 流式处理
 
-`ProxyStreamingBody` 逐事件提取用量，取 token 总量最大的一份（与整包 `mergeMax` 同语义），
-然后在以下**两个时机之一**写出独立的 `knot_extend` 事件（上游原始 usage 以并列 `usage` 字段透出），且只写一次，
+`ProxyStreamingFlux` 逐事件提取用量，**后到覆盖**（上游 usage 通常在最后一个事件），
+然后在以下**两个时机之一**写出独立的 `knot_extend` 事件（上游原始 usage 以并列 `upstream_usage` 字段透出），且只写一次，
 不改动上游原有 chunk：
 
 1. 遇到上游 `data: [DONE]` → 写在其之前（与整包缓冲模式位置一致）；
@@ -174,8 +173,8 @@ OutputTokens(long text, long image, long video, long reasoning, long unclassifie
 > 转发延迟）、最后一个 chunk 被 Jackson 重写（失去字节级透传）、且与整包缓冲路径行为不一致，
 > 当日即回退为独立事件注入。
 
-逐事件挑选用的 `UsageAccounting.totalTokens()`：优先取计费结果，
-无计费结果时退回内部计费输入的 token 总量——否则无规则场景下全部退化成 0，只能靠「取最后一个」碰运气。
+> 2026-11 起不再按 `UsageAccounting.totalTokens()` 挑「信息量最大」的一份：谁大谁赢会让结果随内容跳变，
+> 改为后到覆盖（`UsageState#latest`）。`totalTokens()` 只保留给限额与配额记账换算用量。
 
 > 2026-10-15 补齐：Responses 协议 SSE 事件把完整响应包在 `response` 子对象里
 >（`response.completed` / `response.incomplete` 等），`usage` 随之嵌套在 `response.usage`。
@@ -187,7 +186,7 @@ OutputTokens(long text, long image, long video, long reasoning, long unclassifie
 ```
 上游响应(整包/SSE)
   └─ UsageRawReader.readBody()        → rawBody（SSE 取信息量最大的事件）
-       ├─ readUsage()                 → rawUsage（归一化输入 + 并列 usage 字段原文透传对照）
+       ├─ readUsage()                 → rawUsage（归一化输入 + 并列 upstream_usage 字段原文透传对照）
        ├─ UsageExtractor.extractUsageBody() → BillingUsage（内部计费输入）
        │    └─ UsageNormalizationSupport → NormalizedUsage（billing 视图）
        └─ ModelUsageNormalizer.fromSource(rawUsage, rawBody, billing) → usage 视图

@@ -274,7 +274,7 @@ public class UpstreamProxyClient {
     /**
      * 响应阶段快照：交给 {@code UPSTREAM_RESPONSE} 阶段的插件（上游响应日志）。
      * 两个 body 键是日志契约，不许合一：{@code responseBody} 是适配后（客户端与计费同源），{@code upstreamResponseBody} 是供应商 wire 原文（对账与工单取证）。
-     * 默认 {@code knot.plugin.log.body=truncated} 时 512 字符预算由整份快照共享，长响应下只有一个 body 能留正文；{@code upstreamResponseBody} 排在前面，优先留原文。
+     * 默认 {@code knot.plugin.log.body=truncated} 时正文预算（{@code knot.plugin.log.body.budget}，默认 4096 字符）由整份快照共享，长响应下只有一个 body 能留正文；{@code upstreamResponseBody} 排在前面，优先留原文。
      * 包级可见供单测直接驱动。
      */
     static Map<String, Object> responseSnapshot(ProxyResult result) {
@@ -284,9 +284,9 @@ public class UpstreamProxyClient {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("providerId", result.providerId());
         snapshot.put("modelId", result.modelId());
-        // 流式两者都没有正文：标记放最前，避免运维以为「body 丢了」而去查上游
+        // 流式正文要等流读完才有：标记放最前，配合有界快照说明 body 是头尾双留、不是丢了
         snapshot.put("streaming", result.streaming());
-        // ⭐ 顺序是刻意的：wire 原文排在适配结果之前。日志正文预算（PluginLogSupport 512）
+        // ⭐ 顺序是刻意的：wire 原文排在适配结果之前。日志正文预算（PluginLogSupport 4096）
         // 是「整份快照先到先得」，排后面的必然拿 0；原文只此一份，适配结果在
         // gateway-response-log 里另有一份可查，所以稀缺预算留给原文。
         snapshot.put("upstreamResponseBody", result.upstreamResponseBody());

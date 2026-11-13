@@ -35,13 +35,13 @@ public record AsyncTaskQueryResponse(@JsonProperty("task_id") String taskCode,
                                      @JsonProperty("knot_extend") KnotExtendPayload knotExtend,
                                      /**
                                       * 上游原始 {@code usage} 原文，与 {@code knot_extend} 并列成对输出
-                                      * （同步链路同口径，字段名取自 {@code AiPayloadFields#RAW_USAGE}）。
+                                      * （同步整包 / 流式同一字段名，取自 {@code AiPayloadFields#UPSTREAM_USAGE}）。
                                       * 异步侧从 {@code terminal_body} 按档案 {@code usage_path} 取对象，
                                       * 未配置时回落顶层 {@code usage} / {@code response.usage}；
                                       * 上游未上报、任务未结算或账目不存在时省略。
                                       */
                                      @JsonInclude(JsonInclude.Include.NON_NULL)
-                                     @JsonProperty("usage") Map<String, Object> rawUsage,
+                                     @JsonProperty("upstream_usage") Map<String, Object> rawUsage,
                                      /**
                                       * 上游终态查询响应原文；仅测试头下出现。
                                       * 用 {@code Map} 承载上游动态 payload（形状由供应商决定，如 {@code data.task_result.videos[]}）。

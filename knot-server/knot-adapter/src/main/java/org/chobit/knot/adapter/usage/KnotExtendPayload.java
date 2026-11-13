@@ -7,7 +7,7 @@ import org.chobit.knot.adapter.model.usage.UsageAccounting;
 /**
  * 网关向调用方输出的 {@code knot_extend} 负载：同一份用量给出两种视图，仅在路由消费者的 {@code return_usage_detail} 打开时注入响应。
  * {@code usage} 是归一化后的统一用量（业务侧以此为准），{@code billing} 是网关按计费规则算出的总价与计费明细。
- * 上游原始 usage 原文以并列字段 {@code upstreamUsage} 注入同一响应（整包为响应体字段，SSE 为同一事件字段）。
+ * 上游原始 usage 原文以并列的 {@code usage} 字段随 SSE 事件输出（同步整包响应不注入；异步任务查询响应另从 {@code terminal_body} 取原文）。
  * {@code billing} 无计费规则命中时为 {@code null} 并在 JSON 中省略；{@code usage} 上游未上报且无法从响应体推断时同样省略。
  */
 @JsonInclude(JsonInclude.Include.NON_EMPTY)

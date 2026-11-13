@@ -41,7 +41,7 @@
 | `X-Knot-First-Token-Time` | 响应头，TTFT 毫秒（端到端，含鉴权/路由/插件/频控/重试） | `runtime/FirstTokenHeaderWriter.java:71-82` |
 | `knot_extend.usage` | 响应体字段（`ModelUsage`：input/output 两侧 token 明细 + 图片张数/音视频秒数） | `adapter/.../model/usage/ModelUsage.java:30-32` |
 | `knot_extend.billing` | 响应体字段（`NormalizedUsage`，无计费规则时省略） | `adapter/.../model/NormalizedUsage.java:6-10` |
-| `upstreamUsage` | 与 knot_extend 并列的 `usage` 字段，上游原文透传 | `constants/AiPayloadFields.java`（RAW_USAGE） |
+| `upstreamUsage` | 与 knot_extend 并列的 `upstream_usage` 字段，上游原文透传 | `constants/AiPayloadFields.java`（UPSTREAM_USAGE） |
 | SSE 场景 | `knot_extend` 作为独立 `data:` 事件插在 `[DONE]` 前；无 [DONE] 时追加流尾 | `runtime/GatewayRequestHandler.java:470-486`；`upstream/stream/ProxyStreamingBody.java:83-111` |
 
 ## 3. 数仓模型

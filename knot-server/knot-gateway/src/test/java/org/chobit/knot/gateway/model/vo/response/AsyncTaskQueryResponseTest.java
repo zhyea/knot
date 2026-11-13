@@ -85,7 +85,7 @@ class AsyncTaskQueryResponseTest {
      * 也不该被当成对外契约的一部分去解析。</p>
      */
     @Test
-    @DisplayName("带测试头：多出 knot_extend / usage / upstream_body 三键")
+    @DisplayName("带测试头：多出 knot_extend / upstream_usage / upstream_body 三键")
     void evidenceKeysAppearOnlyWithTestHead() {
         NormalizedUsage billing = new NormalizedUsage(1500L, "0.004", "USD", "v1", List.of());
         AsyncTaskQueryResponse body = new AsyncTaskQueryResponse("tc-1", AsyncTaskStatusEnum.SUCCEEDED.code(),
@@ -102,8 +102,8 @@ class AsyncTaskQueryResponseTest {
 
         assertTrue(json.has("knot_extend"), "结算账必须能读出来，否则异步计费无从复核");
         assertEquals("0.004", json.get("knot_extend").get("billing").get("totalCost").asText());
-        assertTrue(json.has("usage"), "并列 usage 是上游原始用量，与 knot_extend 成对输出");
-        assertEquals("0.12", json.get("usage").get("cost").asText(), "上游 cost 口径要能直接读到");
+        assertTrue(json.has("upstream_usage"), "并列 upstream_usage 是上游原始用量，与 knot_extend 成对输出");
+        assertEquals("0.12", json.get("upstream_usage").get("cost").asText(), "上游 cost 口径要能直接读到");
         assertTrue(json.has("upstream_body"), "上游终态原文是离线重算的唯一输入");
         assertEquals("succeed",
                 json.get("upstream_body").get("data").get("task_status").asText());
@@ -122,7 +122,7 @@ class AsyncTaskQueryResponseTest {
         assertTrue(json.has("result_expires_at"));
         // 证据三键同样 NON_NULL：没给就没有，绝不输出 "knot_extend": null
         assertFalse(json.has("knot_extend"));
-        assertFalse(json.has("usage"));
+        assertFalse(json.has("upstream_usage"));
         assertFalse(json.has("upstream_body"));
     }
 

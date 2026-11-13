@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  * 插件日志 payload 的统一出口：六种固定 payload record，每个阶段只携带该阶段真正有的字段，
- * 请求 / 响应体等原始 JSON 用 {@code JsonNode} 原样保存。
+ * 请求 / 响应体按各 payload 声明的层次用 {@code JsonNode} 原样保存（客户端入口 / 适配后 / 供应商原文三种，互不等价）。
  *
  * 序列化时以 {@code payloadType} 判别类型，消费者不得依赖字符串键猜测类型。
  */
