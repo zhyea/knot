@@ -25,6 +25,7 @@ import org.springframework.http.MediaType;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,6 +50,7 @@ class GatewayRequestHandlerEmptyResponseTest {
     private static final long MODEL_ID = 7L;
 
     private CaffeineModelLoadStore loadStore;
+    private Map<String, Object> outboundBody;
 
     @Test
     @DisplayName("空响应直接终止：不重试、不换候选，且在途计数归零")
@@ -82,6 +84,24 @@ class GatewayRequestHandlerEmptyResponseTest {
         assertEquals(2, calls.get(), "普通失败只关掉同目标重试，跨候选 failover 必须保留");
     }
 
+    @Test
+    @DisplayName("目标模型覆盖走副本：上游拿到 upstream-model，客户端请求体保持入口原文")
+    void targetModelOverrideUsesCopy() {
+        AtomicInteger calls = new AtomicInteger();
+        GatewayRequestHandler handler = handler(calls, upstreamUnavailable());
+        GatewayRequestContext context = context(List.of(target("model-a"), target("model-b")), singleAttemptPolicy());
+        Map<String, Object> clientBody = new LinkedHashMap<>();
+        clientBody.put("model", MODEL);
+        clientBody.put("prompt", "x");
+
+        assertThrows(GatewayUpstreamException.class,
+                () -> handler.proxy(context, new GatewayExchange(clientBody)).block());
+
+        assertEquals("upstream-model", outboundBody.get("model"), "发给供应商的那份按路由目标覆盖");
+        assertEquals(Map.of("model", MODEL, "prompt", "x"), clientBody,
+                "客户端入口请求体不许被改写（终态错误日志与异步任务落库都读它），键集合也不能变");
+    }
+
     // ---------- 夹具 ----------
 
     private GatewayRequestHandler handler(AtomicInteger calls, GatewayUpstreamException failure) {
@@ -104,7 +124,8 @@ class GatewayRequestHandlerEmptyResponseTest {
                                                              RoutingRuleTargetDto target,
                                                              ModelApiProtocolEnum protocol,
                                                              String traceparent, String requestId) {
-                // 本用例不关心上游上下文：请求处理器只把它挂在属性上供流式补记日志用
+                // 记下真正要发给供应商的那份；上游上下文本身只被挂在属性上供流式补记日志用
+                outboundBody = requestBody;
                 return null;
             }
 

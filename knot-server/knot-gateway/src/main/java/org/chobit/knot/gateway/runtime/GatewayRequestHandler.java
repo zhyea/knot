@@ -425,11 +425,15 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 把请求体 model 覆盖为当前候选的上游模型后原样返回，便于在重试闭包里复用同一个 body。
+     * 复制一份请求体并把 {@code model} 覆盖为当前候选的上游模型编码。
+     * 原 requestBody 是客户端入口原文：网关请求日志、终态错误日志、异步任务落库的 {@code request_json}
+     * 都读它，不许被路由目标改写。
      */
-    private Map<String, Object> withTargetModel(Map<String, Object> requestBody, RoutingRuleTargetDto candidate) {
-        requestBody.put(AiPayloadFields.MODEL, candidate.upstreamModelCode());
-        return requestBody;
+    private static Map<String, Object> withTargetModel(Map<String, Object> requestBody,
+                                                       RoutingRuleTargetDto candidate) {
+        Map<String, Object> body = new LinkedHashMap<>(requestBody);
+        body.put(AiPayloadFields.MODEL, candidate.upstreamModelCode());
+        return body;
     }
 
     /**
