@@ -14,6 +14,7 @@ import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
 import org.chobit.knot.gateway.upstream.request.UpstreamAdapterRegistry;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
+import org.chobit.knot.plugin.PluginBodySourceEnum;
 import org.chobit.knot.plugin.PluginStageCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,8 @@ class UpstreamProxyClientDispatchTest {
                 "补记结果要复用 upstreamResponseBody 这个键，插件侧不需要为流式分叉");
         assertEquals(Boolean.TRUE, snapshot.get("streaming"), "流式标记不变");
         assertNull(snapshot.get("responseBody"), "流式没有整包适配后正文");
+        assertEquals(PluginBodySourceEnum.WIRE, client.bodySources.get(1),
+                "流式补记的正文是 tee 留的供应商原文：来源标记不能还是 adapted");
     }
 
     @Test
@@ -76,6 +79,9 @@ class UpstreamProxyClientDispatchTest {
         assertEquals(List.of(PluginStageCode.UPSTREAM_REQUEST, PluginStageCode.UPSTREAM_RESPONSE),
                 client.stages, "整包路径本来就有正文，不该被延后");
         assertEquals("{\"id\":\"chatcmpl-1\"}", client.snapshots.get(1).get("responseBody"));
+        assertEquals(PluginBodySourceEnum.ADAPTED, client.bodySources.get(1),
+                "整包响应的正文是 adapter.handleResponse 之后的");
+        assertNull(client.bodySources.get(0), "请求阶段没有响应正文，来源标记为 null");
     }
 
     private static UpstreamRequestContext context() {
@@ -95,6 +101,7 @@ class UpstreamProxyClientDispatchTest {
 
         private final List<PluginStageCode> stages = new ArrayList<>();
         private final List<Map<String, Object>> snapshots = new ArrayList<>();
+        private final List<PluginBodySourceEnum> bodySources = new ArrayList<>();
 
         RecordingClient(ProxyResult result) {
             super(null,
@@ -111,9 +118,11 @@ class UpstreamProxyClientDispatchTest {
                             PluginStageCode stageCode,
                             ProxyResult result,
                             Throwable error,
-                            String upstreamUrl) {
+                            String upstreamUrl,
+                            PluginBodySourceEnum bodySource) {
             stages.add(stageCode);
             snapshots.add(responseSnapshot(result));
+            bodySources.add(bodySource);
         }
     }
 

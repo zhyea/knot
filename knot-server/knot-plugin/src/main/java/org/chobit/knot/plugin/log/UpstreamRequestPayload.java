@@ -1,5 +1,6 @@
 package org.chobit.knot.plugin.log;
 
+import org.chobit.knot.plugin.PluginBodySourceEnum;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 

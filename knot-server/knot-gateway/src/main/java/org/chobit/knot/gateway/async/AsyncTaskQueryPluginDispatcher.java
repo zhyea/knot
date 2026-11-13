@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.async;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.upstream.support.UpstreamPluginContextSupport;
+import org.chobit.knot.plugin.PluginBodySourceEnum;
 import org.chobit.knot.plugin.PluginDispatcher;
 import org.chobit.knot.plugin.PluginExtensionPoint;
 import org.chobit.knot.plugin.PluginStageCode;
@@ -62,8 +63,10 @@ final class AsyncTaskQueryPluginDispatcher {
                                         Throwable error) {
         try {
             // 异步查询没有 ProxyResult，查询响应的供应商请求 id 未做归一，恒传 null。
+            // 响应阶段的正文是查询回来的供应商原文（没经过 adapter.handleResponse），来源标记据此给。
             UpstreamPluginContext pluginContext = UpstreamPluginContextSupport.of(
-                    upstreamContext, stageCode, responseSnapshot, error, null, upstreamUrl);
+                    upstreamContext, stageCode, responseSnapshot, error, null, upstreamUrl,
+                    stageCode == PluginStageCode.UPSTREAM_RESPONSE ? PluginBodySourceEnum.WIRE : null);
             pluginDispatcher.dispatch(PluginExtensionPoint.UPSTREAM_EXCHANGE, stageCode, pluginContext);
         } catch (RuntimeException pluginEx) {
             log.error("Async task query plugin dispatch failed: stage={} taskCode={}",

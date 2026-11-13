@@ -2,6 +2,7 @@ package org.chobit.knot.plugin.upstream;
 
 import org.chobit.knot.plugin.PluginDispatchContext;
 import org.chobit.knot.plugin.PluginStageCode;
+import org.chobit.knot.plugin.PluginBodySourceEnum;
 import org.springframework.http.MediaType;
 
 import java.util.LinkedHashMap;
@@ -41,6 +42,11 @@ public class UpstreamPluginContext extends PluginDispatchContext {
      * 与成功路径 {@code responseSnapshot.responseBody}（{@code adapter.handleResponse} 适配结果）语义不同，本字段是供应商 wire 原文。
      */
     private final String upstreamResponseBody;
+    /**
+     * 本次快照里正文所处的层次：整包响应是适配后的，流式补记与异步任务查询是供应商原文。
+     * 由分发侧给出，插件不猜；请求 / 错误阶段没有响应快照，为 {@code null}。
+     */
+    private final PluginBodySourceEnum bodySource;
 
     public UpstreamPluginContext(String traceId,
                                  String traceparent,
@@ -101,6 +107,32 @@ public class UpstreamPluginContext extends PluginDispatchContext {
                                  String upstreamUrl,
                                  Integer httpStatus,
                                  String upstreamResponseBody) {
+        this(traceId, traceparent, stageCode, providerId, providerCode, modelId, modelCode,
+                protocol, bindingProtocol, requestBody, contentType, responseSnapshot, error,
+                upstreamRequestId, upstreamUrl, httpStatus, upstreamResponseBody, null);
+    }
+
+    /**
+     * 完整构造：在「上游错误证据」之上再带正文来源标记，供日志插件如实标注。
+     */
+    public UpstreamPluginContext(String traceId,
+                                 String traceparent,
+                                 PluginStageCode stageCode,
+                                 Long providerId,
+                                 String providerCode,
+                                 Long modelId,
+                                 String modelCode,
+                                 String protocol,
+                                 String bindingProtocol,
+                                 Map<String, Object> requestBody,
+                                 MediaType contentType,
+                                 Map<String, Object> responseSnapshot,
+                                 Throwable error,
+                                 String upstreamRequestId,
+                                 String upstreamUrl,
+                                 Integer httpStatus,
+                                 String upstreamResponseBody,
+                                 PluginBodySourceEnum bodySource) {
         super(traceId, traceparent);
         this.stageCode = stageCode;
         this.providerId = providerId;
@@ -117,6 +149,7 @@ public class UpstreamPluginContext extends PluginDispatchContext {
         this.upstreamUrl = upstreamUrl;
         this.httpStatus = httpStatus;
         this.upstreamResponseBody = upstreamResponseBody;
+        this.bodySource = bodySource;
     }
 
     public PluginStageCode stageCode() {
@@ -186,5 +219,12 @@ public class UpstreamPluginContext extends PluginDispatchContext {
      */
     public String upstreamResponseBody() {
         return upstreamResponseBody;
+    }
+
+    /**
+     * 快照正文所处层次；无响应快照（请求 / 错误阶段）时为 {@code null}。
+     */
+    public PluginBodySourceEnum bodySource() {
+        return bodySource;
     }
 }

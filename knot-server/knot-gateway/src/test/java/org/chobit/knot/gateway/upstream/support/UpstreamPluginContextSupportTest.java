@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.upstream.support;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
+import org.chobit.knot.plugin.PluginBodySourceEnum;
 import org.chobit.knot.plugin.PluginStageCode;
 import org.chobit.knot.plugin.upstream.UpstreamPluginContext;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +42,7 @@ class UpstreamPluginContextSupportTest {
 
         UpstreamPluginContext context = UpstreamPluginContextSupport.of(
                 upstreamContext(), PluginStageCode.UPSTREAM_ERROR, null, error, "req-upstream-1",
-                "https://api.example/v1/chat/completions");
+                "https://api.example/v1/chat/completions", null);
 
         assertEquals(400, context.httpStatus(),
                 "状态码丢失时日志只剩「上游报错」四个字，供应商工单无从提起");
@@ -56,7 +57,7 @@ class UpstreamPluginContextSupportTest {
     void omitsEvidenceForNonUpstreamFailures() {
         UpstreamPluginContext context = UpstreamPluginContextSupport.of(
                 upstreamContext(), PluginStageCode.UPSTREAM_ERROR, null,
-                new IllegalStateException("connection reset"), null, "https://api.example/v1");
+                new IllegalStateException("connection reset"), null, "https://api.example/v1", null);
 
         assertNull(context.httpStatus(), "没有响应就没有状态码：写 0 会被读成「上游回了 0」");
         assertNull(context.upstreamResponseBody(), "空串与「上游返回空对象」分不开，必须 null");
@@ -67,15 +68,18 @@ class UpstreamPluginContextSupportTest {
     void omitsEvidenceWhenNoErrorAtAll() {
         UpstreamPluginContext request = UpstreamPluginContextSupport.of(
                 upstreamContext(), PluginStageCode.UPSTREAM_REQUEST, null, null, null,
-                "https://api.example/v1");
+                "https://api.example/v1", null);
         UpstreamPluginContext response = UpstreamPluginContextSupport.of(
                 upstreamContext(), PluginStageCode.UPSTREAM_RESPONSE,
-                Map.of("responseBody", "{}"), null, "req-1", "https://api.example/v1");
+                Map.of("responseBody", "{}"), null, "req-1", "https://api.example/v1",
+                PluginBodySourceEnum.ADAPTED);
 
         assertNull(request.httpStatus());
         assertNull(request.upstreamResponseBody());
         assertNull(response.httpStatus());
         assertNull(response.upstreamResponseBody());
+        assertNull(request.bodySource(), "请求阶段没有响应快照，来源标记无意义");
+        assertEquals(PluginBodySourceEnum.ADAPTED, response.bodySource(), "来源标记原样透传，不做推断");
     }
 
     private static UpstreamRequestContext upstreamContext() {

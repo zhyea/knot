@@ -19,6 +19,7 @@ import org.chobit.knot.svc.vo.gateway.ProviderAccountConfigVo;
 import org.chobit.knot.svc.vo.gateway.ProviderCredentialConfigVo;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
+import org.chobit.knot.plugin.PluginBodySourceEnum;
 import org.chobit.knot.plugin.PluginDispatcher;
 import org.chobit.knot.plugin.PluginExtensionPoint;
 import org.chobit.knot.plugin.PluginStageCode;
@@ -120,18 +121,19 @@ public class UpstreamProxyClient {
         UpstreamProtocolExecutor protocolExecutor = protocolExecutorRegistry.resolve(context.protocol());
         var requestAdapter = requestAdapterRegistry.resolve(context.requestAdapter());
         String upstreamUrl = resolveUpstreamUrl(context, requestAdapter);
-        dispatchPlugin(context, PluginStageCode.UPSTREAM_REQUEST, null, null, upstreamUrl);
+        dispatchPlugin(context, PluginStageCode.UPSTREAM_REQUEST, null, null, upstreamUrl, null);
         try {
             ProxyResult result = protocolExecutor.execute(context, requestAdapter);
             // ⭐ 流式响应此刻只有响应头、一个字节正文都没有：这条日志只能得到 body=null。
             // 改由 logStreamTail 在流结束（doFinally）补记一条带 wire 快照的响应日志，
             // 同一请求不会留下两条同形的 UPSTREAM_RESPONSE。
             if (!result.streaming()) {
-                dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE, result, null, upstreamUrl);
+                dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE, result, null, upstreamUrl,
+                        PluginBodySourceEnum.ADAPTED);
             }
             return result;
         } catch (RuntimeException ex) {
-            dispatchPlugin(context, PluginStageCode.UPSTREAM_ERROR, null, ex, upstreamUrl);
+            dispatchPlugin(context, PluginStageCode.UPSTREAM_ERROR, null, ex, upstreamUrl, null);
             throw ex;
         }
     }
@@ -221,7 +223,7 @@ public class UpstreamProxyClient {
         UpstreamAdapter adapter = requestAdapterRegistry.resolve(context.requestAdapter());
         String upstreamUrl = resolveUpstreamUrl(context, adapter);
         dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE,
-                result.withUpstreamResponseBody(streamBody), null, upstreamUrl);
+                result.withUpstreamResponseBody(streamBody), null, upstreamUrl, PluginBodySourceEnum.WIRE);
     }
 
     /**
@@ -231,7 +233,8 @@ public class UpstreamProxyClient {
                                 PluginStageCode stageCode,
                                 ProxyResult result,
                                 Throwable error,
-                                String upstreamUrl) {
+                                String upstreamUrl,
+                                PluginBodySourceEnum bodySource) {
         pluginDispatcher.dispatch(
                 PluginExtensionPoint.UPSTREAM_EXCHANGE,
                 stageCode,
@@ -241,7 +244,8 @@ public class UpstreamProxyClient {
                         responseSnapshot(result),
                         error,
                         upstreamRequestIdOf(result, error),
-                        upstreamUrl)
+                        upstreamUrl,
+                        bodySource)
         );
     }
 

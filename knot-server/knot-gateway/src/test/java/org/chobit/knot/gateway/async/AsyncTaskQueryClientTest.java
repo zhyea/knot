@@ -4,6 +4,7 @@ import org.chobit.knot.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
+import org.chobit.knot.plugin.PluginBodySourceEnum;
 import org.chobit.knot.plugin.PluginDispatchContext;
 import org.chobit.knot.plugin.PluginDispatcher;
 import org.chobit.knot.plugin.PluginExtensionPoint;
@@ -69,6 +70,8 @@ class AsyncTaskQueryClientTest {
         assertNull(responseCtx.error(), "响应阶段没有异常");
         assertNull(responseCtx.upstreamRequestId(), "异步查询侧没有 ProxyResult，供应商请求 id 传 null");
         assertEquals(URL, responseCtx.upstreamUrl(), "完整查询 URL 要落到日志上下文");
+        assertEquals(PluginBodySourceEnum.WIRE, responseCtx.bodySource(),
+                "异步查询响应没经过 adapter.handleResponse，正文就是供应商原文");
     }
 
     @Test

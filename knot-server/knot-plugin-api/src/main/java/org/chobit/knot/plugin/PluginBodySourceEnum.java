@@ -1,11 +1,12 @@
-package org.chobit.knot.plugin.log;
+package org.chobit.knot.plugin;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
  * 日志正文所处的层次：同一次请求在不同阶段有三份不同的 body，标记标明手上这份是哪一份。
  *
- * 流式请求没有整包正文，标记不因此改变：值照旧按阶段给，正文为空由 {@code streaming} 说明。
+ * 由分发侧按「正文实际从哪来」给出，插件不自行推断：整包响应给 {@link #ADAPTED}，
+ * 流式收尾补记的 tee 快照与异步任务查询响应给 {@link #WIRE}。
  */
 public enum PluginBodySourceEnum {
 
