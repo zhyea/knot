@@ -78,6 +78,45 @@ class UsageRawReaderTest {
     }
 
     @Test
+    void readsUsageFromMessageOnAnthropicMessageStart() {
+        Map<String, Object> event = Map.of(
+                "type", "message_start",
+                "message", Map.of("id", "msg_1", "usage", Map.of("input_tokens", 25, "output_tokens", 1)));
+
+        Map<String, Object> usage = UsageRawReader.readUsage(event);
+
+        assertNotNull(usage, "Anthropic 原生流式的首个事件把用量放在 message.usage 里");
+        assertEquals(25, usage.get("input_tokens"));
+    }
+
+    @Test
+    void mergesUsageKeepingFieldsMissingInLaterEvent() {
+        Map<String, Object> previous = Map.of("input_tokens", 25, "output_tokens", 1);
+        Map<String, Object> incoming = Map.of("output_tokens", 15);
+
+        Map<String, Object> merged = UsageRawReader.mergeUsage(previous, incoming);
+
+        assertEquals(25, merged.get("input_tokens"), "后一条没出现 input_tokens，必须沿用前一条");
+        assertEquals(15, merged.get("output_tokens"), "同名顶层字段后到覆盖");
+    }
+
+    @Test
+    void writesMergedUsageBackToItsOriginalLocation() {
+        Map<String, Object> event = Map.of(
+                "type", "message_start",
+                "message", Map.of("id", "msg_1", "usage", Map.of("output_tokens", 1)));
+
+        Map<String, Object> patched = UsageRawReader.withUsage(
+                event, Map.of("input_tokens", 25, "output_tokens", 15));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> message = (Map<String, Object>) patched.get("message");
+        assertEquals(Map.of("input_tokens", 25, "output_tokens", 15), message.get("usage"),
+                "写回原位，否则重提取还是读不到");
+        assertEquals("msg_1", message.get("id"), "写回不能抹掉同级字段");
+    }
+
+    @Test
     void extractsTokenBillingFromResponsesWrapper() {
         Map<String, Object> event = Map.of(
                 "type", "response.incomplete",

@@ -27,6 +27,7 @@ import reactor.core.publisher.Flux;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +120,37 @@ class ProxyStreamingFluxTest {
     }
 
     @Test
+    @DisplayName("上游中断除冒泡外，还要走一次错误旁路：那是异常日志的唯一入口")
+    void reportsUpstreamAbortToErrorSink() {
+        AtomicReference<Throwable> reported = new AtomicReference<>();
+        UpstreamStreamResponse failing = new UpstreamStreamResponse(
+                Flux.error(new IOException("upstream reset")), MediaType.TEXT_EVENT_STREAM, null, null, null, null);
+
+        Flux<DataBuffer> body = ProxyStreamingFlux.wrap(failing, null, false, FACTORY, null, null, null,
+                null, reported::set);
+
+        assertThrows(RuntimeException.class, body::blockLast);
+        assertInstanceOf(IOException.class, Exceptions.unwrap(reported.get()),
+                "旁路必须拿到上游原始异常，否则日志里只剩一层包装壳");
+    }
+
+    @Test
+    @DisplayName("错误旁路自己抛异常不能盖掉正在冒泡的上游错误")
+    void errorSinkFailureDoesNotMaskUpstreamError() {
+        UpstreamStreamResponse failing = new UpstreamStreamResponse(
+                Flux.error(new IOException("upstream reset")), MediaType.TEXT_EVENT_STREAM, null, null, null, null);
+
+        Flux<DataBuffer> body = ProxyStreamingFlux.wrap(failing, null, false, FACTORY, null, null, null,
+                null, error -> {
+                    throw new IllegalStateException("log sink broken");
+                });
+
+        RuntimeException propagated = assertThrows(RuntimeException.class, body::blockLast);
+        assertInstanceOf(IOException.class, Exceptions.unwrap(propagated),
+                "日志旁路再坏，也不能把上游中断换成一个日志异常抛给调用方");
+    }
+
+    @Test
     @DisplayName("全 null 收尾回调时不抛 NPE")
     void toleratesMissingCallbacks() {
         String out = collect(ProxyStreamingFlux.wrap(stream("x", false), null, false, FACTORY, null, null, null));
@@ -165,6 +197,34 @@ class ProxyStreamingFluxTest {
 
         assertTrue(extendEvent.contains("\"input_tokens\":10"),
                 "后到覆盖：收尾 chunk 才是全量 usage，即使它更小。实际：" + extendEvent);
+    }
+
+    @Test
+    @DisplayName("⭐ 逐事件走 registry.accumulate：首条前值为 null，后续带上已累计结果")
+    void accumulatesUsageThroughRegistry() {
+        String payload = "data: {\"usage\":{\"input_tokens\":10}}\n"
+                + "\n"
+                + "data: {\"usage\":{\"output_tokens\":5}}\n"
+                + "\n"
+                + "data: [DONE]\n";
+        List<UsageAccounting> seen = new ArrayList<>();
+        UsageExtractorRegistry registry = new UsageExtractorRegistry(null, null, new UsageExtractionProperties()) {
+            @Override
+            public UsageAccounting accumulate(UsageAccounting previous, String eventData,
+                                              String wireEventData, UpstreamRequestContext context) {
+                seen.add(previous);
+                Map<String, Object> usage = Map.of("input_tokens", 10, "output_tokens", 5);
+                TokenBillingUsage billing = TokenBillingUsage.from(usage);
+                return UsageAccounting.of(usage, Map.of("usage", usage), billing,
+                        ModelUsageNormalizer.fromBilling(billing, Map.of("usage", usage)), null);
+            }
+        };
+
+        collect(ProxyStreamingFlux.wrap(stream(payload, true), registry, true, FACTORY, null, null, null));
+
+        assertEquals(2, seen.size(), "每条带 usage 的事件都要累计一次，不能退回只取最后一条");
+        assertNull(seen.get(0), "首条事件没有前值");
+        assertNotNull(seen.get(1), "第二条必须拿到上一条的累计结果，否则缺项无从补");
     }
 
     @Test

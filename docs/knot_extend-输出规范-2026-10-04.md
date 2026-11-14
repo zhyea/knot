@@ -100,7 +100,8 @@ OutputTokens(long text, long image, long video, long reasoning, long unclassifie
 2. **cache_write 互斥**：`cache_write_5m` / `cache_write_1h` 任一 > 0 时 `cache_write` 强制归 0（明细优先）。
 3. **text 推算**：上游未显式给 `text` 时，`text = 该侧总量 − 其余明细`（下限 0）。
 4. **unclassified 兜底**：明细配不平该侧总量的残留（厂商私有新维度）。
-5. **total_tokens**：优先沿用上游上报值；未上报时 = 两侧明细之和。
+5. **total_tokens**：优先沿用上游上报值；未上报时 = 两侧明细之和。逐事件合并后同样不低于两侧明细之和
+   （`TokenBillingUsage` / `ModelUsage` 的 `mergeMax` 按合并后的分量重算）。
 
 ## 4. 字段别名映射（`ModelUsageNormalizer`）
 
@@ -162,8 +163,12 @@ OutputTokens(long text, long image, long video, long reasoning, long unclassifie
 
 ## 7. 流式处理
 
-`ProxyStreamingFlux` 逐事件提取用量，**后到覆盖**（上游 usage 通常在最后一个事件），
-然后在以下**两个时机之一**写出独立的 `knot_extend` 事件（上游原始 usage 以并列 `upstream_usage` 字段透出），且只写一次，
+`ProxyStreamingFlux` 逐事件累计用量（`UsageExtractorRegistry#accumulate`）：**同名顶层字段后到覆盖**
+（上游 usage 通常在最后一个事件），**前一条有而后一条没出现的字段沿用前一条**。有缺项时以合并结果
+重走一次提取，计费与归一化和「上游一次性上报」同口径——Anthropic 原生流式的 `input_tokens` 与缓存读写
+只在 `message_start` 的 `message.usage` 里出现一次，纯后到覆盖会把输入侧记成 0。
+
+累计完成后，在以下**两个时机之一**写出独立的 `knot_extend` 事件（上游原始 usage 以并列 `upstream_usage` 字段透出），且只写一次，
 不改动上游原有 chunk：
 
 1. 遇到上游 `data: [DONE]` → 写在其之前（与整包缓冲模式位置一致）；
@@ -174,7 +179,8 @@ OutputTokens(long text, long image, long video, long reasoning, long unclassifie
 > 当日即回退为独立事件注入。
 
 > 2026-11 起不再按 `UsageAccounting.totalTokens()` 挑「信息量最大」的一份：谁大谁赢会让结果随内容跳变，
-> 改为后到覆盖（`UsageState#latest`）。`totalTokens()` 只保留给限额与配额记账换算用量。
+> 改为后到覆盖（`UsageExtractorRegistry#accumulate`）。`totalTokens()` 只保留给限额与配额记账换算用量。
+> 后到覆盖只对「后一条出现了的字段」生效，前一事件独有的字段继续保留（2026-11 补齐 Anthropic 原生流式）。
 
 > 2026-10-15 补齐：Responses 协议 SSE 事件把完整响应包在 `response` 子对象里
 >（`response.completed` / `response.incomplete` 等），`usage` 随之嵌套在 `response.usage`。

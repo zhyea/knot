@@ -245,6 +245,72 @@ class UsageExtractorRegistryTest {
                 "只有一份时回落：至少还能查到上游报了什么，不做二次猜");
     }
 
+    @Test
+    @DisplayName("⭐ Anthropic 原生流式：message_start 的 input/cache 不会被 message_delta 抹掉")
+    void accumulatesAnthropicStreamUsage() {
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()));
+        UpstreamRequestContext context = context(null);
+        String messageStart = "{\"type\":\"message_start\",\"message\":{\"usage\":"
+                + "{\"input_tokens\":25,\"cache_read_input_tokens\":1800,\"output_tokens\":1}}}";
+        String messageDelta = "{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},"
+                + "\"usage\":{\"output_tokens\":15}}";
+        String messageStop = "{\"type\":\"message_stop\"}";
+
+        UsageAccounting afterStart = registry.accumulate(null, messageStart, messageStart, context);
+        UsageAccounting afterDelta = registry.accumulate(afterStart, messageDelta, messageDelta, context);
+        UsageAccounting afterStop = registry.accumulate(afterDelta, messageStop, messageStop, context);
+
+        TokenBillingUsage afterStartBilling = afterStart.billing().tokenUsage();
+        assertEquals(25, afterStartBilling.inputTokens(), "首个事件本身就该读出输入侧");
+
+        TokenBillingUsage merged = afterDelta.billing().tokenUsage();
+        assertEquals(25, merged.inputTokens(), "输入侧只在首个事件出现，合并后必须保留");
+        assertEquals(1800, merged.cacheReadTokens(), "缓存读同样只在首个事件出现");
+        assertEquals(15, merged.outputTokens(), "输出侧后到覆盖");
+        assertEquals(15, afterStop.billing().tokenUsage().outputTokens(),
+                "没有用量的事件不能把已累计结果抹成零");
+    }
+
+    @Test
+    @DisplayName("⭐ 整包 SSE 与逐事件累计对同一段 Anthropic 流必须给出同一笔账")
+    void wholeBodyAndPerEventStreamsAgree() {
+        String sse = "data: {\"type\":\"message_start\",\"message\":{\"usage\":"
+                + "{\"input_tokens\":25,\"cache_read_input_tokens\":1800,\"output_tokens\":1}}}\n"
+                + "\n"
+                + "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},"
+                + "\"usage\":{\"output_tokens\":15}}\n"
+                + "\n"
+                + "data: [DONE]\n";
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()));
+        UpstreamRequestContext context = context(null);
+
+        // 整包路径走提取器自己的 extractEventStreamUsage（分量取大）
+        TokenBillingUsage whole = registry.extract(sse, context).billing().tokenUsage();
+
+        // 逐事件路径走 accumulate（后到覆盖 + 缺项沿用）
+        UsageAccounting accumulated = null;
+        for (String line : sse.split("\\R")) {
+            String trimmed = line.strip();
+            if (!trimmed.startsWith("data:")) {
+                continue;
+            }
+            String data = trimmed.substring("data:".length()).strip();
+            if (data.isEmpty() || "[DONE]".equals(data)) {
+                continue;
+            }
+            accumulated = registry.accumulate(accumulated, data, data, context);
+        }
+
+        assertNotNull(accumulated, "逐事件路径必须产出账目");
+        TokenBillingUsage perEvent = accumulated.billing().tokenUsage();
+        assertEquals(whole.inputTokens(), perEvent.inputTokens(), "输入侧两条路径必须同口径");
+        assertEquals(whole.outputTokens(), perEvent.outputTokens(), "输出侧两条路径必须同口径");
+        assertEquals(whole.cacheReadTokens(), perEvent.cacheReadTokens(), "缓存读两条路径必须同口径");
+        assertEquals(whole.totalTokens(), perEvent.totalTokens(), "总量两条路径必须同口径");
+        assertTrue(whole.totalTokens() >= whole.inputTokens() + whole.outputTokens(),
+                "总量不能小于输入 + 输出：两侧分量可能来自不同事件");
+    }
+
     private static UsageExtractorRegistry registry(UsageExtractor<?> stub) {
         return registry(stub, new UsageExtractionProperties());
     }

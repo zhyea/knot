@@ -9,6 +9,8 @@ import org.chobit.knot.adapter.protocol.UpstreamAdapter;
 import org.chobit.knot.adapter.protocol.UpstreamAdapterCatalog;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
@@ -82,6 +84,21 @@ class UpstreamProxyClientDispatchTest {
         assertEquals(PluginBodySourceEnum.ADAPTED, client.bodySources.get(1),
                 "整包响应的正文是 adapter.handleResponse 之后的");
         assertNull(client.bodySources.get(0), "请求阶段没有响应正文，来源标记为 null");
+    }
+
+    @Test
+    @DisplayName("⭐ 流式中途失败补发 UPSTREAM_ERROR：响应头已写出，失败只能留在异常阶段")
+    void streamFailureIsReportedAsUpstreamErrorStage() {
+        RecordingClient client = new RecordingClient(new ProxyResult("{}", 1L, 2L, null));
+        GatewayUpstreamException failure = new GatewayUpstreamException(
+                "upstream reset mid-stream", ProxyErrorCodeEnum.UPSTREAM_ERROR.code(), 502,
+                "{\"error\":\"reset\"}");
+
+        client.logStreamFailure(context(), failure);
+
+        assertEquals(List.of(PluginStageCode.UPSTREAM_ERROR), client.stages, "只发异常阶段，不掺响应阶段");
+        assertNull(client.snapshots.get(0), "异常阶段没有响应快照");
+        assertNull(client.bodySources.get(0), "异常阶段没有响应正文，来源标记为 null");
     }
 
     private static UpstreamRequestContext context() {

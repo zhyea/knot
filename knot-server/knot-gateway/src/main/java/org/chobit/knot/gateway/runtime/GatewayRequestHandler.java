@@ -616,8 +616,12 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         UpstreamRequestContext upstreamContext = context.attribute(ATTR_UPSTREAM_CONTEXT);
         Consumer<String> streamBodySink = upstreamContext == null ? null
             : tail -> proxyClient.logStreamTail(upstreamContext, result, tail);
+        // 流式失败只可能发生在响应头写出之后，proxy() 的 catch 早已返回：异常日志要在这里补
+        Consumer<Throwable> streamErrorSink = upstreamContext == null ? null
+            : error -> proxyClient.logStreamFailure(upstreamContext, error);
         Flux<DataBuffer> body = ProxyStreamingFlux.wrap(stream, usageExtractorRegistry, appendUsage,
-            exchange.http().bufferFactory(), firstTokenWriter, terminalUsage::set, onComplete, streamBodySink);
+            exchange.http().bufferFactory(), firstTokenWriter, terminalUsage::set, onComplete,
+            streamBodySink, streamErrorSink);
         return new GatewayStreamingResponse(stream.contentType(), body);
     }
 

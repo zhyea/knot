@@ -7,17 +7,23 @@ import org.chobit.knot.common.constants.AiPayloadFields;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.common.util.MapNumberUtils;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * 读取上游响应的「原始用量载体」，作为归一化输入，不对外透传。
  * 整包响应直接返回响应体本身；SSE 逐事件解析，取携带 {@code usage} 且 token 总量最大的事件，全部没有 {@code usage} 时返回最后一个事件。
+ * usage 的落位随协议不同：顶层 {@code usage}（ChatCompletions 与 Anthropic 的 {@code message_delta}）、
+ * {@code message.usage}（Anthropic 原生流式的 {@code message_start}）、{@code response.usage}（Responses）。
  * JSON 解析失败抛 {@code JsonProcessingException}（不静默降级为 {@code null}）；响应体为空返回 {@code null}。
  * 本类只读原文，不做任何数值解析或单位换算。
  */
 public final class UsageRawReader {
 
     private static final String DATA_PREFIX = "data:";
+
+    /** Anthropic 原生流式把首个事件的用量放在 {@code message.usage} 里 */
+    private static final String MESSAGE_KEY = "message";
     private static final String DONE_MARKER = "[DONE]";
 
     private UsageRawReader() {
@@ -75,7 +81,8 @@ public final class UsageRawReader {
 
     /**
      * 取对象里的 {@code usage} 子对象，不存在或不是对象时返回 {@code null}。
-     * Responses 协议下顶层没有 {@code usage}，此时下钻 {@code response.usage}。
+     * 顶层没有 {@code usage} 时按协议下钻：先 {@code message.usage}（Anthropic 原生流式的首个事件），
+     * 再 {@code response.usage}（Responses）。
      */
     public static Map<String, Object> readUsage(Map<String, Object> body) {
         Map<String, Object> usage = usageOf(body);
@@ -85,13 +92,68 @@ public final class UsageRawReader {
         if (body == null) {
             return null;
         }
-        Object response = body.get(AiPayloadFields.RESPONSE);
-        if (response instanceof Map<?, ?> map) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> typed = (Map<String, Object>) map;
-            return usageOf(typed);
+        usage = nestedUsageOf(body, MESSAGE_KEY);
+        return usage != null ? usage : nestedUsageOf(body, AiPayloadFields.RESPONSE);
+    }
+
+    /** 下钻一层取 {@code usage}：外层不是对象或内层没有 {@code usage} 时返回 {@code null}。 */
+    private static Map<String, Object> nestedUsageOf(Map<String, Object> body, String key) {
+        if (!(body.get(key) instanceof Map<?, ?> nested)) {
+            return null;
         }
-        return null;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> typed = (Map<String, Object>) nested;
+        return usageOf(typed);
+    }
+
+    /**
+     * 逐事件累计：同名顶层字段后到覆盖，前一条有而后一条没出现的字段保留。
+     * 只补顶层缺项，嵌套对象（如 {@code prompt_tokens_details}）整块后到覆盖。
+     */
+    public static Map<String, Object> mergeUsage(Map<String, Object> previous, Map<String, Object> incoming) {
+        if (previous == null || previous.isEmpty()) {
+            return incoming;
+        }
+        if (incoming == null || incoming.isEmpty()) {
+            return previous;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>(previous);
+        merged.putAll(incoming);
+        return merged;
+    }
+
+    /**
+     * 把用量写回它在响应体里的位置：顶层 {@code usage} 优先，其次 {@code message.usage}，再次 {@code response.usage}；
+     * 三处都没有时补到顶层。返回副本，不改入参。
+     */
+    public static Map<String, Object> withUsage(Map<String, Object> body, Map<String, Object> usage) {
+        if (body == null) {
+            return null;
+        }
+        Map<String, Object> copy = new LinkedHashMap<>(body);
+        if (copy.get(AiPayloadFields.USAGE) instanceof Map<?, ?>) {
+            copy.put(AiPayloadFields.USAGE, usage);
+            return copy;
+        }
+        if (replaceNestedUsage(copy, MESSAGE_KEY, usage)
+                || replaceNestedUsage(copy, AiPayloadFields.RESPONSE, usage)) {
+            return copy;
+        }
+        copy.put(AiPayloadFields.USAGE, usage);
+        return copy;
+    }
+
+    /** 外层对象本来就有 {@code usage} 时才替换，避免给没有用量的层级凭空造一个。 */
+    private static boolean replaceNestedUsage(Map<String, Object> body, String key, Map<String, Object> usage) {
+        if (!(body.get(key) instanceof Map<?, ?> nested) || !(nested.get(AiPayloadFields.USAGE) instanceof Map<?, ?>)) {
+            return false;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> typed = (Map<String, Object>) nested;
+        Map<String, Object> replaced = new LinkedHashMap<>(typed);
+        replaced.put(AiPayloadFields.USAGE, usage);
+        body.put(key, replaced);
+        return true;
     }
 
     private static Map<String, Object> usageOf(Map<String, Object> body) {

@@ -70,6 +70,7 @@ public final class AiPayloadFields {
      * 三处出口同名同义：同步整包为响应体顶层字段，流式为 {@code [DONE]} 前的独立 {@code data:} 事件，
      * 异步任务查询响应为响应顶层字段（取自 {@code terminal_body} 原文）。
      * 与响应体自带的 {@code usage} 不共存于一个键：后者是适配后口径，本字段是供应商原文，跨协议绑定时键名不同。
+     * 流式的取值是逐事件合并后的结果：每个字段都是上游原值，但没有哪一条事件原样长这样。
      * 上游未上报 {@code usage} 时省略。
      */
     public static final String UPSTREAM_USAGE = "upstream_usage";

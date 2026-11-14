@@ -227,6 +227,19 @@ public class UpstreamProxyClient {
     }
 
     /**
+     * 流式转发中途失败时补记 {@code UPSTREAM_ERROR}：响应头已写出、状态码改不了，失败本身只能留在日志里。
+     * 与 {@link #logStreamTail} 并存：那个记流走到哪一步，这个记中断原因；错误阶段没有响应快照，来源标记为 {@code null}。
+     */
+    public void logStreamFailure(UpstreamRequestContext context, Throwable error) {
+        if (context == null || error == null) {
+            return;
+        }
+        UpstreamAdapter adapter = requestAdapterRegistry.resolve(context.requestAdapter());
+        dispatchPlugin(context, PluginStageCode.UPSTREAM_ERROR, null, error,
+                resolveUpstreamUrl(context, adapter), null);
+    }
+
+    /**
      * 包级可见：分发时序（流式延后到流结束）本身是契约，需被接线测试直接驱动。
      */
     void dispatchPlugin(UpstreamRequestContext context,

@@ -15,6 +15,7 @@ import org.chobit.knot.adapter.usage.UsageExtractorResolver;
 import org.chobit.knot.adapter.usage.UsageNormalizationSupport;
 import org.chobit.knot.adapter.usage.UsageRawReader;
 import org.chobit.knot.adapter.usage.calculator.BillingModeCalculator;
+import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.adapter.usage.extractor.UsageExtractor;
 import org.chobit.knot.adapter.usage.extractor.UsageExtractorCatalog;
 import org.springframework.stereotype.Component;
@@ -62,13 +63,52 @@ public class UsageExtractorRegistry {
 
     /**
      * 流式转发场景：对单个 SSE {@code data:} 事件提取用量，与整包提取走同一套提取器与归一化逻辑。
-     * 用量后到覆盖前一个（上游 usage 通常在最后一个事件）。
+     * 本方法只看这一条事件，不累计；跨事件累计走 {@link #accumulate}。
      *
      * @param wireEventData 该事件未适配前的 {@code data} 载荷，仅作证据；{@code null} 时回落 {@code eventData}
      */
     public UsageAccounting extractEvent(String eventData, String wireEventData,
                                        UpstreamRequestContext context) {
         return extract(eventData, wireEventData, true, context);
+    }
+
+    /**
+     * 流式逐事件累计：本条事件没有用量时保持上一条；有用量时先与已累计结果按字段合并
+     * （同名顶层字段后到覆盖，前一条有而后一条没出现的字段保留），再以合并结果重走一次提取，
+     * 让计费与归一化结果和「上游一次性上报」同口径。
+     * 合并结果与本次事件完全相同时不重算，直接把它当作后到覆盖的最终值。
+     *
+     * @param previous 已累计的账目，首条事件传 {@code null}
+     */
+    public UsageAccounting accumulate(UsageAccounting previous,
+                                      String eventData,
+                                      String wireEventData,
+                                      UpstreamRequestContext context) {
+        UsageAccounting current = extractEvent(eventData, wireEventData, context);
+        Map<String, Object> incoming = current == null ? null : current.rawUsage();
+        if (incoming == null || incoming.isEmpty()) {
+            return previous;
+        }
+        Map<String, Object> merged = UsageRawReader.mergeUsage(
+                previous == null ? null : previous.rawUsage(), incoming);
+        if (merged.equals(incoming)) {
+            return current;
+        }
+        // 缺项只能靠重提取补上：计费输入按字段归零，取不到「上一事件这个字段是多少」
+        String patched = patchedEventBody(eventData, merged);
+        return patched == null ? current : extract(patched, patched, true, context);
+    }
+
+    /**
+     * 合并后的用量写回本条事件体，计费与证据同源；解析不出来时返回 {@code null}，由调用方保留原结果。
+     */
+    private static String patchedEventBody(String eventData, Map<String, Object> mergedUsage) {
+        try {
+            Map<String, Object> body = UsageRawReader.readEvent(eventData);
+            return body == null ? null : JsonKit.toJson(UsageRawReader.withUsage(body, mergedUsage));
+        } catch (JsonProcessingException e) {
+            return null;
+        }
     }
 
     /**

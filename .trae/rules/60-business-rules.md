@@ -166,7 +166,10 @@ alwaysApply: false
 ### 8.6 SSE 合并
 
 - 双视图**一起**参与 merge / 选择，禁止后续重建。`UsageExtractItem.mergeMax` 的两侧**都逐字段合并**（2026-10-27 起）：token 明细取总量更大的**一整份**（明细必须自洽，不能跨事件按字段拼），媒体计量取 max，`attributes` 取先出现的非空值 / 布尔取或。规则与 `BillingUsage#mergeMax` 一致——两视图必须由同一套合并语义推出，否则「计费按合并后的量、展示按某一个事件的量」。
-- ⚠ 生产 `ProxyStreamingFlux.UsageState.merge` 仍在**账目层整份选择**（`totalTokens` 更大者胜，相等后者覆盖），不逐字段合并：纯媒体事件 `totalTokens` 恒 0，会永久输给任一 token>0 的事件。这是**已知遗留**，与 `UsageExtractItem` 已修的口径不同层；修它要连 `UsageAccounting` 的合并语义一起定，未在 2026-10-27 批次内。
+- 生产流式的跨事件累计在 `UsageExtractorRegistry#accumulate`：同名顶层字段**后到覆盖**，前一条有而后一条没出现的字段**沿用前一条**，缺项时以合并后的用量重走一次提取（计费与证据同源）。`UsageState` 不再自己挑一份，「`totalTokens` 更大者胜」的旧口径已删。
+- 整包 SSE 走 `UsageExtractor#extractEventStreamUsage` 的 `mergeMax`。两条路径对同一段流必须给出同一笔账，守门 `UsageExtractorRegistryTest#wholeBodyAndPerEventStreamsAgree`。
+- ⚠ 两侧分量可能来自不同事件（Anthropic 的 `input_tokens` 与缓存读写只在 `message_start`），`mergeMax` 的总量必须按合并后的分量重算，满足 §8.7「总量 ≥ 输入 + 输出」：沿用任一侧旧总量会让输出侧多出来的 token 不进配额。`TokenBillingUsage` 与 `ModelUsage` 两处同规则。
+- `UsageRawReader#readUsage` 的用量落位：顶层 `usage`（ChatCompletions、Anthropic `message_delta`）→ `message.usage`（Anthropic 原生流式 `message_start`）→ `response.usage`（Responses）。
 
 ### 8.7 不变量与测试
 

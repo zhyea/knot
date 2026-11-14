@@ -376,6 +376,26 @@ class ModelUsageNormalizerTest {
     // ---------- 合并语义 ----------
 
     @Test
+    void mergedTotalCoversBothSidesWhenTokensComeFromDifferentEvents() {
+        // 输入侧来自首个事件、输出侧来自末个事件：总量要按合并后的分量重算
+        ModelUsage fromStart = new ModelUsage(
+                Input.builder().tokens(new InputTokens(25L, 0L, 0L, 0L, 0L, 0L, 0L, 0L)).build(),
+                Output.builder().tokens(new OutputTokens(1L, 0L, 0L, 0L, 0L)).build(),
+                null, 26L);
+        ModelUsage fromDelta = new ModelUsage(
+                Input.builder().tokens(new InputTokens(0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L)).build(),
+                Output.builder().tokens(new OutputTokens(15L, 0L, 0L, 0L, 0L)).build(),
+                null, 15L);
+
+        ModelUsage merged = fromStart.mergeMax(fromDelta);
+
+        assertEquals(25L, merged.input().tokens().total());
+        assertEquals(15L, merged.output().tokens().total());
+        assertEquals(40L, merged.totalTokens(),
+                "总量低于输入 + 输出时，输出侧多出来的 token 不进配额");
+    }
+
+    @Test
     void shouldMergeUsageViewsFieldByField() {
         // 与 BillingUsage#mergeMax 同规则：token 明细取总量更大的一整份，计量取 max，属性取先非空 / 布尔取或
         ModelUsage first = new ModelUsage(

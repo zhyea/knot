@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.adapter.protocol.StreamLineAdapter;
 import org.chobit.knot.adapter.protocol.UpstreamAdapter;
+import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.adapter.support.SseLineSupport;
 import org.chobit.knot.common.constants.AiPayloadFields;
 import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
@@ -94,6 +95,23 @@ public final class ProxyStreamingFlux {
                                         Consumer<UsageAccounting> usageSink,
                                         Runnable onComplete,
                                         Consumer<String> streamBodySink) {
+        return wrap(stream, registry, appendUsage, factory, writer, usageSink, onComplete,
+                streamBodySink, null);
+    }
+
+    /**
+     * @param streamErrorSink 流中途失败时的出口（可为 {@code null}）：响应头已写出，失败改不了状态码，
+     *                        只能在日志里留下失败本身
+     */
+    public static Flux<DataBuffer> wrap(UpstreamStreamResponse stream,
+                                        UsageExtractorRegistry registry,
+                                        boolean appendUsage,
+                                        DataBufferFactory factory,
+                                        FirstTokenHeaderWriter writer,
+                                        Consumer<UsageAccounting> usageSink,
+                                        Runnable onComplete,
+                                        Consumer<String> streamBodySink,
+                                        Consumer<Throwable> streamErrorSink) {
         FirstTokenHeaderWriter firstTokenWriter = writer == null ? FirstTokenHeaderWriter.noop() : writer;
         UsageState state = new UsageState();
         // 流式适配器按请求新建：EE 有跨事件状态（chunk id、message_start 只发一次），
@@ -105,7 +123,17 @@ public final class ProxyStreamingFlux {
                 : rawStream(stream, firstTokenWriter, tee);
         return emptyGuard(body)
                 // 上游中途失败：错误沿 onError 传播（批1 的管道桥接会把它变成静默截断）
-                .doOnError(thrown -> log.warn("Upstream stream failed before completion", thrown))
+                .doOnError(thrown -> {
+                    log.warn("Upstream stream failed before completion", thrown);
+                    // 日志是旁路：它的异常不能盖掉正在冒泡的上游错误
+                    if (streamErrorSink != null) {
+                        try {
+                            streamErrorSink.accept(thrown);
+                        } catch (RuntimeException e) {
+                            log.warn("stream error log failed", e);
+                        }
+                    }
+                })
                 .doFinally(signal -> {
                     // 日志是旁路：它自己的异常不能打断已经开始的记账与在途释放
                     if (tee != null) {
@@ -224,7 +252,7 @@ public final class ProxyStreamingFlux {
             }
             String data = SseLineSupport.dataOf(current);
             if (data != null && !SseLineSupport.isDone(current)) {
-                state.latest(extractUsage(stream, registry, data, wireData));
+                state.accumulate(registry, data, wireData, stream.context());
             }
             output.add(current);
         }
@@ -306,22 +334,6 @@ public final class ProxyStreamingFlux {
         buffer.read(bytes);
         DataBufferUtils.release(buffer);
         return bytes;
-    }
-
-    /**
-     * 单个 SSE 事件的用量提取。失败不影响转发，只影响最终是否注入用量事件。
-     */
-    private static UsageAccounting extractUsage(UpstreamStreamResponse stream,
-                                                UsageExtractorRegistry registry,
-                                                String data,
-                                                String wireData) {
-        if (registry == null
-                || StringUtils.isEmpty(data)
-                || DONE_MARKER.equals(data)
-                || !data.contains(USAGE_FIELD)) {
-            return null;
-        }
-        return registry.extractEvent(data, wireData, stream.context());
     }
 
     private static byte[] concat(byte[] left, byte[] right) {
@@ -440,12 +452,21 @@ public final class ProxyStreamingFlux {
         private boolean appended;
 
         /**
-         * 记录最新一次用量：后到覆盖前一个（上游 usage 通常在最后一个事件）。
+         * 累计本条事件的用量：同名顶层字段后到覆盖，前一条有而后一条没出现的字段沿用前一条
+         * （Anthropic 原生流式的 input / cache 只在 {@code message_start} 出现一次）。
+         * 没有用量的事件不动已有结果。
          */
-        void latest(UsageAccounting candidate) {
-            if (candidate != null) {
-                value = candidate;
+        void accumulate(UsageExtractorRegistry registry,
+                        String data,
+                        String wireData,
+                        UpstreamRequestContext context) {
+            if (registry == null
+                    || StringUtils.isEmpty(data)
+                    || DONE_MARKER.equals(data)
+                    || !data.contains(USAGE_FIELD)) {
+                return;
             }
+            value = registry.accumulate(value, data, wireData, context);
         }
 
         UsageAccounting usage() {

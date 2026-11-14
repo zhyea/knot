@@ -118,15 +118,21 @@ public record TokenBillingUsage(Long inputTokens,
         );
     }
 
+    /**
+     * 逐事件合并：各分量取大，总量取「合并后输入 + 输出」与两侧上报总量中的最大值，
+     * 保证总量不低于分量之和。
+     */
     @Override
     public TokenBillingUsage mergeMax(BillingUsage other) {
         if (!(other instanceof TokenBillingUsage that)) {
             return this;
         }
+        long mergedInput = Math.max(inputTokens, that.inputTokens());
+        long mergedOutput = Math.max(outputTokens, that.outputTokens());
         return new TokenBillingUsage(
-                Math.max(inputTokens, that.inputTokens()),
-                Math.max(outputTokens, that.outputTokens()),
-                Math.max(totalTokens, that.totalTokens()),
+                mergedInput,
+                mergedOutput,
+                Math.max(mergedInput + mergedOutput, Math.max(totalTokens, that.totalTokens())),
                 Math.max(cacheReadTokens, that.cacheReadTokens()),
                 Math.max(cacheWriteTokens, that.cacheWriteTokens()),
                 Math.max(cacheWrite5mTokens, that.cacheWrite5mTokens()),

@@ -40,16 +40,20 @@ public record ModelUsage(Input input,
     /**
      * 逐事件合并：token 明细取总量更大的一整份（明细必须自洽，不能跨事件按字段拼），
      * 媒体计量取 max，计费属性取先出现的非空值 / 布尔取或。
+     * 总量取「合并后输入 + 输出」与两侧上报总量中的最大值，保证不低于分量之和。
      */
     public ModelUsage mergeMax(ModelUsage other) {
         if (other == null) {
             return this;
         }
+        Input mergedInput = Input.merge(input, other.input);
+        Output mergedOutput = Output.merge(output, other.output);
         return new ModelUsage(
-                Input.merge(input, other.input),
-                Output.merge(output, other.output),
+                mergedInput,
+                mergedOutput,
                 mergeAttributes(attributes, other.attributes),
-                Math.max(totalTokens, other.totalTokens)
+                Math.max(tokenTotal(mergedInput) + tokenTotal(mergedOutput),
+                        Math.max(totalTokens, other.totalTokens))
         );
     }
 
