@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import org.chobit.knot.gateway.config.ConfigCacheDomain;
 import org.chobit.knot.svc.model.TrafficPolicies;
 import org.chobit.knot.svc.service.GatewayConfigQueryService;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
@@ -22,7 +23,10 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -63,6 +67,12 @@ public class GatewayConfigCacheService {
      */
     private final Executor refreshExecutor;
 
+    /**
+     * 域 → 整域失效动作。用 EnumMap 显式登记而不是 switch：新增域时漏登记会被
+     * {@code ConfigCacheDomainTest} 抓到，而不是静默不失效。
+     */
+    private final Map<ConfigCacheDomain, Runnable> invalidators;
+
     private final LoadingCache<Long, Optional<AppConfigVo>> appByIdCache;
     private final LoadingCache<String, Optional<RoutingConsumerConfigVo>> consumerBySecretKeyCache;
     private final LoadingCache<ConsumerRuleKey, Optional<RoutingRuleConfigVo>> enabledRuleByConsumerAndCodeCache;
@@ -101,6 +111,7 @@ public class GatewayConfigCacheService {
         this.trafficPoliciesCache = optionalCache(key ->
                 trafficPolicySupport.load(key.resourceType(), key.resourceId()));
         this.billingRuleCache = billingRuleCache();
+        this.invalidators = buildInvalidators();
     }
 
     public AppConfigVo getAppById(Long id) {
@@ -199,6 +210,54 @@ public class GatewayConfigCacheService {
                 Optional.ofNullable(configQuery.getActiveBillingRule(key.ruleCode(), key.modelFamilyCode()));
         billingRuleCache.put(key, loaded);
         return loaded.orElse(null);
+    }
+
+    /**
+     * 整域失效：清空该域下全部条目，下一次读取同步回源。
+     *
+     * <p>清空而非预热重载：重载是阻塞 JDBC，放在探测线程上会让一轮探测被慢查询拖住。
+     * 未登记的域直接忽略、不抛异常——探测线程不能因为一个域缺失就停摆。
+     * {@link ConfigCacheDomain#MODERATION_WORD} 不在此处处理，词库副本由
+     * {@code ModerationWordResource} 自己持有。</p>
+     *
+     * @param domains 要失效的域；null 或空集合为无操作
+     */
+    public void invalidate(Collection<ConfigCacheDomain> domains) {
+        if (domains == null || domains.isEmpty()) {
+            return;
+        }
+        for (ConfigCacheDomain domain : domains) {
+            Runnable invalidator = invalidators.get(domain);
+            if (invalidator != null) {
+                invalidator.run();
+            }
+        }
+    }
+
+    private Map<ConfigCacheDomain, Runnable> buildInvalidators() {
+        Map<ConfigCacheDomain, Runnable> map = new EnumMap<>(ConfigCacheDomain.class);
+        map.put(ConfigCacheDomain.APP, appByIdCache::invalidateAll);
+        map.put(ConfigCacheDomain.CONSUMER, consumerBySecretKeyCache::invalidateAll);
+        map.put(ConfigCacheDomain.ROUTING_RULE, enabledRuleByConsumerAndCodeCache::invalidateAll);
+        map.put(ConfigCacheDomain.ROUTING_TARGET, targetsByRuleIdCache::invalidateAll);
+        map.put(ConfigCacheDomain.MODEL, () -> {
+            modelByIdCache.invalidateAll();
+            modelByCodeCache.invalidateAll();
+        });
+        map.put(ConfigCacheDomain.MODEL_POOL, () -> {
+            modelPoolByIdCache.invalidateAll();
+            modelPoolByCodeCache.invalidateAll();
+            modelPoolItemsByPoolCodeCache.invalidateAll();
+        });
+        map.put(ConfigCacheDomain.PROVIDER, () -> {
+            providerByIdCache.invalidateAll();
+            providerByCodeCache.invalidateAll();
+            activeCredentialByProviderIdCache.invalidateAll();
+        });
+        map.put(ConfigCacheDomain.MODEL_API_BINDING, apiBindingsByModelIdCache::invalidateAll);
+        map.put(ConfigCacheDomain.TRAFFIC_POLICY, trafficPoliciesCache::invalidateAll);
+        map.put(ConfigCacheDomain.BILLING_RULE, billingRuleCache::invalidateAll);
+        return Map.copyOf(map);
     }
 
     /**

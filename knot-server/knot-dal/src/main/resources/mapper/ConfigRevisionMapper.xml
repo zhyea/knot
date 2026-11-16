@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.dal.mapper.ConfigRevisionMapper">
+
+    <resultMap id="revisionRow" type="org.chobit.knot.dal.entity.ConfigRevisionRow">
+        <result column="table_name" property="tableName"/>
+        <result column="row_count" property="rowCount"/>
+        <result column="revision" property="revision"/>
+    </resultMap>
+
+    <!--
+      每张配置表一行指纹，一次往返拿全。
+      有 updated_at 的表取 max(updated_at)；没有该列的三张表取全列 CRC 聚合
+      （kb_routing_rule_targets / kb_resource_quota_bindings / kb_billing_rule_versions）。
+      row_count 同时下发：updated_at 对 DELETE 不留痕，只靠时间戳会漏掉删行。
+      表名必须与网关侧 ConfigCacheDomain 的 table 清单一致，由契约测试守门。
+    -->
+    <select id="listRevisions" resultMap="revisionRow">
+        select 'kb_apps' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_apps
+        union all
+        select 'kb_routing_consumers' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_routing_consumers
+        union all
+        select 'kb_routing_rules' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_routing_rules
+        union all
+        select 'kb_routing_rule_targets' as table_name, count(*) as row_count,
+               coalesce(cast(sum(crc32(concat_ws('|', id, rule_code, target_type, target_code, priority, is_primary))) as char), '0') as revision
+        from kb_routing_rule_targets
+        union all
+        select 'kb_models' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_models
+        union all
+        select 'kb_model_pools' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_model_pools
+        union all
+        select 'kb_model_pool_items' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_model_pool_items
+        union all
+        select 'kb_provider_accounts' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_provider_accounts
+        union all
+        select 'kb_provider_credentials' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_provider_credentials
+        union all
+        select 'kb_model_api_bindings' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_model_api_bindings
+        union all
+        select 'kb_billing_rules' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_billing_rules
+        union all
+        select 'kb_billing_rule_versions' as table_name, count(*) as row_count,
+               coalesce(cast(sum(crc32(concat_ws('|', id, rule_id, version_code, uniq_hash, billing_mode,
+                                                 pricing_plan, currency, unit,
+                                                 ifnull(cast(config_json as char), ''), status,
+                                                 effective_from, ifnull(cast(effective_to as char), '')))) as char), '0') as revision
+        from kb_billing_rule_versions
+        union all
+        select 'kb_resource_traffic_policies' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_resource_traffic_policies
+        union all
+        select 'kb_rate_limit_policies' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_rate_limit_policies
+        union all
+        select 'kb_quota_policies' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_quota_policies
+        union all
+        select 'kb_resource_quota_bindings' as table_name, count(*) as row_count,
+               coalesce(cast(sum(crc32(concat_ws('|', id, resource_type, resource_code, quota_policy_code))) as char), '0') as revision
+        from kb_resource_quota_bindings
+        union all
+        select 'kb_moderation_word_lists' as table_name, count(*) as row_count,
+               coalesce(date_format(max(updated_at), '%Y-%m-%d %H:%i:%s'), '') as revision
+        from kb_moderation_word_lists
+    </select>
+</mapper>

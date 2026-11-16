@@ -98,6 +98,16 @@ public class ModerationWordResource {
         }
     }
 
+    /**
+     * 清空词库资源副本：下一次请求同步回源。
+     *
+     * <p>由配置刷新轮询在探测到词库表指纹变化时调用。不清 fail-open 计数与版本观测值——
+     * 它们描述「上一次成功取词」，回源成功后会被覆盖。</p>
+     */
+    public void invalidate() {
+        cache.invalidateAll();
+    }
+
     /** fail-open 累计次数（监控面）。 */
     public long failOpenCount() {
         return failOpenCount.get();
