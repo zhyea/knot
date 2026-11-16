@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.svc.dto.async.AsyncTaskDto;
 import org.springframework.lang.Nullable;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * 异步任务的节拍器：只决定「什么时候扫」和「同时扫几个」，不决定「扫到之后做什么」；编排全在 {@link AsyncTaskRunner}。
  * cron 只决定「多久扫一次表」（默认每分钟整点），单个任务多久查一次由行上的 {@code next_poll_at} 决定。
- * Spring 的 {@code @Scheduled} 不保证串行，每个节拍方法各带 {@link AtomicBoolean} 守卫，上一轮没跑完就跳过本次触发。
+ * 节拍由 {@link org.chobit.knot.gateway.schedule.GatewayScheduledEntryRunner} 触发；Spring 不保证串行，每个节拍方法各带 {@link AtomicBoolean} 守卫，上一轮没跑完就跳过本次触发。
  * 阻塞查询一律提交到 {@code boundedElastic}（池满排队），并发度取 {@link AsyncTaskProperties#getConcurrency()}；{@link #tick()} 用 {@code blockLast} 等本批完成，下一拍到点由 {@link #ticking} 丢掉。
  */
 @Slf4j
@@ -92,9 +91,7 @@ public class AsyncTaskScheduledPoller {
 
     /**
      * 一轮扫描：回收超时 → 抢占待办 → 并发处理。
-     * 这里的默认值与 {@link AsyncTaskDefaults#TICK_CRON}（即 {@link AsyncTaskProperties#getTickCron()}）是同一个事实的第二份，合并不了：{@code @Scheduled} 占位符 {@code ${key:默认值}} 里只能是字面量。
      */
-    @Scheduled(cron = "${knot.gateway.async-task.tick-cron:0 * * * * *}")
     public void tick() {
         if (!properties.isEnabled()) {
             return;
@@ -118,7 +115,6 @@ public class AsyncTaskScheduledPoller {
     /**
      * 归档清理：删除保留窗口之前的终态行，与 {@link #tick()} 分成两个节拍。
      */
-    @Scheduled(cron = "${knot.gateway.async-task.cleanup-cron:0 0 * * * *}")
     public void archive() {
         if (!properties.isEnabled()) {
             return;
@@ -141,7 +137,6 @@ public class AsyncTaskScheduledPoller {
      * 与 {@link #tick()} / {@link #archive()} 各用各的守卫。
      * 投递进度（{@code delivery_attempts / next_delivery_at}）全在库里，本拍崩溃后下一拍会重新抢占续投。
      */
-    @Scheduled(cron = "${knot.gateway.async-task.delivery-cron:0 * * * * *}")
     public void deliver() {
         if (!properties.isEnabled() || !properties.isDeliveryEnabled()) {
             return;

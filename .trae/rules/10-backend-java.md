@@ -194,6 +194,11 @@ gateway 那 10 项就是被逼出来的：前一天补齐棘轮、第二天清�
 - **业务判断**（什么算成功/失败、要不要计费、退避多久、终态怎么落）→ 跟编排走，不单独留一份。
 - **部署决策**（跑不跑定时、并发几路、批量多大）→ 各 app，且**用值对象传进去**而不是让另一层读配置前缀
   （判例 `AsyncTaskRunPolicy`；否则 `knot.gateway.*` 会变成两个 app 的隐式契约）。
+- **定时触发**（`@Scheduled`）→ 只写在 app 的 `schedule` 包统一入口（`GatewayScheduledEntryRunner`），
+  一个节拍一个方法、方法体一行转发；开关、拍点重叠守卫、单轮并发留在被委托的 Runner 里。
+  业务类上直接写 `@Scheduled` 会让「这个进程到底跑几个定时任务」没有单点答案
+  （守门 `ScheduledEntryGuardTest`）。admin 的 Quartz 任务走 `ScheduledTaskSchedulerService`，
+  不受此约束——那是管理面可配任务，不是代码里的节拍。
 - **传输细节**（HTTP 客户端、签名、URL 拼装）→ `adapter`，编排层只定义端口
   （判例 `AsyncTaskQueryPort` / `AsyncTaskSettlementPort`）。
 - **纯部署能力**（对象存储桶、凭据、区域）→ 留在 app，哪怕它看起来像「业务口径」。

@@ -1,5 +1,7 @@
-package org.chobit.knot.gateway.kafka;
+package org.chobit.knot.gateway.config;
 
+import org.chobit.knot.gateway.kafka.EventDeadLetterWriter;
+import org.chobit.knot.gateway.kafka.KafkaPublisher;
 import org.chobit.knot.gateway.kafka.msg.Msg;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.BeanCreationException;

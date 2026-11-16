@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.async;
 /**
  * 异步任务的默认值（唯一出处）：档案级（单个任务怎么查）与扫描级（多久扫一次表）两层。
  * {@link #CLAIM_TTL_MS}（180000 毫秒）与 {@link #TASK_TIMEOUT_MINUTES}（30 分钟）单位不同；同名常量按语义拆开，禁止按数值合并。
- * {@link #TICK_CRON} / {@link #CLEANUP_CRON} 在 {@link AsyncTaskScheduledPoller} 的 {@code @Scheduled} 占位符中另有一份拷贝。
+ * {@link #TICK_CRON} / {@link #CLEANUP_CRON} 在 {@link org.chobit.knot.gateway.schedule.GatewayScheduledEntryRunner} 的 {@code @Scheduled} 占位符中另有一份拷贝。
  * 改档案级默认值需同步迁移脚本（DDL 列默认值）。
  */
 public final class AsyncTaskDefaults {

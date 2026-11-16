@@ -1,6 +1,9 @@
-package org.chobit.knot.gateway.outage;
+package org.chobit.knot.gateway.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.chobit.knot.gateway.outage.CaffeineTargetOutageStore;
+import org.chobit.knot.gateway.outage.OutageKeys;
+import org.chobit.knot.gateway.outage.TargetOutageStore;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

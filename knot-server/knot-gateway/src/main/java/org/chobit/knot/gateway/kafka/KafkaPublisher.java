@@ -29,7 +29,7 @@ public class KafkaPublisher {
     private final AtomicLong dropped = new AtomicLong();
 
     /**
-     * @param kafkaTemplate 本组件自用的生产者模板（producer props 见 {@link KafkaConfiguration}）
+     * @param kafkaTemplate 本组件自用的生产者模板（producer props 见 {@link org.chobit.knot.gateway.config.KafkaConfiguration}）
      * @param deadLetter    投递失败的兜底写入器
      */
     public KafkaPublisher(KafkaTemplate<String, String> kafkaTemplate,

@@ -1,6 +1,10 @@
-package org.chobit.knot.gateway.load;
+package org.chobit.knot.gateway.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.chobit.knot.gateway.load.CaffeineModelLoadStore;
+import org.chobit.knot.gateway.load.ModelLoadKeys;
+import org.chobit.knot.gateway.load.ModelLoadStore;
+import org.chobit.knot.gateway.load.RedisModelLoadStore;
 import org.chobit.knot.gateway.redis.RedisCache;
 import org.chobit.knot.gateway.store.StoreMode;
 import org.chobit.knot.gateway.store.StoreModeResolver;

@@ -1,8 +1,10 @@
-package org.chobit.knot.gateway.kafka;
+package org.chobit.knot.gateway.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.chobit.knot.gateway.kafka.EventDeadLetterWriter;
+import org.chobit.knot.gateway.kafka.KafkaPublisher;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;

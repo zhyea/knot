@@ -1,7 +1,8 @@
-package org.chobit.knot.gateway.kafka;
+package org.chobit.knot.gateway.config;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.chobit.knot.gateway.kafka.KafkaPublisher;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**

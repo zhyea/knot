@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.async;
 
+import org.chobit.knot.gateway.schedule.GatewayScheduledEntryRunner;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * ——线上查不出来，只能靠这里和启动期校验挡住。</p>
  *
  * <p>⭐ 节拍这边守的是<b>重复定义</b>：{@code @Scheduled} 读不到 bean 字段，cron 默认值被迫写在
- * 注解与属性两处。这里比对两份 + 校验能被 Spring 解析，避免「yml 没配时跑的是哪一份」说不清。</p>
+ * 统一入口的注解与属性两处。这里比对两份 + 校验能被 Spring 解析，避免「yml 没配时跑的是哪一份」说不清。</p>
  *
  * <p>为什么放在单元测试而不是只留启动期校验：启动期校验要到部署才跑，
  * 而默认值是代码改动，改错应该在 CI 就红。</p>
@@ -94,9 +95,9 @@ class AsyncTaskPropertiesTest {
     @Test
     @DisplayName("注解兜底值与属性默认值一致（同一事实不许写两遍还写歪）")
     void annotationFallbackMatchesPropertiesDefault() throws Exception {
-        assertEquals(properties.getTickCron(), cronFallbackOf("tick"));
-        assertEquals(properties.getCleanupCron(), cronFallbackOf("archive"));
-        assertEquals(properties.getDeliveryCron(), cronFallbackOf("deliver"));
+        assertEquals(properties.getTickCron(), cronFallbackOf("asyncTaskTick"));
+        assertEquals(properties.getCleanupCron(), cronFallbackOf("asyncTaskArchive"));
+        assertEquals(properties.getDeliveryCron(), cronFallbackOf("asyncTaskDeliver"));
     }
 
     @Test
@@ -118,7 +119,7 @@ class AsyncTaskPropertiesTest {
 
     /** 从 {@code ${key:default}} 里抠出 default；没写兜底说明本类断言的前提就不成立。 */
     private static String cronFallbackOf(String methodName) throws Exception {
-        Scheduled scheduled = AsyncTaskScheduledPoller.class.getMethod(methodName).getAnnotation(Scheduled.class);
+        Scheduled scheduled = GatewayScheduledEntryRunner.class.getMethod(methodName).getAnnotation(Scheduled.class);
         String cron = scheduled.cron();
         assertTrue(cron.startsWith("${") && cron.endsWith("}"), "cron 必须写成占位符形式: " + cron);
         assertTrue(cron.contains(":"), "缺少兜底默认值，去掉 yml 配置就会启动失败: " + cron);

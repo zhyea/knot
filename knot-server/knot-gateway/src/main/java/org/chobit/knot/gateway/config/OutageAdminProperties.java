@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.outage.admin;
+package org.chobit.knot.gateway.config;
 
 import lombok.Getter;
 import lombok.Setter;

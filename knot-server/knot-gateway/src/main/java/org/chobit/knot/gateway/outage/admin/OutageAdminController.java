@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.outage.admin;
 
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.admin.GatewayAdminAccessSupport;
+import org.chobit.knot.gateway.config.OutageAdminProperties;
 import org.chobit.knot.gateway.outage.OutageKeys;
 import org.chobit.knot.gateway.outage.TargetOutageStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
