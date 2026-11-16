@@ -76,6 +76,23 @@ class ProxyStreamingFluxTest {
     }
 
     @Test
+    @DisplayName("用量出口抛异常：收尾回调仍执行（两段互为旁路）")
+    void usageSinkFailureDoesNotSkipCompletion() {
+        AtomicInteger completed = new AtomicInteger();
+        String payload = "data: {\"choices\":[]}\ndata: [DONE]\n";
+
+        String out = collect(ProxyStreamingFlux.wrap(stream(payload, true), null, false, FACTORY, null,
+                usage -> {
+                    throw new IllegalStateException("usage sink down");
+                },
+                completed::incrementAndGet));
+
+        assertTrue(out.contains("[DONE]"), out);
+        assertEquals(1, completed.get(),
+                "用量出口失败不得吃掉收尾回调——否则在途释放与记账会一起消失");
+    }
+
+    @Test
     @DisplayName("上游 2xx 但流为空：以错误终止，绝不当成正常结束")
     void emptyUpstreamStreamFailsInsteadOfCompleting() {
         AtomicInteger released = new AtomicInteger();

@@ -53,7 +53,7 @@ class ModerationWordResourceTest {
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
 
     private ModerationWordResource newResource(ModerationWordService service) {
-        return new ModerationWordResource(service, registry);
+        return new ModerationWordResource(service, registry, Runnable::run);
     }
 
     /**

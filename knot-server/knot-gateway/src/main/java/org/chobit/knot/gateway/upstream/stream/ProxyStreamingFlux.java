@@ -143,11 +143,20 @@ public final class ProxyStreamingFlux {
                             log.warn("stream body tee log failed", e);
                         }
                     }
+                    // 用量出口与收尾回调同为收尾步骤：任一失败都不能让另一段没跑（响应已提交，抛出去没人接）
                     if (usageSink != null) {
-                        usageSink.accept(state.usage());
+                        try {
+                            usageSink.accept(state.usage());
+                        } catch (RuntimeException e) {
+                            log.warn("stream usage sink failed", e);
+                        }
                     }
                     if (onComplete != null) {
-                        onComplete.run();
+                        try {
+                            onComplete.run();
+                        } catch (RuntimeException e) {
+                            log.warn("stream completion callback failed", e);
+                        }
                     }
                 });
     }

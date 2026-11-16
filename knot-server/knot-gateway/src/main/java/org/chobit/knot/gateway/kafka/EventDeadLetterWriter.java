@@ -49,8 +49,8 @@ public class EventDeadLetterWriter {
         }
         try {
             Files.createDirectories(path.getParent() == null ? Paths.get(".") : path.getParent());
-            String line = LocalDateTime.now() + "\t" + topic + "\t" + key + "\t"
-                    + causeOf(cause) + "\t" + payload + System.lineSeparator();
+            String line = LocalDateTime.now() + "\t" + sanitize(topic) + "\t" + sanitize(key) + "\t"
+                    + sanitize(causeOf(cause)) + "\t" + payload + System.lineSeparator();
             Files.writeString(path, line, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             written.incrementAndGet();
@@ -74,6 +74,17 @@ public class EventDeadLetterWriter {
      */
     public long lost() {
         return lost.get();
+    }
+
+    /**
+     * 把字段分隔符与控制字符转义成可见形式：一条死信必须占一行，否则回流时无法按行切分。
+     * tab 是字段分隔符，CR/LF 会把一条拆成多行——三者都可能出现在异常 message 里。
+     */
+    private static String sanitize(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replace("\t", "\\t").replace("\r", "\\r").replace("\n", "\\n");
     }
 
     private static String causeOf(Throwable cause) {

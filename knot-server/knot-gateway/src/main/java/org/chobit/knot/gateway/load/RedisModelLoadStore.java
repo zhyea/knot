@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.load;
 
+import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.redis.RedisCache;
 import org.springframework.data.redis.core.script.RedisScript;
 
@@ -7,15 +8,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 多节点在途计量：Redis，与 {@link CaffeineModelLoadStore} 实现同一 {@link ModelLoadStore} 抽象。
  * 脚本均为单段 Lua，保证「读-改-写」原子，{@code INCRBY} 与 {@code PEXPIRE} 在同一脚本内；所有 Redis 访问经 {@link RedisCache}。
  * 故障口径 fail-hard：Redis 不可用抛 {@code RedisUnavailableException} → 网关 503。
  */
+@Slf4j
 public class RedisModelLoadStore implements ModelLoadStore {
 
     private static final String DOMAIN = "load";
+
+    /** 脏值日志节流：每 N 次一条，脚本持续异常时不把日志打爆 */
+    private static final int DIRTY_LOG_EVERY = 100;
 
     /**
      * 在途 +1 并刷新存活时间。
@@ -44,6 +50,9 @@ public class RedisModelLoadStore implements ModelLoadStore {
     private final RedisCache cache;
     private final long ttlMillis;
 
+    /** 脏值（脚本返回 null / 非数字）次数：静默按 0 处理会让选路持续偏向脏负载，必须可观测 */
+    private final AtomicLong dirtyValues = new AtomicLong();
+
     /**
      * @param cache      统一 Redis 门面（内部统一 fail-hard 与 ERROR 日志）
      * @param ttlSeconds 在途计数存活时间（秒）
@@ -61,14 +70,22 @@ public class RedisModelLoadStore implements ModelLoadStore {
     @Override
     public long enter(String key) {
         Long result = cache.eval(DOMAIN, "enter", ENTER, List.of(key), Long.toString(ttlMillis));
-        // Lua 正常返回不会是 null；为 null 说明脚本行为异常，按 0 兜底并显式暴露问题
-        return result == null ? 0L : result;
+        // Lua 正常返回不会是 null；为 null 说明脚本行为异常，按 0 兜底但必须暴露
+        if (result == null) {
+            markDirty("enter returned null, treated as 0", key, null);
+            return 0L;
+        }
+        return result;
     }
 
     @Override
     public long leave(String key) {
         Long result = cache.eval(DOMAIN, "leave", LEAVE, List.of(key));
-        return result == null ? 0L : result;
+        if (result == null) {
+            markDirty("leave returned null, treated as 0", key, null);
+            return 0L;
+        }
+        return result;
     }
 
     @Override
@@ -94,7 +111,7 @@ public class RedisModelLoadStore implements ModelLoadStore {
      * 解析在途值：{@code null} / 空 / 非数字 / 负数统一按 {@code 0}（不拥塞）处理。
      * 脏数据不是 Redis 故障，不触发存储故障告警（与单键 {@link #inflight} 语义一致）。
      */
-    private static long parseInflight(String value) {
+    private long parseInflight(String value) {
         if (value == null) {
             return 0L;
         }
@@ -102,7 +119,25 @@ public class RedisModelLoadStore implements ModelLoadStore {
             long parsed = Long.parseLong(value.trim());
             return parsed < 0L ? 0L : parsed;
         } catch (NumberFormatException ex) {
+            markDirty("non-numeric inflight value, treated as 0", null, value);
             return 0L;
         }
+    }
+
+    /**
+     * 脏值打点：单调计数 + 节流 ERROR 日志；兜底值不变（不拥塞），只让读数不可信这件事可见。
+     */
+    private void markDirty(String reason, String key, String value) {
+        long total = dirtyValues.incrementAndGet();
+        if (total % DIRTY_LOG_EVERY == 1) {
+            log.error("Redis model load {} (total={}): key={} value={}", reason, total, key, value);
+        }
+    }
+
+    /**
+     * 脏值累计次数（监控面）：非 0 意味着在途读数不可信，选路可能偏向脏负载。
+     */
+    long dirtyValues() {
+        return dirtyValues.get();
     }
 }

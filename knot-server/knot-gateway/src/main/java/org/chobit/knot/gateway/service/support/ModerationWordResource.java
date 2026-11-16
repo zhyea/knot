@@ -9,10 +9,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.common.moderation.ModerationTerm;
 import org.chobit.knot.gateway.metrics.GatewayMetrics;
 import org.chobit.knot.svc.service.ModerationWordService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -47,10 +50,18 @@ public class ModerationWordResource {
      */
     private final Counter failOpenCounter;
 
-    public ModerationWordResource(ModerationWordService moderationWordService, MeterRegistry registry) {
+    /**
+     * @param refreshExecutor {@code refreshAfterWrite} 的后台重载执行器：loader 是阻塞 JDBC 查询，
+     *                        不能落到 {@code ForkJoinPool.commonPool()}——那个池并行度等于 CPU 核数，
+     *                        一次慢查询会拖住同窗口内所有 commonPool 使用者（含并行流）
+     */
+    public ModerationWordResource(ModerationWordService moderationWordService,
+                                 MeterRegistry registry,
+                                 @Qualifier("gatewayConfigRefreshExecutor") Executor refreshExecutor) {
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(EXPIRE_AFTER_WRITE)
                 .refreshAfterWrite(REFRESH_AFTER_WRITE)
+                .executor(Objects.requireNonNull(refreshExecutor, "refreshExecutor"))
                 .build(key -> {
                     List<ModerationTerm> terms = moderationWordService.loadEnabledTerms();
                     return terms == null ? List.of() : List.copyOf(terms);

@@ -110,6 +110,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
     /** 流式用量记账失败计数：配额 / 成本被跳过的次数——必须可计量，不能只靠翻日志。 */
     private final AtomicLong usageRecordFailures = new AtomicLong();
+
+    /** 流式收尾失败计数：任何一步失败都会让在途计数滞留或记账 / 事件丢失，同样必须可计量。 */
+    private final AtomicLong streamCompletionFailures = new AtomicLong();
     /**
      * 网关域指标出口（限流 / 额度拒绝、摘除、上游失败、failover、代理耗时）；非 Spring 单测构造本类时为 null，所有埋点判空。
      */
@@ -587,48 +590,44 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      * 流式转发：先写好响应头，再把上游响应体以 {@code Flux<DataBuffer>} 交给容器写出。
      * 返回 {@link GatewayStreamingResponse}，由 {@code GatewayControllerSupport} 交给 {@code ServerHttpResponse.writeWith(...)}；订阅即转发，客户端断连即取消。
      */
-    private GatewayStreamingResponse streamResponse(ProxyResult result, ResolvedRouting routing,
-                                                    GatewayRequestContext context, GatewayExchange exchange) {
-        UpstreamStreamResponse stream = result.streamResponse();
-        exchange.http().prepareStreaming(stream.contentType());
-        boolean appendUsage = shouldReturnUsageDetail(routing, exchange);
-        // 在途计数在流写完时才释放（见 proxyWithFailover 的 deferredToStream）
+    GatewayStreamingResponse streamResponse(ProxyResult result, ResolvedRouting routing,
+                                           GatewayRequestContext context, GatewayExchange exchange) {
+        // 延迟释放已置位：候选 Mono 的 doFinally 不会再兜底，构造期任何一步失败都必须在这里归还
         Runnable loadRelease = context.attribute(ATTR_LOAD_RELEASE);
-        FirstTokenHeaderWriter firstTokenWriter = FirstTokenHeaderWriter.of(
-            context, exchange.http(), firstTokenObserver(context));
-        // 流式用量只能在流写完时定型：先落在容器里，由 onComplete 发布流量事件（终态一条）
-        AtomicReference<UsageAccounting> terminalUsage = new AtomicReference<>();
-        Runnable onComplete = () -> {
+        try {
+            UpstreamStreamResponse stream = result.streamResponse();
+            exchange.http().prepareStreaming(stream.contentType());
+            boolean appendUsage = shouldReturnUsageDetail(routing, exchange);
+            FirstTokenHeaderWriter firstTokenWriter = FirstTokenHeaderWriter.of(
+                context, exchange.http(), firstTokenObserver(context));
+            // 流式用量只能在流写完时定型：先落在容器里，由 onComplete 发布流量事件（终态一条）
+            AtomicReference<UsageAccounting> terminalUsage = new AtomicReference<>();
+            // 补记流式真实用量：无论是否接 Kafka，频控/配额账都必须落到计数器
+            // 事件走父类的唯一发布出口：投递器判空在那里，本类不必再各判一次；
+            // 也让「终态事件从哪发」只有一处可数（非流式 / 终态异常 / 流式收尾）
+            Runnable onComplete = streamingCompletion(loadRelease,
+                () -> recordStreamingUsage(context, routing, terminalUsage.get()),
+                () -> publishTraffic(context, exchange, terminalUsage.get(), firstTokenWriter.elapsedMillis(), null));
+            // 流式正文只有读完了才有：旁路一份有界原文，流结束时补记上游响应日志
+            UpstreamRequestContext upstreamContext = context.attribute(ATTR_UPSTREAM_CONTEXT);
+            Consumer<String> streamBodySink = upstreamContext == null ? null
+                : tail -> proxyClient.logStreamTail(upstreamContext, result, tail);
+            // 流式失败只可能发生在响应头写出之后，proxy() 的 catch 早已返回：异常日志要在这里补
+            Consumer<Throwable> streamErrorSink = upstreamContext == null ? null
+                : error -> proxyClient.logStreamFailure(upstreamContext, error);
+            Flux<DataBuffer> body = ProxyStreamingFlux.wrap(stream, usageExtractorRegistry, appendUsage,
+                exchange.http().bufferFactory(), firstTokenWriter, terminalUsage::set, onComplete,
+                streamBodySink, streamErrorSink);
+            return new GatewayStreamingResponse(stream.contentType(), body);
+        } catch (RuntimeException e) {
+            // releaseLoad 自身 CAS 幂等：重复归还无副作用
             if (loadRelease != null) {
                 loadRelease.run();
             }
-            // 补记流式真实用量：无论是否接 Kafka，频控/配额账都必须落到计数器
-            recordStreamingUsage(context, routing, terminalUsage.get());
-        };
-        Runnable base = onComplete;
-        onComplete = () -> {
-            base.run();
-            // 走父类的唯一发布出口：投递器判空在那里，本类不必再各判一次；
-            // 也让「终态事件从哪发」只有一处可数（非流式 / 终态异常 / 流式收尾）
-            publishTraffic(context, exchange, terminalUsage.get(), firstTokenWriter.elapsedMillis(), null);
-        };
-        // 流式正文只有读完了才有：旁路一份有界原文，流结束时补记上游响应日志
-        UpstreamRequestContext upstreamContext = context.attribute(ATTR_UPSTREAM_CONTEXT);
-        Consumer<String> streamBodySink = upstreamContext == null ? null
-            : tail -> proxyClient.logStreamTail(upstreamContext, result, tail);
-        // 流式失败只可能发生在响应头写出之后，proxy() 的 catch 早已返回：异常日志要在这里补
-        Consumer<Throwable> streamErrorSink = upstreamContext == null ? null
-            : error -> proxyClient.logStreamFailure(upstreamContext, error);
-        Flux<DataBuffer> body = ProxyStreamingFlux.wrap(stream, usageExtractorRegistry, appendUsage,
-            exchange.http().bufferFactory(), firstTokenWriter, terminalUsage::set, onComplete,
-            streamBodySink, streamErrorSink);
-        return new GatewayStreamingResponse(stream.contentType(), body);
+            throw e;
+        }
     }
 
-    /**
-     * 流式响应写完后的补充记账：用流结束时定型的最终用量补全 TPM / token 配额 / 成本配额。
-     * 响应已写完，记账异常只记日志、不向上抛。
-     */
     /**
      * 流式用量记账失败次数（监控面）：非 0 即意味着有请求绕过了配额 / 成本记账。
      */
@@ -636,6 +635,64 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         return usageRecordFailures.get();
     }
 
+    /**
+     * 流式收尾失败次数（监控面）：非 0 即意味着有请求的在途计数滞留或配额 / 事件丢失。
+     */
+    long streamCompletionFailures() {
+        return streamCompletionFailures.get();
+    }
+
+    /**
+     * 流式收尾链：释放在途 → 补记用量 → 发布终态事件，三段各自隔离、按序执行。
+     * 响应已提交，任何一段失败都不得吃掉后面的步骤（漏记账 = 漏配额与成本，漏事件 = 丢终态）。
+     *
+     * @param loadRelease    释放在途计数；{@code null} 表示该请求没有在途计数
+     * @param recordUsage    补记流式用量
+     * @param publishTraffic 发布终态流量事件
+     */
+    Runnable streamingCompletion(Runnable loadRelease, Runnable recordUsage, Runnable publishTraffic) {
+        Runnable completion = isolated("load-release", () -> {
+            if (loadRelease != null) {
+                loadRelease.run();
+            }
+        });
+        completion = chain(completion, isolated("usage-accounting", recordUsage));
+        return chain(completion, isolated("traffic-event", publishTraffic));
+    }
+
+    /**
+     * 收尾步骤隔离器：流式响应已提交，任何一段抛异常都会破坏响应并吃掉后续步骤，故只打点不上抛。
+     *
+     * @param step 收尾步骤名（指标标签与日志定位用）
+     */
+    private Runnable isolated(String step, Runnable action) {
+        return () -> {
+            try {
+                action.run();
+            } catch (RuntimeException e) {
+                long total = streamCompletionFailures.incrementAndGet();
+                if (metrics != null) {
+                    metrics.streamCompletionFailure(step);
+                }
+                log.error("Streaming completion step failed: step={} total={}", step, total, e);
+            }
+        };
+    }
+
+    /**
+     * 顺序组合两个已隔离的收尾步骤：前一段失败不影响后一段。
+     */
+    private static Runnable chain(Runnable first, Runnable second) {
+        return () -> {
+            first.run();
+            second.run();
+        };
+    }
+
+    /**
+     * 流式响应写完后的补充记账：用流结束时定型的最终用量补全 TPM / token 配额 / 成本配额。
+     * 响应已写完，记账异常只记日志、不向上抛。
+     */
     void recordStreamingUsage(GatewayRequestContext context,
                               ResolvedRouting routing,
                               UsageAccounting accounting) {

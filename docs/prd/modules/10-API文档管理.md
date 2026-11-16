@@ -16,7 +16,7 @@
 
 | 接口 | 状态 | 说明 |
 |---|---|---|
-| `GET /api/docs/openapi.json` | ✅ 已上线 | 由 springdoc 运行时生成（`springdoc.api-docs.path`），扫 `org.chobit.knot.admin.controller` |
+| `GET /api/docs/openapi.json` | ✅ 已上线（2026-11-17 起需 `system:doc:view`） | 由 springdoc 运行时生成（`springdoc.api-docs.path`），扫 `org.chobit.knot.admin.controller`；admin 接口级授权默认拒绝，该路径的绑定登记在 `data.sql`（springdoc 的 controller 是第三方类，不在扫描范围内，由 `ApiPermissionBindingCoverageTest#springdocPathIsBoundOrWhitelisted` 守门） |
 | `GET /api/docs/changelog` | ❌ 未实现 | 从未有真实实现。曾有一个 `POST /api/docs/changelog` 占位端点返回两条硬编码版本，不随代码演进，已连同类占位 `POST /api/docs/openapi.json` 一并删除 |
 
 ⚠ 占位端点与本文档本来就对不上：文档写 `GET`，占位实现是 `POST` 且返回硬编码骨架（paths 只有 `/api/health`）。

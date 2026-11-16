@@ -11,6 +11,10 @@
 - `GET /api/docs/openapi.json` —— ✅ 已实现：springdoc 运行时生成（`springdoc.api-docs.path=/api/docs/openapi.json`，
   `packages-to-scan=org.chobit.knot.admin.controller`）。注意 `packages-to-scan` 是字符串，指错会让文档**空**而不报错，
   由真启冒烟核对 paths 数量兜住。
+  ⚠ 该端点由第三方 `OpenApiWebMvcResource` 提供，不在 controller 包扫描范围内，因此**必须显式登记**
+  `ks_api_permission_bindings`（`GET /api/docs/openapi.json` → `system:doc:view`），否则默认拒绝会让它 403
+  （2026-11-17 修复；守门用例 `ApiPermissionBindingCoverageTest#springdocPathIsBoundOrWhitelisted`
+  直接读 `springdoc.api-docs.path` 比对绑定，路径改了测试跟着变）。
 - `GET /api/docs/changelog` —— ❌ 未实现（2026-11-12 起明确）：原有一个 `POST /api/docs/changelog` 占位端点返回两条
   硬编码版本，`POST /api/docs/openapi.json` 同样是硬编码骨架（paths 只有 `/api/health`）。两者都不随代码演进、
   仓库内零引用，已一并删除（含 `data.sql` 的权限绑定 54/55；存量库须手工删这两行——

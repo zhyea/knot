@@ -29,6 +29,9 @@ public class GatewayMetrics {
     /** 流式记账失败：非 0 即意味着有请求绕过了配额 / 成本记账。 */
     public static final String USAGE_RECORD_FAILURE = "knot.gateway.usage.record.failure";
 
+    /** 流式收尾失败：释放在途 / 补记用量 / 发布事件任一步失败，都会让在途计数滞留或配额与事件丢失。 */
+    public static final String STREAM_COMPLETION_FAILURE = "knot.gateway.stream.completion.failure";
+
     /** 单个候选的端到端代理耗时（含其内部重试）。 */
     public static final String PROXY_LATENCY = "knot.gateway.proxy.latency";
 
@@ -95,6 +98,19 @@ public class GatewayMetrics {
     public void usageRecordFailure() {
         Counter.builder(USAGE_RECORD_FAILURE)
                 .description("流式记账失败次数（非 0 即存在绕过配额/成本的请求）")
+                .register(registry)
+                .increment();
+    }
+
+    /**
+     * 记一次流式收尾失败：收尾三步互相隔离，失败只打点不上抛，靠 {@code step} 区分是哪一段。
+     *
+     * @param step 收尾步骤（load-release / usage-accounting / traffic-event）
+     */
+    public void streamCompletionFailure(String step) {
+        Counter.builder(STREAM_COMPLETION_FAILURE)
+                .tag("step", step == null ? "unknown" : step)
+                .description("流式收尾失败次数（按步骤分组：释放/记账/事件）")
                 .register(registry)
                 .increment();
     }

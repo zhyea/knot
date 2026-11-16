@@ -180,7 +180,7 @@ class ConfigCacheRefreshRunnerTest {
         private int invalidations;
 
         private RecordingWordResource() {
-            super(null, new SimpleMeterRegistry());
+            super(null, new SimpleMeterRegistry(), Runnable::run);
         }
 
         @Override

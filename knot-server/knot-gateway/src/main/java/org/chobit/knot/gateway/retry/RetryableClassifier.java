@@ -68,17 +68,4 @@ public final class RetryableClassifier {
         };
     }
 
-    /**
-     * 供调用方复用：错误码是否属于「配置类」——这类失败重试无意义。
-     */
-    public static boolean configurationError(GatewayUpstreamException error) {
-        if (error == null) {
-            return false;
-        }
-        String code = error.code();
-        return ProxyErrorCodeEnum.MODEL_NOT_FOUND.code().equals(code)
-                || ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code().equals(code)
-                || ProxyErrorCodeEnum.API_PROTOCOL_NOT_CONFIGURED.code().equals(code)
-                || ProxyErrorCodeEnum.UPSTREAM_ENDPOINT_NOT_CONFIGURED.code().equals(code);
-    }
 }

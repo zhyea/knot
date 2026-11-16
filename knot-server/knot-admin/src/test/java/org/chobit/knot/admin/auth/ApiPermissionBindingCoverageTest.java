@@ -11,6 +11,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -94,6 +95,46 @@ class ApiPermissionBindingCoverageTest {
                         + String.join("\n  ", missing)
                         + "\n补登记位置：knot-admin/src/main/resources/db/data.sql，"
                         + "既有库另需同目录下的幂等迁移脚本（docs/database/migration/，执行完即删）。");
+    }
+
+    /**
+     * 运行时接口文档路径必须「已绑定或已白名单」。
+     *
+     * <p>springdoc 的 {@code OpenApiWebMvcResource} 是第三方 {@code @RestController}，不在
+     * {@link #CONTROLLER_BASE_PACKAGE} 扫描范围内——{@link #everyAdminEndpointHasPermissionBinding()}
+     * 结构上抓不到它。这里直接读 {@code springdoc.api-docs.path} 的配置值做断言，
+     * 路径改了测试跟着变，不靠人记常量。</p>
+     */
+    @Test
+    void springdocPathIsBoundOrWhitelisted() throws Exception {
+        String path = springdocApiDocsPath();
+        assertTrue(path != null && path.startsWith("/api/"),
+                "springdoc.api-docs.path 必须配在 /api/** 下才受授权拦截器保护，当前：" + path);
+
+        Set<String> bindings = parseBindings(readDataSql());
+        assertTrue(WHITELIST.contains(path) || bindings.contains("GET " + path),
+                "运行时接口文档 " + path + " 既未登记 ks_api_permission_bindings，也不在授权白名单里；"
+                        + "默认拒绝会让它返回 403（登录后也看不了）。补登记位置：knot-admin/src/main/resources/db/data.sql。");
+    }
+
+    /**
+     * 读取 {@code springdoc.api-docs.path} 的配置值；取不到返回 {@code null}。
+     */
+    @SuppressWarnings("unchecked")
+    private String springdocApiDocsPath() throws IOException {
+        ClassPathResource resource = new ClassPathResource("application.yml");
+        try (InputStream in = resource.getInputStream()) {
+            Map<String, Object> root = new Yaml().load(in);
+            if (!(root.get("springdoc") instanceof Map<?, ?> springdoc)) {
+                return null;
+            }
+            Map<String, Object> springdocMap = (Map<String, Object>) springdoc;
+            if (!(springdocMap.get("api-docs") instanceof Map<?, ?> apiDocs)) {
+                return null;
+            }
+            Object path = ((Map<String, Object>) apiDocs).get("path");
+            return path == null ? null : path.toString();
+        }
     }
 
     /**

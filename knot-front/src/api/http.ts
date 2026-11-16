@@ -4,6 +4,7 @@ import {useAuth} from "@/composables/useAuth";
 import {touchIdleActivity} from "@/composables/idleActivity";
 import router from "../router";
 import {readEventStream, type SseEvent} from "../utils/sse";
+import {shouldClearAdminSessionOn401} from "../utils/sessionScope";
 
 declare module "axios" {
   interface AxiosRequestConfig {
@@ -192,6 +193,9 @@ export interface GatewayEventStream {
  * <p>注意：不设置总时长超时（流式响应本就可能很长），超时由调用方通过
  * `readEventStream` 的空闲超时与 `AbortSignal` 控制。</p>
  *
+ * <p>认证类型由调用方显式声明（{@code adminSession}），<b>不由请求头推断</b>：
+ * 网关调试通道带的是消费者 API Key，它的 401 与管理员登录态无关，不能清 JWT。</p>
+ *
  * <p>⚠ 实测（Chrome headless，跨域 + 同源各测一遍）：`getAllResponseHeaders()`
  * 返回的头名一律被浏览器小写化，<b>同源也不例外</b>。因此本函数的 XHR 通道
  * 换不来「响应头原值」，调试面板展示的 `X-Knot-Model` 等实际是小写形式。
@@ -201,10 +205,10 @@ export async function postEventStream(
   url: string,
   data: unknown,
   signal?: AbortSignal,
-  requestHeaders: Record<string, string> = {}
+  requestHeaders: Record<string, string> = {},
+  adminSession = false
 ): Promise<GatewayEventStream> {
   const {token, clearAllAuthState} = useAuth();
-  const usesAdminAuth = !requestHeaders.Authorization;
   return new Promise<GatewayEventStream>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);
@@ -333,8 +337,8 @@ export async function postEventStream(
         finish();
         return;
       }
-      // 与 Axios 拦截器保持一致：只有当前会话的 401 才清理登录态
-      if (xhr.status === 401 && usesAdminAuth && token.value) {
+      // 与 Axios 拦截器保持一致：只有管理端通道的当前会话 401 才清理登录态
+      if (shouldClearAdminSessionOn401(xhr.status, adminSession, !!token.value)) {
         clearAllAuthState();
         if (router.currentRoute.value.path !== "/login") {
           router.push("/login");
@@ -348,7 +352,7 @@ export async function postEventStream(
         (body && typeof body === "object" && "message" in body
           ? String((body as {message?: unknown}).message ?? "")
           : "") || `请求失败（HTTP ${xhr.status}）`;
-      if (usesAdminAuth) {
+      if (adminSession) {
         ElMessage.error(message);
       }
       reject(Object.assign(new Error(message), {

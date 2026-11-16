@@ -477,7 +477,10 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (224, 160, 'GET', '/api/system/async-task-profiles/{profileCode}', 'AsyncTaskProfileController', 1),
 (225, 160, 'POST', '/api/system/async-task-profiles/dry-run', 'AsyncTaskProfileController', 1),
 (226, 161, 'POST', '/api/system/async-task-profiles/save', 'AsyncTaskProfileController', 1),
-(227, 162, 'POST', '/api/system/async-task-profiles/delete/{profileCode}', 'AsyncTaskProfileController', 1);
+(227, 162, 'POST', '/api/system/async-task-profiles/delete/{profileCode}', 'AsyncTaskProfileController', 1),
+-- 运行时接口文档由 springdoc 的第三方 controller 提供，不在 controller 包扫描范围内：
+-- 显式绑定，避免「默认拒绝」把 GET 文档判成 403（POST 占位端点已删除，本权限只剩这一个消费点）。
+(228, 58, 'GET', '/api/docs/openapi.json', 'OpenApiWebMvcResource', 1);
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
