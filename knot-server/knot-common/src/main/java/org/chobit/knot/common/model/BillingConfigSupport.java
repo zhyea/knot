@@ -11,6 +11,7 @@ import org.chobit.knot.common.model.BillingConfig.TierRule;
 import org.chobit.knot.common.model.BillingConfig.VideoConfig;
 import org.chobit.knot.common.model.BillingConfig.Window;
 import org.chobit.knot.common.model.BillingConfig.WindowRange;
+import org.chobit.knot.common.util.TextSupport;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -107,7 +108,7 @@ public final class BillingConfigSupport {
         // config.tierMode() 只在 TIERED 下有意义：其它方案配了它说明配置意图与方案不一致，拒绝保存。
         // ⚠ 必须在下面几个分支之前判：DIMENSION_TIERED / VENDOR_MINIMAX / PEAK_OFF_PEAK 各自
         //   直接 return，写在末尾会被整体跳过，僵尸字段静默进 config_json（前端也只在 TIERED 下写它）。
-        if (resolved != PricingPlanEnum.TIERED && BillingConfig.blankToNull(config.tierMode()) != null) {
+        if (resolved != PricingPlanEnum.TIERED && TextSupport.blankToNull(config.tierMode()) != null) {
             return "tierMode is only allowed for TIERED plan";
         }
         // 固定价不呈现档位（2026-10-30 定调）：档位表是「按请求属性分档」的数据，只归维度分档价。
@@ -137,7 +138,7 @@ public final class BillingConfigSupport {
         if (video == null) {
             return null;
         }
-        String mode = BillingConfig.blankToNull(video.quantityMode());
+        String mode = TextSupport.blankToNull(video.quantityMode());
         if (mode != null && !VideoConfig.SUPPORTED_QUANTITY_MODES.contains(mode.trim().toUpperCase())) {
             return "video.quantityMode must be OUTPUT, SUM or OUTPUT_PLUS_MAX";
         }
@@ -180,7 +181,7 @@ public final class BillingConfigSupport {
             if (item.amount().signum() < 0) {
                 return path + ".amount cannot be negative";
             }
-            String trigger = BillingConfig.blankToNull(item.trigger());
+            String trigger = TextSupport.blankToNull(item.trigger());
             if (trigger != null && !Surcharge.SUPPORTED_TRIGGERS.contains(trigger.trim().toUpperCase())) {
                 return path + ".trigger must be ALWAYS, AUDIO or REFERENCE";
             }
@@ -190,7 +191,7 @@ public final class BillingConfigSupport {
 
     /** TIERED 专属追加：tierMode 合法（缺省视为 PER_REQUEST） */
     private static String validateTierMode(BillingConfig config) {
-        String mode = BillingConfig.blankToNull(config.tierMode());
+        String mode = TextSupport.blankToNull(config.tierMode());
         if (mode == null) {
             return null;
         }
@@ -222,7 +223,7 @@ public final class BillingConfigSupport {
         }
         boolean tiered = false;
         for (String rawKey : config.resolutionPrices().keySet()) {
-            String key = BillingConfig.blankToNull(rawKey);
+            String key = TextSupport.blankToNull(rawKey);
             if (key == null) {
                 return "DIMENSION_TIERED resolution key must not be blank";
             }
@@ -236,7 +237,7 @@ public final class BillingConfigSupport {
             }
             String body = name.substring(prefix.length());
             int colon = body.indexOf(':');
-            if (BillingConfig.blankToNull(colon < 0 ? body : body.substring(0, colon)) == null) {
+            if (TextSupport.blankToNull(colon < 0 ? body : body.substring(0, colon)) == null) {
                 return "DIMENSION_TIERED resolution key must start with a tier name: " + key;
             }
             String suffix = colon < 0 ? "" : body.substring(colon);
@@ -357,14 +358,14 @@ public final class BillingConfigSupport {
         if (pricing == null) {
             return "pricing is required for PEAK_OFF_PEAK plan";
         }
-        String rateMode = BillingConfig.blankToNull(pricing.rateMode());
+        String rateMode = TextSupport.blankToNull(pricing.rateMode());
         if (rateMode == null) {
             rateMode = BillingConfig.RATE_MODE_MULTIPLIER;
         }
         if (!BillingConfig.RATE_MODE_MULTIPLIER.equals(rateMode) && !BillingConfig.RATE_MODE_ABSOLUTE.equals(rateMode)) {
             return "pricing.rateMode must be MULTIPLIER or ABSOLUTE";
         }
-        String timezone = BillingConfig.blankToNull(pricing.timezone());
+        String timezone = TextSupport.blankToNull(pricing.timezone());
         if (timezone == null || !BillingConfig.SUPPORTED_TIMEZONES.contains(timezone)) {
             return "pricing.timezone must be a valid UTC offset";
         }
@@ -373,7 +374,7 @@ public final class BillingConfigSupport {
             return "pricing.phases must be a non-empty array";
         }
         PhaseRule first = phases.get(0);
-        if (first == null || !PHASE_PEAK.equals(BillingConfig.blankToNull(first.phase()))) {
+        if (first == null || !PHASE_PEAK.equals(TextSupport.blankToNull(first.phase()))) {
             return "pricing.phases first item must be PEAK";
         }
         PhaseRule last = phases.get(phases.size() - 1);
@@ -400,7 +401,7 @@ public final class BillingConfigSupport {
                     return multiplierError;
                 }
             }
-            if (!SUPPORTED_PHASES.contains(BillingConfig.blankToNull(rule.phase()))) {
+            if (!SUPPORTED_PHASES.contains(TextSupport.blankToNull(rule.phase()))) {
                 return item + ".phase must be PEAK or OFF_PEAK";
             }
             String conditionError = validatePhaseCondition(rule.condition(), item);
@@ -436,7 +437,7 @@ public final class BillingConfigSupport {
 
     /** 调休策略归一：缺失按默认 OFF_PEAK */
     private static String normalizedMakeUpPolicy(PhaseCondition condition) {
-        String policy = BillingConfig.blankToNull(condition.makeUpWorkdayPolicy());
+        String policy = TextSupport.blankToNull(condition.makeUpWorkdayPolicy());
         return policy == null ? "OFF_PEAK" : policy;
     }
 

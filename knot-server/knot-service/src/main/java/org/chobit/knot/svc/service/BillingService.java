@@ -16,6 +16,7 @@ import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.common.pricing.HolidayCalendar;
 import org.chobit.knot.common.pricing.PeakOffPeakResolver;
 import org.chobit.knot.common.pricing.PhaseDecision;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.converter.BillingConverter;
 import org.chobit.knot.svc.dto.billing.BillingRuleDto;
 import org.chobit.knot.dal.entity.BillingRuleEntity;
@@ -360,7 +361,7 @@ public class BillingService {
     private void applyRule(BillingRuleEntity entity, BillingRuleDto request) {
         entity.setCode(normalizeCode(request.code()));
         entity.setModelFamilyCode(normalizeModelFamily(request.modelFamilyCode()));
-        entity.setRemark(blankToNull(request.remark()));
+        entity.setRemark(TextSupport.blankToNull(request.remark()));
     }
 
     /**
@@ -379,7 +380,7 @@ public class BillingService {
         latest.setPricingPlan(normalizePricingPlan(request.pricingPlan()));
         latest.setCurrency(normalizeCurrency(request.currency()));
         latest.setUnit(normalizeUnit(request.unit(), modeEnumOf(normalizeBillingMode(request.billingMode()))));
-        latest.setConfigJson(blankToNull(request.configJson()));
+        latest.setConfigJson(TextSupport.blankToNull(request.configJson()));
         latest.setEffectiveFrom(request.effectiveFrom() == null ? LocalDateTime.now() : request.effectiveFrom());
         latest.setEffectiveTo(request.effectiveTo());
         latest.setStatus(statusFor(enabled));
@@ -396,7 +397,7 @@ public class BillingService {
         version.setPricingPlan(normalizePricingPlan(request.pricingPlan()));
         version.setCurrency(normalizeCurrency(request.currency()));
         version.setUnit(normalizeUnit(request.unit(), modeEnumOf(normalizeBillingMode(request.billingMode()))));
-        version.setConfigJson(blankToNull(request.configJson()));
+        version.setConfigJson(TextSupport.blankToNull(request.configJson()));
         version.setEffectiveFrom(request.effectiveFrom() == null ? LocalDateTime.now() : request.effectiveFrom());
         version.setEffectiveTo(request.effectiveTo());
         version.setStatus(EnabledStatusEnum.codeOf(active));
@@ -466,7 +467,7 @@ public class BillingService {
      * （TIERED 要求 tier 非空且每项 unitPrices 完整；PEAK_OFF_PEAK 要求 pricing 结构合法）。
      */
     private void validateConfigJson(String configJson, PricingPlanEnum plan) {
-        String normalized = blankToNull(configJson);
+        String normalized = TextSupport.blankToNull(configJson);
         if (normalized == null) {
             return;
         }
@@ -532,15 +533,6 @@ public class BillingService {
         return value == null ? "" : value.trim();
     }
 
-    private static String trimToEmpty(String value) {
-        return value == null ? "" : value.trim();
-    }
-
-    private static String blankToNull(String value) {
-        String normalized = trimToEmpty(value);
-        return normalized.isEmpty() ? null : normalized;
-    }
-
     /** 预览同样不许把非法配置静默映射为零价。 */
     private static BillingConfig parseConfigOrThrow(String json) {
         try {
@@ -598,7 +590,7 @@ public class BillingService {
     }
 
     private static Object normalizeJsonText(String value) {
-        String normalized = blankToNull(value);
+        String normalized = TextSupport.blankToNull(value);
         if (normalized == null) {
             return null;
         }

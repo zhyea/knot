@@ -7,7 +7,6 @@ import org.chobit.knot.svc.dto.system.ScheduledTaskDto;
 import org.chobit.knot.svc.dto.system.ScheduledTaskRunDto;
 import org.chobit.knot.svc.service.ScheduledTaskService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -19,10 +18,14 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 任务执行引擎：抢锁 → 调 handler → 记流水。
+ * 任务执行引擎：抢租约 → 调 handler → 记流水。
  * 收集 {@link ScheduledTaskHandler} 的实现（{@code OPENROUTER_MODEL_SYNC} 等），数据访问经 {@link ScheduledTaskService}。
- * SINGLE 模式靠 DB 会话锁（{@code GET_LOCK}）互斥：多节点同时到点只有一个节点能拿到锁，其余直接跳过（不排队、不补跑）。
- * {@code BROADCAST} 模式不加锁，每个节点各跑一次。
+ * {@code SINGLE} 模式靠 {@code ks_scheduled_tasks} 的执行租约互斥：多节点同时到点只有一个能抢到，
+ * 其余直接跳过（不排队、不补跑）。{@code BROADCAST} 模式不加租约，每个节点各跑一次。
+ *
+ * <p>本类不开事务：handler 与各条流水各自独立提交，避免长事务把抢租约、执行、释放串成一个
+ * 提交单元。代价是单个 handler 的墙钟耗时必须短于 {@link ScheduledTaskService#LEASE_MINUTES}，
+ * 超时后租约过期、别的节点会抢跑。</p>
  */
 @Slf4j
 @Service
@@ -45,27 +48,25 @@ public class ScheduledTaskExecutor {
         this.handlers = handlers.stream().collect(Collectors.toMap(ScheduledTaskHandler::handlerCode, Function.identity()));
     }
 
-    @Transactional
     public void execute(String taskCode, String triggerType, Date nextFireTime) {
         ScheduledTaskDto task = taskService.getTaskByCode(taskCode);
         if (task == null || !EnabledStatusEnum.isEnabled(task.status())) {
             return;
         }
 
-        String lockName = "knot:scheduled-task:" + task.taskCode();
-        boolean locked = false;
+        boolean leased = false;
         try {
             if (MODE_SINGLE.equals(task.executionMode())) {
-                locked = taskService.acquireLock(lockName);
-                if (!locked) {
-                    log.info("Scheduled task skipped because another node owns the lock: {}", taskCode);
+                leased = taskService.acquireLease(task.taskCode(), nodeIdentity.nodeId());
+                if (!leased) {
+                    log.info("Scheduled task skipped because another node holds the lease: {}", taskCode);
                     return;
                 }
             }
             executeLocked(task, triggerType, toLocalDateTime(nextFireTime));
         } finally {
-            if (locked) {
-                taskService.releaseLock(lockName);
+            if (leased) {
+                taskService.releaseLease(task.taskCode(), nodeIdentity.nodeId());
             }
         }
     }

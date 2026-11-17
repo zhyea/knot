@@ -42,7 +42,19 @@ public interface ScheduledTaskMapper {
 
     int deleteRunsBefore(LocalDateTime beforeTime);
 
-    Integer acquireLock(@Param("lockName") String lockName);
+    /**
+     * 抢占任务执行租约：影响行数 = 1 才算抢到，0 表示别的节点还在租期内。
+     *
+     * @param taskCode     任务编码
+     * @param owner        抢租约的节点 id，写进 {@code lock_owner}；只有它能释放
+     * @param leaseMinutes 租期分钟数，从数据库当前时刻起算
+     */
+    int acquireLease(@Param("taskCode") String taskCode,
+                     @Param("owner") String owner,
+                     @Param("leaseMinutes") int leaseMinutes);
 
-    Integer releaseLock(@Param("lockName") String lockName);
+    /**
+     * 释放任务执行租约：只清自己的（{@code lock_owner = owner}），不会误清已被别人抢走的租约。
+     */
+    int releaseLease(@Param("taskCode") String taskCode, @Param("owner") String owner);
 }

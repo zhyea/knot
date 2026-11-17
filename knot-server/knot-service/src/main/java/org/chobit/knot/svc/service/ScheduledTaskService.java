@@ -7,6 +7,7 @@ import org.chobit.knot.svc.converter.ScheduledTaskConverter;
 import org.chobit.knot.svc.dto.system.ScheduledTaskDto;
 import org.chobit.knot.svc.dto.system.ScheduledTaskRunDto;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,7 +15,7 @@ import java.util.List;
 /**
  * 定时任务的数据访问：{@code ks_scheduled_tasks}（定义）+ {@code ks_scheduled_task_runs}（执行流水）。
  * {@link #finishRun} 只写结果字段，{@link #updateTaskFireTime} / {@link #updateTaskNextFireTime} 只写时间字段，不走整体更新；
- * {@link #acquireLock} / {@link #releaseLock} 用 MySQL {@code GET_LOCK} 会话级锁。
+ * {@link #acquireLease} / {@link #releaseLease} 用 {@code ks_scheduled_tasks} 的 {@code lock_owner} / {@code lease_until} 两列做执行租约。
  * 本类与 {@link AsyncTaskService} 是模块内碰 Mapper 的入口；调度基础设施（Quartz、handler 注册、部署节拍）留在 {@code knot-admin}。
  */
 @Slf4j
@@ -77,29 +78,37 @@ public class ScheduledTaskService {
      *
      * @param nextFireAt 可为空（手动触发时没有「下一拍」）
      */
+    @Transactional
     public void updateTaskFireTime(Long id, LocalDateTime lastFireAt, LocalDateTime nextFireAt) {
         mapper.updateTaskFireTime(id, lastFireAt, nextFireAt);
     }
 
-    // ------------------------------------------------------------------ 执行锁
+    // ------------------------------------------------------------------ 执行租约
 
     /**
-     * 抢占执行锁。
-     *
-     * @return 是否抢到；抢不到表示别的节点正在跑，本次应当跳过
+     * 执行租约时长（分钟）。单个 handler 的墙钟耗时不得超过它，否则租约过期后会被别的节点抢跑；
+     * 本类不做续租，需要更长的任务时再补心跳。
      */
-    public boolean acquireLock(String lockName) {
-        Integer acquired = mapper.acquireLock(lockName);
-        return acquired != null && acquired == 1;
+    public static final int LEASE_MINUTES = 30;
+
+    /**
+     * 抢占任务执行租约。
+     *
+     * @param taskCode 任务编码
+     * @param owner    节点 id；只有它自己能把租约放掉
+     * @return 是否抢到；抢不到表示别的节点还在租期内，本次应当跳过
+     */
+    public boolean acquireLease(String taskCode, String owner) {
+        return mapper.acquireLease(taskCode, owner, LEASE_MINUTES) == 1;
     }
 
-    /** 释放执行锁；失败吞掉（锁会随连接断开自动释放，不该因此让任务执行失败） */
-    public void releaseLock(String lockName) {
+    /** 释放自己的执行租约；失败吞掉（租约到期后会自动变成可抢，不该因此让任务执行失败） */
+    public void releaseLease(String taskCode, String owner) {
         try {
-            mapper.releaseLock(lockName);
+            mapper.releaseLease(taskCode, owner);
         } catch (Exception e) {
-            // 锁是会话级的，连接断开会自动释放；释放失败不该让任务执行被判成失败
-            log.warn("Failed to release scheduled task lock: {}", lockName, e);
+            // 租约到期即自动可抢；释放失败不该让任务执行被判成失败
+            log.warn("Failed to release scheduled task lease: taskCode={}, owner={}", taskCode, owner, e);
         }
     }
 
@@ -115,6 +124,7 @@ public class ScheduledTaskService {
     /**
      * 落一条「执行中」的记录，新主键靠返回值取回，不写回入参。
      */
+    @Transactional
     public Long insertRun(ScheduledTaskRunDto run) {
         var entity = ScheduledTaskConverter.toRunEntity(run);
         mapper.insertRun(entity);
@@ -129,6 +139,7 @@ public class ScheduledTaskService {
      * @param affectedRows 影响行数
      * @param errorMsg     失败原因；成功时传 {@code null}（成功记录不该带着错误消息）
      */
+    @Transactional
     public void finishRun(Long id, Integer status, LocalDateTime endTime, Long durationMs,
                           Integer affectedRows, String errorMsg) {
         // 实体的构造在 Converter 里，本类不出现实体类型名（持有 Mapper 已经是唯一破例）

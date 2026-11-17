@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.dto.outage.GatewayOutageAck;
 import org.chobit.knot.svc.dto.outage.GatewayOutageEjectRequest;
 import org.chobit.knot.svc.dto.outage.GatewayOutageItem;
@@ -57,8 +58,8 @@ public class GatewayOutageRunner {
                                                String ruleCode,
                                                String modelCode) {
         String uri = UriComponentsBuilder.fromUriString(gatewayBaseUrl + "/_admin/outages")
-            .queryParamIfPresent("ruleCode", Optional.ofNullable(blankToNull(ruleCode)))
-            .queryParamIfPresent("modelCode", Optional.ofNullable(blankToNull(modelCode)))
+            .queryParamIfPresent("ruleCode", Optional.ofNullable(TextSupport.blankToNull(ruleCode)))
+            .queryParamIfPresent("modelCode", Optional.ofNullable(TextSupport.blankToNull(modelCode)))
             .build()
             .toUriString();
         RestClient.RequestHeadersSpec<?> base = restClient.get().uri(uri);
@@ -101,9 +102,5 @@ public class GatewayOutageRunner {
             .body(GatewayOutageAck.class), "手动摘除目标");
     }
 
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 
 }

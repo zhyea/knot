@@ -2,6 +2,7 @@ package org.chobit.knot.svc.service.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.config.JevJudgeProperties;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
@@ -83,7 +84,7 @@ public class JevBillingJudge {
      * @return 裁判结论（永不为 null；不可用则 {@code available=false} + reason）
      */
     public RoutingBillingVerdict judge(JevJudgeContext context, String gatewayBaseUrl, String sessionId) {
-        String ruleCode = blankToNull(properties.getJudgeRuleCode());
+        String ruleCode = TextSupport.blankToNull(properties.getJudgeRuleCode());
         if (ruleCode == null) {
             return unavailable("裁判未配置：knot.jev.judge-rule-code 缺失");
         }
@@ -96,7 +97,7 @@ public class JevBillingJudge {
         }
         // 消费者由裁判规则的业务码反查（收敛后 kb_routing_rules.consumer_code 承载绑定，
         // 不再依赖 knot.jev.judge-consumer-code 配置项）
-        String consumerCode = blankToNull(rule.getConsumerCode());
+        String consumerCode = TextSupport.blankToNull(rule.getConsumerCode());
         if (consumerCode == null) {
             return unavailable("裁判规则未绑定消费者：" + ruleCode);
         }
@@ -685,9 +686,5 @@ public class JevBillingJudge {
             return "";
         }
         return s.length() <= max ? s : s.substring(0, max) + "...";
-    }
-
-    private static String blankToNull(String s) {
-        return (s == null || s.isBlank()) ? null : s.trim();
     }
 }

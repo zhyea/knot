@@ -8,6 +8,7 @@ import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.common.pricing.HolidayCalendar;
 import org.chobit.knot.common.pricing.PeakOffPeakResolver;
 import org.chobit.knot.common.util.JsonKit;
+import org.chobit.knot.common.util.TextSupport;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -144,7 +145,7 @@ public record BillingConfig(
          * {@code OUTPUT_PLUS_MAX} 下：无输入即输出秒数，输入 ≤ 输出为输出×2，输入 &gt; 输出为输入+输出。
          */
         public long quantity(long outputSeconds, long inputSeconds) {
-            String mode = blankToNull(quantityMode) == null ? QUANTITY_OUTPUT : quantityMode.trim().toUpperCase();
+            String mode = TextSupport.blankToNull(quantityMode) == null ? QUANTITY_OUTPUT : quantityMode.trim().toUpperCase();
             if (outputSeconds <= 0) {
                 return Math.max(outputSeconds, 0L);
             }
@@ -191,7 +192,7 @@ public record BillingConfig(
 
         /** 该附加费是否在本次请求上触发 */
         public boolean triggered(boolean sound, boolean reference) {
-            String mode = blankToNull(trigger) == null ? TRIGGER_ALWAYS : trigger.trim().toUpperCase();
+            String mode = TextSupport.blankToNull(trigger) == null ? TRIGGER_ALWAYS : trigger.trim().toUpperCase();
             return switch (mode) {
                 case TRIGGER_AUDIO -> sound;
                 case TRIGGER_REFERENCE -> reference;
@@ -273,7 +274,7 @@ public record BillingConfig(
         if (start == null) {
             return null;
         }
-        Integer end = CLOCK_MIDNIGHT_END.equals(blankToNull(window.end()))
+        Integer end = CLOCK_MIDNIGHT_END.equals(TextSupport.blankToNull(window.end()))
                 ? MINUTES_OF_DAY
                 : clockMinutes(window.end());
         return end == null ? null : new WindowRange(start, end);
@@ -281,7 +282,7 @@ public record BillingConfig(
 
     /** {@code HH:mm} -> 当日分钟数；非法返回 null（手工解析，{@code 24:00} 不在此放行） */
     private static Integer clockMinutes(String value) {
-        String text = blankToNull(value);
+        String text = TextSupport.blankToNull(value);
         if (text == null || text.length() != 5 || text.charAt(2) != ':') {
             return null;
         }
@@ -338,7 +339,7 @@ public record BillingConfig(
 
     /** PROGRESSIVE 阶梯是否启用：tierMode 显式为 PROGRESSIVE 且配了档位 */
     public boolean progressive() {
-        return TIER_MODE_PROGRESSIVE.equalsIgnoreCase(blankToNull(tierMode)) && tier != null && !tier.isEmpty();
+        return TIER_MODE_PROGRESSIVE.equalsIgnoreCase(TextSupport.blankToNull(tierMode)) && tier != null && !tier.isEmpty();
     }
 
     /**
@@ -532,8 +533,4 @@ public record BillingConfig(
         };
     }
 
-
-    static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 }

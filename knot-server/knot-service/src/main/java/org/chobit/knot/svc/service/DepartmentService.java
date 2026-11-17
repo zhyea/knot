@@ -4,6 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.converter.DepartmentConverter;
 import org.chobit.knot.svc.dto.system.DepartmentDto;
 import org.chobit.knot.dal.entity.DepartmentEntity;
@@ -66,18 +67,18 @@ public class DepartmentService {
 
     @Transactional
     public DepartmentDto create(DepartmentDto request) {
-        String deptCode = normalizeRequired(request.deptCode(), "please input department code");
+        String deptCode = TextSupport.require(request.deptCode(), "please input department code");
         if (departmentMapper.getByCode(deptCode) != null) {
             throw new BusinessException(ErrorCode.CONFLICT, "department code already exists");
         }
         validateParentForCreate(request.parentId());
         DepartmentEntity entity = departmentConverter.toEntity(request);
         entity.setDeptCode(deptCode);
-        entity.setDeptName(normalizeRequired(request.deptName(), "please input department name"));
+        entity.setDeptName(TextSupport.require(request.deptName(), "please input department name"));
         entity.setParentId(request.parentId());
         entity.setStatus(request.status() != null ? request.status() : 1);
         entity.setSortOrder(request.sortOrder() != null ? request.sortOrder() : 0);
-        entity.setRemark(normalizeNullable(request.remark()));
+        entity.setRemark(TextSupport.blankToNull(request.remark()));
         departmentMapper.insert(entity);
         return getById(entity.getId());
     }
@@ -90,11 +91,11 @@ public class DepartmentService {
         }
         validateParentForUpdate(id, request.parentId());
         existing.setDeptCode(resolveDeptCodeForUpdate(existing, request.deptCode()));
-        existing.setDeptName(normalizeRequired(request.deptName(), "please input department name"));
+        existing.setDeptName(TextSupport.require(request.deptName(), "please input department name"));
         existing.setParentId(request.parentId());
         existing.setStatus(request.status() != null ? request.status() : existing.getStatus());
         existing.setSortOrder(request.sortOrder() != null ? request.sortOrder() : 0);
-        existing.setRemark(normalizeNullable(request.remark()));
+        existing.setRemark(TextSupport.blankToNull(request.remark()));
         departmentMapper.update(existing);
         return getById(id);
     }
@@ -160,19 +161,6 @@ public class DepartmentService {
             throw new BusinessException(ErrorCode.CONFLICT, "机构编码「" + deptCode + "」已存在");
         }
         return deptCode;
-    }
-
-    private static String normalizeRequired(String value, String message) {
-        String trimmed = value != null ? value.trim() : "";
-        if (trimmed.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, message);
-        }
-        return trimmed;
-    }
-
-    private static String normalizeNullable(String value) {
-        String trimmed = value != null ? value.trim() : "";
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private void validateParentForCreate(Long parentId) {

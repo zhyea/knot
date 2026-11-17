@@ -17,6 +17,7 @@ import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.common.constants.enums.ModelTypeEnum;
 import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.converter.ModelConverter;
 import org.chobit.knot.svc.dto.model.ModelApiBindingDto;
 import org.chobit.knot.svc.dto.model.ModelDto;
@@ -42,7 +43,6 @@ import org.chobit.knot.svc.model.TrafficPolicies;
 import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
 import org.chobit.knot.svc.service.support.ModelApiBindingSupport;
-import org.chobit.knot.svc.service.support.RequiredTextSupport;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.adapter.usage.extractor.UsageExtractorCatalog;
 import org.chobit.knot.common.util.JsonKit;
@@ -120,7 +120,7 @@ public class ModelService {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelEntity> pageInfo = new PageInfo<>(
                     modelMapper.list(StringUtils.trimToNull(keyword), normalizeModelTypes(modelTypes),
-                            normalizeTextToNull(logicalModelCode), EnabledStatusEnum.parse(status), includeDeleted)
+                            TextSupport.blankToNull(logicalModelCode), EnabledStatusEnum.parse(status), includeDeleted)
             );
             List<ModelEntity> entities = pageInfo.getList();
             List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
@@ -503,11 +503,6 @@ public class ModelService {
         }
     }
 
-    private static String normalizeTextToNull(String value) {
-        String text = value != null ? value.trim() : "";
-        return text.isEmpty() ? null : text;
-    }
-
     private static List<String> normalizeModelTypes(List<String> modelTypes) {
         if (modelTypes == null || modelTypes.isEmpty()) {
             return null;
@@ -574,7 +569,7 @@ public class ModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
         }
         // 上游模型必填：向上游发起请求时写入请求体 model 参数，为空则上游必然拒单
-        RequiredTextSupport.require(request.upstreamModel(), "请填写上游模型");
+        TextSupport.require(request.upstreamModel(), "请填写上游模型");
         LogicalModelEntity logicalModel = logicalModelMapper.getByCode(request.logicalModelCode());
         if (logicalModel == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
@@ -594,7 +589,7 @@ public class ModelService {
         }
         if (request.enabled()) {
             // 上游 host 由供应商账户提供，模型级只保留可选路径前缀，故这里不再校验 Base URL
-            RequiredTextSupport.require(request.modelCode(), "请填写模型编码");
+            TextSupport.require(request.modelCode(), "请填写模型编码");
         }
         return modelType;
     }

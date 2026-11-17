@@ -54,25 +54,15 @@ class ControllerThinGuardTest {
             new Rule("多 null 构造", Pattern.compile("new\\s+\\w+\\s*\\([^;]*?\\bnull\\s*,\\s*null\\b")));
 
     /**
-     * ⚠ <b>存量违规登记（2026-10-29 立规当天），不是永久豁免</b>。
+     * <b>存量违规登记（当前为空）</b>：登记粒度是「文件 → 规则」而不是整个文件，豁免一处写法不该顺带豁免整份文件。
      *
-     * <p>登记粒度是<b>「文件 → 规则」而不是整个文件</b>：早先按文件豁免，导致这两个文件里新增的
-     * 其它违规（比如新写一段 {@code new XxxDto(..)}）会被一起放过——豁免一个文件里的一处写法，
-     * 不该顺带豁免整份文件。</p>
-     *
-     * <ul>
-     *   <li>{@code RoutingRuleController} 的 SSE 写事件与 {@code meta} 拼装：事件类型、字段名、
-     *       命中快照的形状都是业务，理想归属是一个 SSE 写入器 + 事件 record；</li>
-     *   <li>{@code RoutingRuleController} / {@code DepartmentController} 的响应体拼装：
-     *       后者是部门树组装（{@code childrenByParent} + 递归挂载），纯树算法、与 HTTP 无关，
-     *       应进 {@code service.support}。</li>
-     * </ul>
-     * <p>两处都牵动既有接口与前端联调，单独排期；本轮只把「新代码不得再加厚」立起来。</p>
+     * <p>两处存量都已搬走：{@code RoutingRuleController} 的 SSE 写事件进了
+     * {@code service.support.RoutingTestStreamWriter}，{@code DepartmentController} 的部门树进了
+     * {@code service.support.DepartmentTreeSupport}。名单为空本身没有意义，值在于
+     * {@link #registeredOffendersStillOffend()}——它要求名单里每一项都仍然违规，
+     * 改干净了不删就会变红。新代码不要再往这里加。</p>
      */
-    private static final List<KnownOffender> KNOWN_OFFENDERS = List.of(
-            new KnownOffender("RoutingRuleController.java", "JsonKit"),
-            new KnownOffender("RoutingRuleController.java", "new LinkedHashMap"),
-            new KnownOffender("DepartmentController.java", "new LinkedHashMap"));
+    private static final List<KnownOffender> KNOWN_OFFENDERS = List.of();
 
     @Test
     void noBusinessInControllers() throws IOException {

@@ -170,11 +170,14 @@ CREATE TABLE IF NOT EXISTS ks_scheduled_tasks (
   description VARCHAR(500) DEFAULT NULL,
   last_fire_at DATETIME DEFAULT NULL,
   next_fire_at DATETIME DEFAULT NULL,
+  lock_owner VARCHAR(128) DEFAULT NULL COMMENT '持有执行租约的节点 id，NULL 表示空闲',
+  lease_until DATETIME(3) DEFAULT NULL COMMENT '租约到期时刻，已过期的租约可被抢占',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_scheduled_tasks_code (task_code),
   KEY idx_scheduled_tasks_status (status),
-  KEY idx_scheduled_tasks_handler (handler_code)
+  KEY idx_scheduled_tasks_handler (handler_code),
+  KEY idx_scheduled_tasks_lease (lease_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='定时任务定义';
 
 CREATE TABLE IF NOT EXISTS ks_scheduled_task_runs (

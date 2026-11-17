@@ -9,6 +9,7 @@ import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.admin.service.schedule.ScheduledTaskHandler;
 import org.chobit.knot.admin.service.schedule.ScheduledTaskSchedulerService;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.dto.system.ScheduledTaskQuery;
 import org.chobit.knot.svc.dto.system.ScheduledTaskRequest;
 import org.chobit.knot.svc.dto.system.ScheduledTaskRunQuery;
@@ -141,7 +142,7 @@ public class ScheduledTaskAdminService {
                 cronExpression,
                 executionMode,
                 request.status(),
-                blankToNull(request.description()),
+                TextSupport.blankToNull(request.description()),
                 existing == null ? null : existing.lastFireAt(),
                 existing == null ? null : existing.nextFireAt(),
                 existing == null ? null : existing.createdAt(),
@@ -153,9 +154,5 @@ public class ScheduledTaskAdminService {
             throw new IllegalArgumentException(field + " is required");
         }
         return value.trim();
-    }
-
-    private String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 }

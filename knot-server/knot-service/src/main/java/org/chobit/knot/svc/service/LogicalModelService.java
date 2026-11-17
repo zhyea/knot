@@ -8,6 +8,7 @@ import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.LogicalModelPublishStatusEnum;
 import org.chobit.knot.common.constants.enums.LogicalModelVisibilityEnum;
 import org.chobit.knot.common.constants.enums.ModelTypeEnum;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.converter.LogicalModelConverter;
 import org.chobit.knot.svc.dto.model.LogicalModelDto;
 import org.chobit.knot.svc.dto.model.ProviderModelMappingDto;
@@ -24,7 +25,6 @@ import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
-import org.chobit.knot.svc.service.support.RequiredTextSupport;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -121,7 +121,7 @@ public class LogicalModelService {
         assertModelCodeAvailable(code, null);
         LogicalModelEntity entity = logicalModelConverter.toEntity(request);
         entity.setModelCode(code);
-        entity.setModelName(RequiredTextSupport.require(request.modelName(), "model name is required"));
+        entity.setModelName(TextSupport.require(request.modelName(), "model name is required"));
         entity.setModelType(ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"));
         entity.setVisibility(resolveVisibility(request.visibility()));
         entity.setPublishStatus(resolvePublishStatus(request.publishStatus()));
@@ -143,7 +143,7 @@ public class LogicalModelService {
         LogicalModelEntity entity = logicalModelConverter.toEntity(request);
         entity.setId(id);
         entity.setModelCode(code);
-        entity.setModelName(RequiredTextSupport.require(request.modelName(), "model name is required"));
+        entity.setModelName(TextSupport.require(request.modelName(), "model name is required"));
         entity.setModelType(ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"));
         entity.setVisibility(resolveVisibility(request.visibility()));
         entity.setPublishStatus(resolvePublishStatus(request.publishStatus()));

@@ -28,10 +28,10 @@ public interface ExternalModelMapper {
     ExternalModelItemEntity getItemById(Long id);
 
     /**
-     * 按 {@code model_id} 查条目。同步去重只认模型 ID：同一模型跨源视为同一条目，
+     * 按 {@code model_id} 集合批量查条目。同步去重只认模型 ID：同一模型跨源视为同一条目，
      * 最近同步的源覆盖旧数据并接管归属；唯一键 {@code uk_external_model_item} 为 (model_id)。
      */
-    ExternalModelItemEntity getItemByModelId(@Param("modelId") String modelId);
+    List<ExternalModelItemEntity> listItemsByModelIds(@Param("modelIds") List<String> modelIds);
 
     int insertItem(ExternalModelItemEntity entity);
 

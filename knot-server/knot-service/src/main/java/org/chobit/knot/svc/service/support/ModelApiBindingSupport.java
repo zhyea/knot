@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.common.constants.enums.ModelTypeEnum;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.dto.model.ModelApiBindingDto;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 import org.chobit.knot.common.error.BusinessException;
@@ -133,7 +134,7 @@ public class ModelApiBindingSupport {
      * 校验并构建单条 API 绑定实体（含请求带回来的行 id，用于 diff 命中已有行）。
      */
     private ModelApiBindingEntity toEntity(String modelCode, ModelApiBindingDto binding, ModelTypeEnum type) {
-        String protocolCode = blankToNull(binding.protocol());
+        String protocolCode = TextSupport.blankToNull(binding.protocol());
         if (protocolCode == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择接口协议");
         }
@@ -152,13 +153,13 @@ public class ModelApiBindingSupport {
         entity.setId(binding.id());
         entity.setModelCode(modelCode);
         entity.setProtocol(protocol.code());
-        entity.setApiPath(blankToNull(binding.apiPath()));
-        entity.setRequestAdapter(blankToNull(binding.requestAdapter()));
+        entity.setApiPath(TextSupport.blankToNull(binding.apiPath()));
+        entity.setRequestAdapter(TextSupport.blankToNull(binding.requestAdapter()));
         entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), DefaultTokenUsageExtractor.CODE));
-        entity.setStreamUsageExtractor(blankToNull(binding.streamUsageExtractor()));
+        entity.setStreamUsageExtractor(TextSupport.blankToNull(binding.streamUsageExtractor()));
         entity.setAsyncProfileCode(asyncProfileCodeOf(protocol, binding.asyncProfileCode()));
         entity.setStatus(EnabledStatusEnum.codeOf(binding.enabled()));
-        entity.setRemark(blankToNull(binding.remark()));
+        entity.setRemark(TextSupport.blankToNull(binding.remark()));
         return entity;
     }
 
@@ -181,7 +182,7 @@ public class ModelApiBindingSupport {
      * 流式协议直接拒（流式与异步互斥）；该事实只在 {@code ModelApiProtocolEnum#streamSupported} 判定，前端不维护第二份常量。
      */
     private String asyncProfileCodeOf(ModelApiProtocolEnum protocol, String raw) {
-        String profileCode = blankToNull(raw);
+        String profileCode = TextSupport.blankToNull(raw);
         if (profileCode == null) {
             return null;
         }
@@ -202,13 +203,8 @@ public class ModelApiBindingSupport {
         return profileCode;
     }
 
-    private static String blankToNull(String value) {
-        String text = value == null ? "" : value.trim();
-        return text.isEmpty() ? null : text;
-    }
-
     private static String blankToDefault(String value, String defaultValue) {
-        String text = blankToNull(value);
+        String text = TextSupport.blankToNull(value);
         return text == null ? defaultValue : text;
     }
 

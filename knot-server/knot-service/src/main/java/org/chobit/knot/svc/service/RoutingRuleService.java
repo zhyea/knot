@@ -14,6 +14,7 @@ import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.common.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.dto.routing.RoutingRuleDto;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.dal.entity.AppEntity;
@@ -94,7 +95,7 @@ public class RoutingRuleService {
     public PageResult<RoutingRuleDto> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<RoutingRuleEntity> pageInfo = new PageInfo<>(routingRuleMapper.list(
-                normalizeNullable(keyword)
+                TextSupport.blankToNull(keyword)
             ));
             List<RoutingRuleDto> dtos = enrichList(pageInfo.getList());
             return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
@@ -511,7 +512,7 @@ public class RoutingRuleService {
         RoutingRuleEntity entity = new RoutingRuleEntity();
         entity.setRuleCode(normalizeRuleCode(request.ruleCode()));
         entity.setName(request.name() != null ? request.name().trim() : "");
-        entity.setAppScenario(normalizeNullable(request.appScenario()));
+        entity.setAppScenario(TextSupport.blankToNull(request.appScenario()));
         // 路由规则按应用业务码绑定（kb_apps.app_code），跨平台可移植；VO 仍以 appId(PK) 传值，此处解析为 code
         if (request.appId() != null) {
             AppEntity app = appMapper.getById(request.appId());
@@ -523,11 +524,11 @@ public class RoutingRuleService {
             entity.setAppCode(null);
         }
         // 路由规则按 username 绑定用户（业务码，非主键 id）
-        entity.setUsername(normalizeNullable(request.username()));
+        entity.setUsername(TextSupport.blankToNull(request.username()));
         // 路由规则按消费者业务码绑定（kb_routing_consumers.consumer_code），一对一，非主键 id
-        entity.setConsumerCode(normalizeNullable(request.consumerCode()));
+        entity.setConsumerCode(TextSupport.blankToNull(request.consumerCode()));
         // 统一模型非必填：未配置（null/空）落库为 NULL，仅作为目标选择器的优先排序上下文
-        entity.setLogicalModelCode(normalizeNullable(request.logicalModelCode()));
+        entity.setLogicalModelCode(TextSupport.blankToNull(request.logicalModelCode()));
         // 未配置（null）落库为 NULL，运行时按内置默认策略处理
         entity.setRetryPolicy(RetryPolicy.serialize(request.retryPolicy()));
         // 未配置（null）落库为 NULL，运行时按内置默认策略处理（默认关闭）
@@ -539,11 +540,6 @@ public class RoutingRuleService {
 
     private static String normalizeRuleCode(String ruleCode) {
         return ruleCode == null ? "" : ruleCode.trim();
-    }
-
-    private static String normalizeNullable(String value) {
-        String normalized = value == null ? "" : value.trim();
-        return normalized.isEmpty() ? null : normalized;
     }
 
 }

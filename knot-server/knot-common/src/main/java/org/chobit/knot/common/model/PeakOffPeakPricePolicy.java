@@ -12,6 +12,7 @@ import org.chobit.knot.common.model.BillingConfig.PricingPlan;
 import org.chobit.knot.common.pricing.HolidayCalendar;
 import org.chobit.knot.common.pricing.PeakOffPeakResolver;
 import org.chobit.knot.common.pricing.PhaseDecision;
+import org.chobit.knot.common.util.TextSupport;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -104,7 +105,7 @@ record PeakOffPeakPricePolicy(PriceSet basePrices,
 
     /** 是否 ABSOLUTE 模式：只有显式写 ABSOLUTE 才走「相位自带价」，其余（含缺省）都是乘倍率 */
     private boolean absolute() {
-        return BillingConfig.RATE_MODE_ABSOLUTE.equals(BillingConfig.blankToNull(pricing == null ? null : pricing.rateMode()));
+        return BillingConfig.RATE_MODE_ABSOLUTE.equals(TextSupport.blankToNull(pricing == null ? null : pricing.rateMode()));
     }
 
     /** ABSOLUTE 取相位自带单价；相位缺 {@code unitPrices} 或缺该 kind 时回落 fallback，不返回 0 */

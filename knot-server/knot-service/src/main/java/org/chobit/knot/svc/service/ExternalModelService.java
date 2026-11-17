@@ -13,7 +13,9 @@ import org.chobit.knot.dal.entity.ExternalModelItemEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.ExternalModelMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.svc.converter.ExternalModelConverter;
+import org.chobit.knot.svc.service.support.ExternalModelImportRunner;
 import org.chobit.knot.svc.service.support.ModelFamilyResolver;
 import org.chobit.knot.svc.vo.model.ExternalModelItem;
 import org.chobit.knot.svc.vo.model.ExternalModelSourceItem;
@@ -24,6 +26,7 @@ import org.chobit.knot.common.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -31,6 +34,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class ExternalModelService {
     /** 点号是版本号的一部分（gpt-4.1），不能像空格/冒号那样折成连字符。 */
@@ -43,17 +47,20 @@ public class ExternalModelService {
     private final Map<String, ExternalModelSyncProvider> providers;
     private final ModelFamilyResolver modelFamilyResolver;
     private final ExternalModelConverter converter;
+    private final ExternalModelImportRunner importRunner;
 
     public ExternalModelService(ExternalModelMapper externalModelMapper,
                                 LogicalModelService logicalModelService,
                                 List<ExternalModelSyncProvider> providers,
                                 ModelFamilyResolver modelFamilyResolver,
-                                ExternalModelConverter converter) {
+                                ExternalModelConverter converter,
+                                ExternalModelImportRunner importRunner) {
         this.externalModelMapper = externalModelMapper;
         this.logicalModelService = logicalModelService;
         this.providers = providers.stream().collect(Collectors.toMap(ExternalModelSyncProvider::sourceCode, Function.identity()));
         this.modelFamilyResolver = modelFamilyResolver;
         this.converter = converter;
+        this.importRunner = importRunner;
     }
 
     public List<ExternalModelSourceItem> listSources() {
@@ -119,13 +126,76 @@ public class ExternalModelService {
         return provider.sync();
     }
 
-    @Transactional
+    /**
+     * 单条导入：读条目（顺带按供应商补全详情），组装请求体，再交
+     * {@link ExternalModelImportRunner} 在独立事务里落库。
+     * 读与编码唯一性校验放在事务外，事务只覆盖「建模型 + 回填条目」这对写。
+     */
     public LogicalModelDto createLogicalModel(Long itemId) {
         ExternalModelItemEntity item = requireEntity(itemId);
-        String code = generateModelCode(item);
-        LogicalModelDto created = logicalModelService.create(new LogicalModelDto(
+        return importRunner.importOne(toLogicalModelRequest(item), itemId);
+    }
+
+    /**
+     * 批量导入：逐条独立事务，部分成功即部分落库。
+     *
+     * <p>失败不连坐：单条异常只记 {@code failed} 与明细（{@code itemId} + {@code modelId} + 原因），
+     * 其余条目继续导入。摘要与落库结果因此严格一致。</p>
+     */
+    public ExternalModelSyncResult createLogicalModels(ExternalModelItemQuery query) {
+        List<Long> ids = query == null || query.ids() == null
+                ? List.of()
+                : query.ids().stream().filter(id -> id != null).distinct().toList();
+        if (ids.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "external model item ids are required");
+        }
+        List<ExternalModelItemEntity> items = externalModelMapper.listItems(
                 null,
-                code,
+                null,
+                null,
+                null,
+                ids
+        );
+        int inserted = 0;
+        int skipped = 0;
+        int failed = 0;
+        List<ExternalModelSyncResult.ItemFailure> failures = new ArrayList<>();
+        boolean failuresTruncated = false;
+        for (ExternalModelItemEntity item : items) {
+            if (item.getLogicalModelId() != null) {
+                skipped++;
+                continue;
+            }
+            try {
+                createLogicalModel(item.getId());
+                inserted++;
+            } catch (Exception e) {
+                failed++;
+                log.warn("External model import failed: itemId={}, modelId={}",
+                        item.getId(), item.getModelId(), e);
+                if (failures.size() < ExternalModelSyncResult.MAX_FAILURES) {
+                    failures.add(new ExternalModelSyncResult.ItemFailure(
+                            String.valueOf(item.getId()), item.getModelId(), reasonOf(e)));
+                } else {
+                    failuresTruncated = true;
+                }
+            }
+        }
+        return new ExternalModelSyncResult(
+                items.size(), inserted, 0, skipped, failed,
+                "total=" + items.size() + ", created=" + inserted + ", skipped=" + skipped + ", failed=" + failed,
+                failures, failuresTruncated
+        );
+    }
+
+    /**
+     * 把外部条目映射成统一模型请求体：编码在事务外生成并校验唯一，
+     * 以便一条失败时其余条目仍能继续（编码冲突属该条自身问题）。
+     */
+    private LogicalModelDto toLogicalModelRequest(ExternalModelItemEntity item) {
+        return new LogicalModelDto(
+                null,
+                generateModelCode(item),
                 item.getModelName(),
                 item.getModelType() != null ? item.getModelType() : "CHAT",
                 modelFamilyResolver.resolve(item.getModelId(), item.getModelName()),
@@ -148,45 +218,15 @@ public class ExternalModelService {
                 null,
                 List.of(),
                 null
-        ));
-        externalModelMapper.updateItemLogicalModel(itemId, created.id());
-        return created;
+        );
     }
 
-    @Transactional
-    public ExternalModelSyncResult createLogicalModels(ExternalModelItemQuery query) {
-        List<Long> ids = query == null || query.ids() == null
-                ? List.of()
-                : query.ids().stream().filter(id -> id != null).distinct().toList();
-        if (ids.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "external model item ids are required");
-        }
-        List<ExternalModelItemEntity> items = externalModelMapper.listItems(
-                null,
-                null,
-                null,
-                null,
-                ids
-        );
-        int inserted = 0;
-        int skipped = 0;
-        int failed = 0;
-        for (ExternalModelItemEntity item : items) {
-            if (item.getLogicalModelId() != null) {
-                skipped++;
-                continue;
-            }
-            try {
-                createLogicalModel(item.getId());
-                inserted++;
-            } catch (Exception ignored) {
-                failed++;
-            }
-        }
-        return new ExternalModelSyncResult(
-                items.size(), inserted, 0, skipped, failed,
-                "total=" + items.size() + ", created=" + inserted + ", skipped=" + skipped + ", failed=" + failed
-        );
+    /**
+     * 失败原因归一：异常消息可能为空，至少让明细能定位到异常类型。
+     */
+    private static String reasonOf(Exception e) {
+        String message = e.getMessage();
+        return message == null || message.isBlank() ? e.getClass().getSimpleName() : message;
     }
 
     @Transactional

@@ -83,10 +83,13 @@
         where id = #{id}
     </select>
 
-    <select id="getItemByModelId" resultType="org.chobit.knot.dal.entity.ExternalModelItemEntity">
+    <select id="listItemsByModelIds" resultType="org.chobit.knot.dal.entity.ExternalModelItemEntity">
         select <include refid="ItemColumns"/>
         from kx_model_items
-        where model_id = #{modelId}
+        where model_id in
+        <foreach collection="modelIds" item="modelId" open="(" separator="," close=")">
+            #{modelId}
+        </foreach>
     </select>
 
     <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">

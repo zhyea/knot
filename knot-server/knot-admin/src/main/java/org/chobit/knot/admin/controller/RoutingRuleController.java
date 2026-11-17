@@ -10,9 +10,8 @@ import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.RoutingRuleDebugService;
 import org.chobit.knot.svc.service.RoutingRuleService;
 import org.chobit.knot.svc.service.RoutingTestBillingVerdictService;
-import org.chobit.knot.svc.dto.routing.RoutingTestPreparation;
+import org.chobit.knot.admin.service.support.RoutingTestStreamWriter;
 import org.chobit.knot.svc.dto.routing.RoutingTestStreamHandle;
-import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.svc.vo.common.CodeAvailability;
 import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
 import org.chobit.knot.svc.vo.routing.ProtocolDebugCapabilityItem;
@@ -23,21 +22,12 @@ import org.chobit.knot.svc.vo.routing.RoutingTestResult;
 import org.chobit.knot.svc.vo.routing.RoutingBillingVerdictRequest;
 import org.chobit.knot.svc.vo.routing.RoutingBillingVerdictResult;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/routing-rules")
@@ -178,7 +168,7 @@ public class RoutingRuleController {
             request.targetType(),
             request.targetId(),
             request.requestBody());
-        StreamingResponseBody body = out -> writeStream(out, handle);
+        StreamingResponseBody body = out -> RoutingTestStreamWriter.write(out, handle);
         return ResponseEntity.ok()
             .contentType(MediaType.TEXT_EVENT_STREAM)
             .header(HttpHeaders.CACHE_CONTROL, "no-cache")
@@ -197,118 +187,4 @@ public class RoutingRuleController {
             gatewayRuntimeProperties.normalizedBaseUrl(), request.sessionId());
     }
 
-    /**
-     * 逐块读取网关响应并翻译为管理端 SSE 事件。
-     * 句柄在 finally 中关闭，覆盖正常结束、上游异常与浏览器取消三条路径。
-     */
-    private void writeStream(OutputStream out, RoutingTestStreamHandle handle) {
-        long startedAt = System.currentTimeMillis();
-        try (handle) {
-            RoutingTestPreparation prep = handle.preparation();
-            // meta 必须先于首个 chunk：此时网关响应头已到手，命中模型 / 协议 / curl 已确定
-            // 注意 targetModelId 可能为 null，Map.of 不接受 null value，故用 LinkedHashMap
-            Map<String, Object> meta = new LinkedHashMap<>();
-            meta.put("matchedRuleId", prep.rule().id());
-            meta.put("targetProviderAccountCode", nullSafe(prep.target().providerAccountCode()));
-            meta.put("targetModelId", prep.target().targetId());
-            meta.put("modelCode", nullSafe(prep.model()));
-            meta.put("protocol", prep.protocol().code());
-            meta.put("curl", nullSafe(prep.curl()));
-            writeEvent(out, "meta", meta);
-
-            HttpStatusCode upstreamStatus = handle.statusCode();
-            if (upstreamStatus.isError()) {
-                // 网关在首字节前就返回了 4xx/5xx：SSE 外层已是 200，真实状态由事件内的 httpStatus 承载
-                String errorBody = readAllText(handle.bodyStream());
-                writeEvent(out, "error", Map.of(
-                    "status", "FAILED",
-                    "httpStatus", upstreamStatus.value(),
-                    "errorMessage", "网关返回 HTTP " + upstreamStatus.value(),
-                    "responseBody", errorBody
-                ));
-                return;
-            }
-
-            MediaType contentType = handle.contentType();
-            boolean textual = isTextual(contentType);
-            byte[] buffer = new byte[STREAM_BUFFER_SIZE];
-            long bytes = 0;
-            try (InputStream in = handle.bodyStream()) {
-                int read;
-                while ((read = in.read(buffer)) != -1) {
-                    bytes += read;
-                    writeEvent(out, "chunk", textual
-                        ? Map.of("text", new String(buffer, 0, read, StandardCharsets.UTF_8))
-                        : Map.of("encoding", "base64",
-                        "content", Base64.getEncoder().encodeToString(
-                            Arrays.copyOfRange(buffer, 0, read)),
-                        "contentType", contentType == null ? "" : contentType.toString()));
-                }
-            }
-            writeEvent(out, "complete", Map.of(
-                "status", "SUCCESS",
-                "httpStatus", upstreamStatus.value(),
-                "bytes", bytes,
-                "durationMs", System.currentTimeMillis() - startedAt
-            ));
-        } catch (IOException | RuntimeException ex) {
-            // 浏览器取消时写不出去属正常现象：此时只能保证资源已被 try-with-resources 释放
-            writeErrorQuietly(out, ex);
-        }
-    }
-
-    /**
-     * 写单个 SSE 事件：event 行 + data 行 + 空行分隔，随后立即 flush 保证增量可见。
-     */
-    private void writeEvent(OutputStream out, String event, Map<String, Object> data) throws IOException {
-        out.write(("event: " + event + "\n").getBytes(StandardCharsets.UTF_8));
-        out.write(("data: " + JsonKit.toJsonOrThrow(data) + "\n").getBytes(StandardCharsets.UTF_8));
-        out.write('\n');
-        out.flush();
-    }
-
-    private void writeErrorQuietly(OutputStream out, Exception ex) {
-        try {
-            writeEvent(out, "error", Map.of(
-                "status", "FAILED",
-                "httpStatus", 0,
-                "errorMessage", String.valueOf(ex.getMessage()),
-                "responseBody", ""
-            ));
-        } catch (IOException | RuntimeException ignored) {
-            // 连接已断开（用户主动停止 / 上游异常），无法再向客户端补发错误事件
-        }
-    }
-
-    private String readAllText(InputStream in) throws IOException {
-        try (in) {
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        }
-    }
-
-    /**
-     * 文本类响应按原始顺序透传；二进制（如音频）走 base64 通道。
-     */
-    private boolean isTextual(MediaType contentType) {
-        if (contentType == null) {
-            return true;
-        }
-        String type = contentType.getType();
-        if ("text".equalsIgnoreCase(type)) {
-            return true;
-        }
-        if (!"application".equalsIgnoreCase(type)) {
-            return false;
-        }
-        String subtype = contentType.getSubtype();
-        return subtype == null
-            || subtype.endsWith("json")
-            || subtype.endsWith("+json")
-            || "x-ndjson".equalsIgnoreCase(subtype)
-            || "xml".equalsIgnoreCase(subtype);
-    }
-
-    private String nullSafe(String value) {
-        return value == null ? "" : value;
-    }
 }

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.common.constants.enums.AsyncTaskDeliveryStatusEnum;
 import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.dal.mapper.AsyncTaskMapper;
 import org.chobit.knot.svc.converter.AsyncTaskConverter;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
@@ -44,9 +45,9 @@ public class AsyncTaskService {
      */
     public List<AsyncTaskDto> search(AsyncTaskQuery query) {
         return mapper.search(
-                        query == null ? null : blankToNull(query.keyword()),
-                        query == null ? null : blankToNull(query.profileCode()),
-                        query == null ? null : blankToNull(query.protocol()),
+                        query == null ? null : TextSupport.blankToNull(query.keyword()),
+                        query == null ? null : TextSupport.blankToNull(query.profileCode()),
+                        query == null ? null : TextSupport.blankToNull(query.protocol()),
                         query == null ? null : query.status(),
                         query == null ? null : query.submittedFrom(),
                         query == null ? null : query.submittedTo())
@@ -215,12 +216,5 @@ public class AsyncTaskService {
         return mapper.getByClaimId(claimId).stream()
                 .map(AsyncTaskConverter::toRecord)
                 .toList();
-    }
-
-    /**
-     * 空白（全空格）归一成 {@code null}；空串由 mapper 的 {@code keyword != ''} 处理。
-     */
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 }

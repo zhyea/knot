@@ -6,6 +6,7 @@ import com.github.pagehelper.PageInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.ModelPoolSelectionStrategyEnum;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.converter.ModelPoolConverter;
 import org.chobit.knot.svc.dto.model.ModelPoolDto;
 import org.chobit.knot.svc.dto.model.ModelPoolItemDto;
@@ -23,7 +24,6 @@ import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
-import org.chobit.knot.svc.service.support.RequiredTextSupport;
 import org.chobit.knot.common.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -116,7 +116,7 @@ public class ModelPoolService {
         }
         // 改绑统一模型的前置检查先于逐项校验：池内非空时先给出「请先清空」的准确提示，
         // 否则会被「池内模型必须属于同一统一模型」盖住。
-        String logicalModelCode = RequiredTextSupport.require(
+        String logicalModelCode = TextSupport.require(
                 normalizeLogicalModelCode(request.logicalModelCode()),
                 "please select logical model"
         );
@@ -294,13 +294,13 @@ public class ModelPoolService {
 
     private void validateForSave(ModelPoolDto request, Long excludeId) {
         String poolCode = normalizePoolCode(request.poolCode());
-        RequiredTextSupport.require(poolCode, "please input pool code");
+        TextSupport.require(poolCode, "please input pool code");
         // 新建模型池强制 pool 前缀约定；编辑既有池（历史数据可能为 -pool 后缀）豁免
         if (excludeId == null && !poolCode.toLowerCase().startsWith("pool")) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model pool code must start with 'pool'");
         }
-        RequiredTextSupport.require(request.name(), "please input pool name");
-        String logicalModelCode = RequiredTextSupport.require(
+        TextSupport.require(request.name(), "please input pool name");
+        String logicalModelCode = TextSupport.require(
                 normalizeLogicalModelCode(request.logicalModelCode()),
                 "please select logical model"
         );
@@ -375,7 +375,7 @@ public class ModelPoolService {
                 request.stickyPolicy(),
                 request.enabled(),
                 false,
-                normalizeNullable(request.remark()),
+                TextSupport.blankToNull(request.remark()),
                 request.items(),
                 request.boundCount()
         );
@@ -403,11 +403,6 @@ public class ModelPoolService {
 
     private static String normalizeText(String value) {
         return value == null ? "" : value.trim();
-    }
-
-    private static String normalizeNullable(String value) {
-        String text = normalizeText(value);
-        return text.isEmpty() ? null : text;
     }
 
     private static int defaultInt(Integer value, int defaultValue) {

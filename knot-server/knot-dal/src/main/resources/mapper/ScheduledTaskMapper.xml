@@ -124,11 +124,19 @@
         where created_at &lt; #{beforeTime}
     </delete>
 
-    <select id="acquireLock" resultType="java.lang.Integer">
-        select GET_LOCK(#{lockName}, 0)
-    </select>
+    <update id="acquireLease">
+        update ks_scheduled_tasks
+        set lock_owner = #{owner},
+            lease_until = date_add(now(3), interval #{leaseMinutes} minute)
+        where task_code = #{taskCode}
+          and (lock_owner is null or lease_until is null or lease_until &lt;= now(3))
+    </update>
 
-    <select id="releaseLock" resultType="java.lang.Integer">
-        select RELEASE_LOCK(#{lockName})
-    </select>
+    <update id="releaseLease">
+        update ks_scheduled_tasks
+        set lock_owner = null,
+            lease_until = null
+        where task_code = #{taskCode}
+          and lock_owner = #{owner}
+    </update>
 </mapper>

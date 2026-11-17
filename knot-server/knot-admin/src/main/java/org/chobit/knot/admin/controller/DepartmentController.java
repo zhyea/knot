@@ -11,16 +11,14 @@ import org.chobit.knot.svc.service.DepartmentService;
 import org.chobit.knot.svc.vo.system.DepartmentItem;
 import org.chobit.knot.svc.vo.system.UpdateDepartmentStatusRequest;
 import org.chobit.knot.common.model.DepartmentOptionQuery;
+import org.chobit.knot.admin.service.support.DepartmentTreeSupport;
 import org.chobit.knot.svc.service.OptionsService;
 import org.chobit.knot.svc.vo.common.OptionItem;
 import org.chobit.knot.svc.vo.common.OptionPage;
 import org.chobit.knot.svc.vo.common.meta.DepartmentOptionMeta;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/system/departments")
@@ -54,7 +52,7 @@ public class DepartmentController {
 
     @GetMapping("/tree")
     public List<DepartmentItem> tree() {
-        return buildTree(departmentConverter.toVOList(departmentService.listAll()));
+        return DepartmentTreeSupport.build(departmentConverter.toVOList(departmentService.listAll()));
     }
 
     @OperationLog(module = "department", operation = "CREATE", entityType = "Department",
@@ -100,38 +98,5 @@ public class DepartmentController {
     @DeleteMapping("/{id}")
     public DepartmentItem delete(@PathVariable Long id) {
         return departmentConverter.toVO(departmentService.deleteReturning(id));
-    }
-
-    private List<DepartmentItem> buildTree(List<DepartmentItem> items) {
-        Map<Long, List<DepartmentItem>> childrenByParent = new LinkedHashMap<>();
-        for (DepartmentItem item : items) {
-            childrenByParent.computeIfAbsent(item.parentId(), key -> new ArrayList<>()).add(item);
-        }
-        return buildChildren(null, childrenByParent);
-    }
-
-    private List<DepartmentItem> buildChildren(Long parentId, Map<Long, List<DepartmentItem>> childrenByParent) {
-        List<DepartmentItem> items = childrenByParent.get(parentId);
-        if (items == null || items.isEmpty()) {
-            return List.of();
-        }
-        List<DepartmentItem> result = new ArrayList<>(items.size());
-        for (DepartmentItem item : items) {
-            DepartmentItem node = new DepartmentItem(
-                    item.id(),
-                    item.deptCode(),
-                    item.deptName(),
-                    item.parentId(),
-                    item.status(),
-                    item.sortOrder(),
-                    item.remark(),
-                    item.createdAt(),
-                    item.updatedAt(),
-                    item.boundCount(),
-                    buildChildren(item.id(), childrenByParent)
-            );
-            result.add(node);
-        }
-        return result;
     }
 }

@@ -13,10 +13,9 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -85,13 +84,12 @@ class AbstractExternalModelSyncProviderTest {
     @DisplayName("查重只按 model_id，与来源无关")
     void dedupsByModelIdOnly() {
         when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
-        when(mapper.getItemByModelId("deepseek-chat")).thenReturn(null);
         when(mapper.insertItem(any())).thenReturn(1);
 
         provider(List.of(item("deepseek-chat", "h1"))).sync();
 
-        verify(mapper).getItemByModelId("deepseek-chat");
-        verify(mapper, never()).getItemByModelId(eq("other"));
+        // 一次按 model_id 集合查回，不再逐条 getItemByModelId
+        verify(mapper).listItemsByModelIds(List.of("deepseek-chat"));
         // 旧方法已删除，这里用「insert 收到的实体 sourceCode 为当前源」佐证键不再含来源
         ArgumentCaptor<ExternalModelItemEntity> captor = ArgumentCaptor.forClass(ExternalModelItemEntity.class);
         verify(mapper).insertItem(captor.capture());
@@ -102,7 +100,6 @@ class AbstractExternalModelSyncProviderTest {
     @DisplayName("查无此模型 → 插入，同步状态置为已同步")
     void insertsWhenMissing() {
         when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
-        when(mapper.getItemByModelId("m1")).thenReturn(null);
         when(mapper.insertItem(any())).thenReturn(1);
 
         ExternalModelSyncResult result = provider(List.of(item("m1", "h1"))).sync();
@@ -122,7 +119,7 @@ class AbstractExternalModelSyncProviderTest {
         existing.setLogicalModelId(9L);
         existing.setSourceCode("OPENROUTER");
         when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
-        when(mapper.getItemByModelId("m1")).thenReturn(existing);
+        when(mapper.listItemsByModelIds(anyList())).thenReturn(List.of(existing));
 
         ExternalModelSyncResult result = provider(List.of(item("m1", "same-hash"))).sync();
 
@@ -143,7 +140,7 @@ class AbstractExternalModelSyncProviderTest {
         existing.setLogicalModelId(9L);
         existing.setSourceCode("OPENROUTER");
         when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
-        when(mapper.getItemByModelId("m1")).thenReturn(existing);
+        when(mapper.listItemsByModelIds(anyList())).thenReturn(List.of(existing));
 
         ExternalModelSyncResult result = provider(List.of(item("m1", "new-hash"))).sync();
 
@@ -162,7 +159,7 @@ class AbstractExternalModelSyncProviderTest {
         existing.setId(7L);
         existing.setLogicalModelId(9L);
         when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
-        when(mapper.getItemByModelId("m1")).thenReturn(existing);
+        when(mapper.listItemsByModelIds(anyList())).thenReturn(List.of(existing));
         when(mapper.updateItem(any())).thenThrow(new RuntimeException("db down"))
                 .thenReturn(1);
 
@@ -178,7 +175,6 @@ class AbstractExternalModelSyncProviderTest {
     @DisplayName("同步结束刷新源的 last_sync_at")
     void touchesSourceLastSyncAt() {
         when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
-        when(mapper.getItemByModelId("m1")).thenReturn(null);
         when(mapper.insertItem(any())).thenReturn(1);
 
         provider(List.of(item("m1", "h1"))).sync();
@@ -190,7 +186,6 @@ class AbstractExternalModelSyncProviderTest {
     @DisplayName("源不存在时按 defaultSource 兜底插入")
     void insertsSourceWhenMissing() {
         when(mapper.getSourceByCode("STUB")).thenReturn(null);
-        when(mapper.getItemByModelId("m1")).thenReturn(null);
         when(mapper.insertItem(any())).thenReturn(1);
 
         provider(List.of(item("m1", "h1"))).sync();
@@ -206,7 +201,7 @@ class AbstractExternalModelSyncProviderTest {
         ExternalModelItemEntity existing = item("m1", null);
         existing.setId(7L);
         when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
-        when(mapper.getItemByModelId("m1")).thenReturn(existing);
+        when(mapper.listItemsByModelIds(anyList())).thenReturn(List.of(existing));
 
         ExternalModelSyncResult result = provider(List.of(item("m1", null))).sync();
 
