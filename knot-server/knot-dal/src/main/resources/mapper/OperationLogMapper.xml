@@ -16,29 +16,6 @@
         )
     </insert>
 
-    <select id="listByModule" resultType="org.chobit.knot.dal.entity.OperationLogEntity">
-        select id, module, operation, entity_type, entity_id, entity_name,
-               description, old_value, new_value,
-               operator_id, operator_name, ip_address, user_agent,
-               status, error_msg, execution_time, created_at
-        from ks_operation_logs
-        <where>
-            <if test="module != null and module != ''">
-                and module = #{module}
-            </if>
-            <if test="entityType != null and entityType != ''">
-                and entity_type = #{entityType}
-            </if>
-            <if test="entityId != null">
-                and entity_id = #{entityId}
-            </if>
-            <if test="operatorId != null">
-                and operator_id = #{operatorId}
-            </if>
-        </where>
-        order by created_at desc
-    </select>
-
     <select id="list" resultType="org.chobit.knot.dal.entity.OperationLogEntity">
         select id, module, operation, entity_type, entity_id, entity_name,
                description, old_value, new_value,
@@ -71,6 +48,12 @@
             <if test="entityId != null">
                 and entity_id = #{entityId}
             </if>
+            <if test="entityNamePrefix != null and entityNamePrefix != ''">
+                and (
+                    entity_name = #{entityNamePrefix}
+                    or entity_name like concat(#{entityNamePrefix}, '/%')
+                )
+            </if>
         </where>
         order by created_at desc
     </select>
@@ -89,20 +72,6 @@
         where operation is not null
           and operation != ''
         order by operation asc
-    </select>
-
-    <select id="listByModuleAndEntityNamePrefix" resultType="org.chobit.knot.dal.entity.OperationLogEntity">
-        select id, module, operation, entity_type, entity_id, entity_name,
-               description, old_value, new_value,
-               operator_id, operator_name, ip_address, user_agent,
-               status, error_msg, execution_time, created_at
-        from ks_operation_logs
-        where module = #{module}
-          and (
-            entity_name = #{entityNamePrefix}
-            or entity_name like concat(#{entityNamePrefix}, '/%')
-          )
-        order by created_at desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.dal.entity.OperationLogEntity">

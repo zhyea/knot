@@ -19,6 +19,8 @@ export async function listOperationLogsByEntity(params: {
   operation?: string;
   status?: string;
   keyword?: string;
+  /** 实体名前缀：命中「前缀」或「前缀/…」，枚举分类日志按分类聚合时用 */
+  entityNamePrefix?: string;
 }): Promise<Row[]> {
   const res = (await listOperationLogs({
     pageNum: 1,

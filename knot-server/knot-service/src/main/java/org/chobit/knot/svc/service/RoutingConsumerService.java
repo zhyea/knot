@@ -3,12 +3,15 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.svc.dto.routing.RoutingConsumerDto;
+import org.chobit.knot.dal.entity.CodeCountRow;
 import org.chobit.knot.dal.entity.RoutingConsumerEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
@@ -51,9 +54,16 @@ public class RoutingConsumerService {
     public PageResult<RoutingConsumerDto> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<RoutingConsumerEntity> pageInfo = new PageInfo<>(routingConsumerMapper.list(StringUtils.trimToNull(keyword)));
-            List<RoutingConsumerDto> dtos = pageInfo.getList().stream().map(entity ->
-                    toDto(entity, trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId()))
-            ).toList();
+            List<RoutingConsumerEntity> rows = pageInfo.getList();
+            // 整页一次批量取频控/额度与规则数，避免逐行 5 条查询
+            Map<Long, TrafficPolicies> traffic = trafficPolicySupport.loadBatch(
+                    TrafficResourceTypeEnum.ROUTING_CONSUMER.code(),
+                    rows.stream().map(RoutingConsumerEntity::getId).filter(Objects::nonNull).toList());
+            Map<String, Long> ruleCounts = ruleCountsOf(rows);
+            List<RoutingConsumerDto> dtos = rows.stream()
+                    .map(entity -> toDto(entity, traffic.get(entity.getId()),
+                            ruleCounts.getOrDefault(entity.getConsumerCode(), 0L)))
+                    .toList();
             return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
     }
@@ -202,7 +212,11 @@ public class RoutingConsumerService {
     }
 
     private RoutingConsumerDto toDto(RoutingConsumerEntity entity, TrafficPolicies traffic) {
-        Long ruleCount = routingConsumerMapper.countRulesByConsumerCode(entity.getConsumerCode());
+        return toDto(entity, traffic,
+                CodeBindingSupport.countOf(routingConsumerMapper.countRulesByConsumerCode(entity.getConsumerCode())));
+    }
+
+    private RoutingConsumerDto toDto(RoutingConsumerEntity entity, TrafficPolicies traffic, long ruleCount) {
         return new RoutingConsumerDto(
                 entity.getId(),
                 entity.getConsumerCode(),
@@ -212,10 +226,29 @@ public class RoutingConsumerService {
                 entity.getSecretKey(),
                 Boolean.TRUE.equals(entity.getReturnUsageDetail()),
                 EnabledStatusEnum.isEnabled(entity.getStatus()),
-                ruleCount != null ? ruleCount : 0L,
+                ruleCount,
                 traffic != null ? traffic.rateLimitPolicy() : null,
                 traffic != null ? traffic.quotaPolicies() : null
         );
+    }
+
+    /**
+     * 整页的绑定处数：一次分组计数取回，未出现在结果里的编码按 0 兜底。
+     */
+    private Map<String, Long> ruleCountsOf(List<RoutingConsumerEntity> rows) {
+        List<String> codes = rows.stream()
+                .map(RoutingConsumerEntity::getConsumerCode)
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .toList();
+        if (codes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Long> counts = new HashMap<>();
+        for (CodeCountRow row : routingConsumerMapper.countRulesByConsumerCodes(codes)) {
+            counts.put(row.getCode(), CodeBindingSupport.countOf(row.getTotal()));
+        }
+        return counts;
     }
 
     private RoutingConsumerEntity toEntity(RoutingConsumerDto request) {

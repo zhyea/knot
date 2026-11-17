@@ -5,6 +5,7 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.svc.converter.AppConverter;
@@ -56,8 +57,13 @@ public class AppService {
     public PageResult<AppDto> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<AppEntity> pageInfo = new PageInfo<>(appMapper.list(StringUtils.trimToNull(keyword)));
-            List<AppDto> dtos = pageInfo.getList().stream()
-                    .map(e -> enrich(appConverter.toDto(e), e.getId()))
+            List<AppEntity> rows = pageInfo.getList();
+            // 整页一次批量取频控/额度，避免逐行 4 条查询
+            Map<Long, TrafficPolicies> traffic = trafficPolicySupport.loadBatch(
+                    TrafficResourceTypeEnum.APP.code(),
+                    rows.stream().map(AppEntity::getId).filter(Objects::nonNull).toList());
+            List<AppDto> dtos = rows.stream()
+                    .map(e -> enrich(appConverter.toDto(e), traffic.get(e.getId())))
                     .toList();
             return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
@@ -156,8 +162,10 @@ public class AppService {
     }
 
     private AppDto enrich(AppDto base, Long appId) {
-        TrafficPolicies traffic =
-                trafficPolicySupport.load(TrafficResourceTypeEnum.APP.code(), appId);
+        return enrich(base, trafficPolicySupport.load(TrafficResourceTypeEnum.APP.code(), appId));
+    }
+
+    private AppDto enrich(AppDto base, TrafficPolicies traffic) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         List<QuotaPolicy> quotas = traffic != null ? traffic.quotaPolicies() : List.of();
         return new AppDto(

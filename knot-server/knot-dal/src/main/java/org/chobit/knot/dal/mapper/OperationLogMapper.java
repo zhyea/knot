@@ -12,27 +12,17 @@ public interface OperationLogMapper {
 
     int insert(OperationLogEntity entity);
 
-    List<OperationLogEntity> listByModule(@Param("module") String module,
-                                          @Param("entityType") String entityType,
-                                          @Param("entityId") Long entityId,
-                                          @Param("operatorId") Long operatorId);
-
     List<OperationLogEntity> list(@Param("module") String module,
                                   @Param("operation") String operation,
                                   @Param("status") Integer status,
                                   @Param("keyword") String keyword,
                                   @Param("entityType") String entityType,
-                                  @Param("entityId") Long entityId);
+                                  @Param("entityId") Long entityId,
+                                  @Param("entityNamePrefix") String entityNamePrefix);
 
     List<String> listDistinctModules();
 
     List<String> listDistinctOperations();
-
-    /**
-     * 枚举分类相关操作日志：entity_name 为「分类」或「分类/编码」
-     */
-    List<OperationLogEntity> listByModuleAndEntityNamePrefix(@Param("module") String module,
-                                                             @Param("entityNamePrefix") String entityNamePrefix);
 
     OperationLogEntity getById(Long id);
 

@@ -4,6 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.dal.entity.CodeCountRow;
 import org.chobit.knot.dal.entity.ProviderProfileEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
@@ -17,6 +18,7 @@ import org.chobit.knot.svc.vo.provider.ProviderProfileItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,11 +34,15 @@ public class ProviderProfileService {
 
     public PageResult<ProviderProfileItem> list(String keyword, String tag, PageRequest pageRequest) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            List<ProviderProfileItem> rows = providerProfileMapper.list(StringUtils.trimToNull(keyword), StringUtils.trimToNull(tag)).stream()
-                    .map(this::toItem)
-                    .toList();
-            PageInfo<ProviderProfileItem> page = new PageInfo<>(rows);
-            return PageResult.of(page.getList(), page.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+            PageInfo<ProviderProfileEntity> pageInfo = new PageInfo<>(
+                    providerProfileMapper.list(StringUtils.trimToNull(keyword), StringUtils.trimToNull(tag)));
+            // 转换必须在 PageInfo 之后：Page 一旦被转成普通 List，PageSerializable 会退化成 total = size()
+            Map<String, Long> boundCounts = boundCountsOf(pageInfo.getList());
+            return PageResult.fromPage(pageInfo,
+                    rows -> rows.stream()
+                            .map(entity -> toItem(entity, boundCounts.getOrDefault(entity.getCode(), 0L)))
+                            .toList(),
+                    pageRequest);
         }
     }
 
@@ -148,15 +154,37 @@ public class ProviderProfileService {
     }
 
     private ProviderProfileItem toItem(ProviderProfileEntity entity) {
+        return toItem(entity, boundCount(entity.getCode()));
+    }
+
+    private ProviderProfileItem toItem(ProviderProfileEntity entity, long boundCount) {
         return new ProviderProfileItem(entity.getId(), entity.getCode(), entity.getName(), entity.getTag(),
-                entity.getRemark(), boundCount(entity.getCode()), entity.getCreatedAt(), entity.getUpdatedAt());
+                entity.getRemark(), boundCount, entity.getCreatedAt(), entity.getUpdatedAt());
+    }
+
+    /**
+     * 整页的账户绑定数：一次分组计数取回，未出现在结果里的编码按 0 兜底。
+     */
+    private Map<String, Long> boundCountsOf(List<ProviderProfileEntity> rows) {
+        List<String> codes = rows.stream()
+                .map(ProviderProfileEntity::getCode)
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .toList();
+        if (codes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Long> counts = new HashMap<>();
+        for (CodeCountRow row : providerProfileMapper.countAccountsByProviderCodes(codes)) {
+            counts.put(row.getCode(), CodeBindingSupport.countOf(row.getTotal()));
+        }
+        return counts;
     }
 
     /**
      * 供应商编码的绑定数（下属供应商账户数）：kb_provider_accounts 按 provider_code 引用本编码。
      */
-    private Long boundCount(String providerCode) {
-        Long count = providerProfileMapper.countAccountsByProviderCode(providerCode);
-        return count == null ? 0L : count;
+    private long boundCount(String providerCode) {
+        return CodeBindingSupport.countOf(providerProfileMapper.countAccountsByProviderCode(providerCode));
     }
 }

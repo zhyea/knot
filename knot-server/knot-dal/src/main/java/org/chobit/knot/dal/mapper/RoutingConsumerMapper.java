@@ -2,6 +2,7 @@ package org.chobit.knot.dal.mapper;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.chobit.knot.dal.entity.CodeCountRow;
 import org.chobit.knot.dal.entity.RoutingConsumerEntity;
 
 import java.util.List;
@@ -25,6 +26,12 @@ public interface RoutingConsumerMapper {
                              @Param("excludeId") Long excludeId);
 
     Long countRulesByConsumerCode(@Param("consumerCode") String consumerCode);
+
+    /**
+     * 批量版：一次取回多个消费者的绑定处数（路由规则 + 频控绑定 + 额度绑定），键为 {@code code}。
+     * 列表页用它替代逐行 {@link #countRulesByConsumerCode(String)}。
+     */
+    List<CodeCountRow> countRulesByConsumerCodes(@Param("consumerCodes") List<String> consumerCodes);
 
     int insert(RoutingConsumerEntity entity);
 

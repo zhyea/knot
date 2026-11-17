@@ -6,10 +6,8 @@ import org.chobit.knot.common.model.PageQuery;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.EnumConfigService;
-import org.chobit.knot.svc.service.OperationLogService;
 import org.chobit.knot.svc.vo.system.EnumCategorySummaryItem;
 import org.chobit.knot.svc.vo.system.EnumConfigItem;
-import org.chobit.knot.svc.vo.system.OperationLogDetailItem;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,11 +17,9 @@ import java.util.List;
 public class EnumConfigController {
 
     private final EnumConfigService enumConfigService;
-    private final OperationLogService operationLogService;
 
-    public EnumConfigController(EnumConfigService enumConfigService, OperationLogService operationLogService) {
+    public EnumConfigController(EnumConfigService enumConfigService) {
         this.enumConfigService = enumConfigService;
-        this.operationLogService = operationLogService;
     }
 
     /**
@@ -49,14 +45,6 @@ public class EnumConfigController {
     @GetMapping("/items/{category}")
     public List<EnumConfigItem> listItems(@PathVariable String category) {
         return enumConfigService.listByCategory(category);
-    }
-
-    /**
-     * 查询某个分类下相关的操作日志。
-     */
-    @GetMapping("/operation-logs/{category}")
-    public List<OperationLogDetailItem> operationLogsByCategory(@PathVariable String category) {
-        return operationLogService.listForEnumCategory(category);
     }
 
     /**

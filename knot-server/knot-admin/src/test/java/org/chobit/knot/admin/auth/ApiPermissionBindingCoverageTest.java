@@ -68,6 +68,15 @@ class ApiPermissionBindingCoverageTest {
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
+    /**
+     * 反向守门的例外：确实存在、但不在 {@code admin.controller} 包内的端点。
+     * springdoc 的 {@code OpenApiWebMvcResource} 是第三方 {@code @RestController}，扫描不到，
+     * 它的绑定只能人工登记在这里——新增一条要能说出理由。
+     */
+    private static final Set<String> EXTERNAL_BINDINGS = Set.of(
+            "GET /api/docs/openapi.json"
+    );
+
     @Test
     void everyAdminEndpointHasPermissionBinding() throws Exception {
         Map<String, Set<String>> endpoints = scanEndpoints();
@@ -135,6 +144,51 @@ class ApiPermissionBindingCoverageTest {
             Object path = ((Map<String, Object>) apiDocs).get("path");
             return path == null ? null : path.toString();
         }
+    }
+
+    /**
+     * 反向守卫：绑定不得指向已删掉的端点。
+     *
+     * <p>正向守卫只查「端点 → 有没有绑定」，拦不住「删了接口忘了删绑定」——残留绑定会让权限树上
+     * 永远挂着一个打不到的接口，白扩攻击面。实测判例：2026-11-17 下线 3 个操作日志 GET 与枚举日志
+     * GET 时，正向守卫全绿，漏删的绑定只能靠这条兜住。</p>
+     */
+    @Test
+    void everyBindingPointsToAnExistingEndpoint() throws Exception {
+        Map<String, Set<String>> normalizedEndpoints = new TreeMap<>();
+        for (Map.Entry<String, Set<String>> entry : scanEndpoints().entrySet()) {
+            normalizedEndpoints.computeIfAbsent(normalizePath(entry.getKey()), key -> new TreeSet<>())
+                    .addAll(entry.getValue());
+        }
+
+        List<String> orphans = new ArrayList<>();
+        for (String binding : parseBindings(readDataSql())) {
+            if (EXTERNAL_BINDINGS.contains(binding)) {
+                continue;
+            }
+            int space = binding.indexOf(' ');
+            String verb = binding.substring(0, space);
+            String path = normalizePath(binding.substring(space + 1));
+            Set<String> verbs = normalizedEndpoints.get(path);
+            if (verbs == null || !verbs.contains(verb)) {
+                orphans.add(binding);
+            }
+        }
+        orphans.sort(Comparator.naturalOrder());
+
+        assertTrue(orphans.isEmpty(),
+                () -> "以下 ks_api_permission_bindings 指向已不存在的端点（接口删了、绑定没删）：\n  "
+                        + String.join("\n  ", orphans)
+                        + "\n清理位置：knot-admin/src/main/resources/db/data.sql，"
+                        + "既有库另需幂等迁移脚本（docs/database/migration/，执行完即删）。");
+    }
+
+    /**
+     * 路径归一：{@code {任意变量名}} 一律折成 {@code {}}，避免「绑定写 {@code {id}}、端点写
+     * {@code {roleId}}」这类仅变量改名的误报。
+     */
+    private static String normalizePath(String path) {
+        return path.replaceAll("\\{[^/}]+}", "{}");
     }
 
     /**

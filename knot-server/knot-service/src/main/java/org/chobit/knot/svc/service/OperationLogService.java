@@ -69,14 +69,9 @@ public class OperationLogService {
         operationLogMapper.insert(entity);
     }
 
-    public List<OperationLogDetailItem> listByModule(String module, String entityType, Long entityId, Long operatorId) {
-        List<OperationLogEntity> list = operationLogMapper.listByModule(module, entityType, entityId, operatorId);
-        list.forEach(this::retainOnlyChangedJsonFields);
-        return operationLogConverter.toDetailItemList(list);
-    }
-
     public PageResult<OperationLogDetailItem> list(PageRequest pageRequest, String module, String operation, Integer status,
-                                                   String keyword, String entityType, Long entityId) {
+                                                   String keyword, String entityType, Long entityId,
+                                                   String entityNamePrefix) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(operationLogMapper.list(
                     normalizeValue(module),
@@ -84,7 +79,8 @@ public class OperationLogService {
                     status,
                     normalizeValue(keyword),
                     normalizeValue(entityType),
-                    entityId
+                    entityId,
+                    normalizeValue(entityNamePrefix)
             ));
             List<OperationLogEntity> list = new ArrayList<>(pageInfo.getList());
             list.forEach(this::retainOnlyChangedJsonFields);
@@ -117,18 +113,6 @@ public class OperationLogService {
     public int deleteBefore(LocalDateTime beforeTime) {
         // ks_operation_log_details 明细表已随废弃表清理下线，无需再级联清理明细
         return operationLogMapper.deleteByCreatedBefore(beforeTime);
-    }
-
-    /**
-     * 查询某个枚举分类下相关的操作日志。
-     */
-    public List<OperationLogDetailItem> listForEnumCategory(String category) {
-        if (category == null || category.isBlank()) {
-            return List.of();
-        }
-        List<OperationLogEntity> list = operationLogMapper.listByModuleAndEntityNamePrefix("enum", category.trim());
-        list.forEach(this::retainOnlyChangedJsonFields);
-        return operationLogConverter.toDetailItemList(list);
     }
 
     /**

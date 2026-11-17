@@ -63,6 +63,39 @@
                   where qb.resource_type = 'ROUTING_CONSUMER' and qb.resource_code = #{consumerCode})
     </select>
 
+    <select id="countRulesByConsumerCodes" resultType="org.chobit.knot.dal.entity.CodeCountRow">
+        <!-- 与 countRulesByConsumerCode 同口径：规则 + 频控绑定 + 额度绑定，三表各自 group by 后按码求和 -->
+        select code, sum(cnt) as total
+        from (
+            select r.consumer_code as code, count(1) as cnt
+            from kb_routing_rules r
+            where r.consumer_code in
+            <foreach collection="consumerCodes" item="consumerCode" open="(" separator="," close=")">
+                #{consumerCode}
+            </foreach>
+            group by r.consumer_code
+            union all
+            select tp.resource_code as code, count(1) as cnt
+            from kb_resource_traffic_policies tp
+            where tp.resource_type = 'ROUTING_CONSUMER'
+              and tp.resource_code in
+            <foreach collection="consumerCodes" item="consumerCode" open="(" separator="," close=")">
+                #{consumerCode}
+            </foreach>
+            group by tp.resource_code
+            union all
+            select qb.resource_code as code, count(1) as cnt
+            from kb_resource_quota_bindings qb
+            where qb.resource_type = 'ROUTING_CONSUMER'
+              and qb.resource_code in
+            <foreach collection="consumerCodes" item="consumerCode" open="(" separator="," close=")">
+                #{consumerCode}
+            </foreach>
+            group by qb.resource_code
+        ) grouped
+        group by code
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_routing_consumers(consumer_code, name, user_username, secret_key, return_usage_detail, status)
         values(#{consumerCode}, #{name}, #{userUsername}, #{secretKey}, #{returnUsageDetail}, #{status})

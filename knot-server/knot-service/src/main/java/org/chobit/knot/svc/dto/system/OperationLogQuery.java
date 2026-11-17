@@ -10,7 +10,12 @@ public record OperationLogQuery(
         Integer status,
         String keyword,
         String entityType,
-        Long entityId
+        Long entityId,
+        /**
+         * 实体名前缀过滤：命中 {@code entity_name = 前缀} 或 {@code 前缀/...}。
+         * 枚举分类日志按「分类」聚合，就是靠它把 {@code 分类} 与 {@code 分类/编码} 一并取出。
+         */
+        String entityNamePrefix
 ) {
     public PageRequest toPageRequest() {
         return PageRequest.of(pageNum, pageSize);
@@ -21,7 +26,7 @@ public record OperationLogQuery(
      */
     public static OperationLogQuery orDefault(OperationLogQuery query) {
         return query == null
-                ? new OperationLogQuery(null, null, null, null, null, null, null, null)
+                ? new OperationLogQuery(null, null, null, null, null, null, null, null, null)
                 : query;
     }
 }

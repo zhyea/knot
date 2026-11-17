@@ -2,6 +2,7 @@ package org.chobit.knot.dal.mapper;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.chobit.knot.dal.entity.CodeCountRow;
 import org.chobit.knot.dal.entity.ProviderProfileEntity;
 
 import java.util.List;
@@ -24,6 +25,12 @@ public interface ProviderProfileMapper {
      * 绑定一律走 code 不落 id，故入参是档案 code 而非主键 id。
      */
     Long countAccountsByProviderCode(@Param("providerCode") String providerCode);
+
+    /**
+     * 批量版：一次取回多个供应商档案的账户数，键为 {@code code}。
+     * 列表页用它替代逐行 {@link #countAccountsByProviderCode(String)}。
+     */
+    List<CodeCountRow> countAccountsByProviderCodes(@Param("providerCodes") List<String> providerCodes);
 
     /**
      * 统计该供应商档案下所有账户持有的凭据数。

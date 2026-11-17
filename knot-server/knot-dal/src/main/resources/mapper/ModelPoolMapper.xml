@@ -103,7 +103,7 @@
         delete from kb_model_pools where id = #{id} and is_deleted = 0
     </delete>
 
-    <select id="listItemsByPoolCode" resultType="org.chobit.knot.dal.entity.ModelPoolItemEntity">
+    <sql id="PoolItemProjection">
         select mpi.id,
                mpi.pool_code,
                mpi.model_code,
@@ -119,8 +119,21 @@
         inner join kb_models m on mpi.model_code = m.model_code and m.is_deleted = 0
         left join kb_provider_accounts pa on m.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
+    </sql>
+
+    <select id="listItemsByPoolCode" resultType="org.chobit.knot.dal.entity.ModelPoolItemEntity">
+        <include refid="PoolItemProjection"/>
         where mpi.pool_code = #{poolCode}
         order by mpi.priority asc, mpi.id asc
+    </select>
+
+    <select id="listItemsByPoolCodes" resultType="org.chobit.knot.dal.entity.ModelPoolItemEntity">
+        <include refid="PoolItemProjection"/>
+        where mpi.pool_code in
+        <foreach collection="poolCodes" item="poolCode" open="(" separator="," close=")">
+            #{poolCode}
+        </foreach>
+        order by mpi.pool_code asc, mpi.priority asc, mpi.id asc
     </select>
 
     <delete id="deleteItemsByPoolCode">
@@ -142,6 +155,17 @@
 
     <select id="countRoutingTargetsByPoolCode" resultType="java.lang.Long">
         select count(1) from kb_routing_rule_targets where target_type = 'MODEL_POOL' and target_code = #{poolCode}
+    </select>
+
+    <select id="countRoutingTargetsByPoolCodes" resultType="org.chobit.knot.dal.entity.CodeCountRow">
+        select target_code as code, count(1) as total
+        from kb_routing_rule_targets
+        where target_type = 'MODEL_POOL'
+          and target_code in
+        <foreach collection="poolCodes" item="poolCode" open="(" separator="," close=")">
+            #{poolCode}
+        </foreach>
+        group by target_code
     </select>
 
     <!-- 改码守卫：池内条目（kb_model_pool_items 无 is_deleted 列，全部计入） -->

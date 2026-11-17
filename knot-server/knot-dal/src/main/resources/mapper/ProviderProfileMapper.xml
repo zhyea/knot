@@ -52,6 +52,16 @@
         where provider_code = #{providerCode}
     </select>
 
+    <select id="countAccountsByProviderCodes" resultType="org.chobit.knot.dal.entity.CodeCountRow">
+        select provider_code as code, count(1) as total
+        from kb_provider_accounts
+        where provider_code in
+        <foreach collection="providerCodes" item="providerCode" open="(" separator="," close=")">
+            #{providerCode}
+        </foreach>
+        group by provider_code
+    </select>
+
     <select id="countCredentialsByProviderCode" resultType="java.lang.Long">
         select count(1) from kb_provider_credentials
         where provider_account_code in (select code from kb_provider_accounts where provider_code = #{providerCode})

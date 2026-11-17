@@ -9,6 +9,7 @@ import org.chobit.knot.common.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.svc.converter.ModelPoolConverter;
 import org.chobit.knot.svc.dto.model.ModelPoolDto;
 import org.chobit.knot.svc.dto.model.ModelPoolItemDto;
+import org.chobit.knot.dal.entity.CodeCountRow;
 import org.chobit.knot.dal.entity.LogicalModelEntity;
 import org.chobit.knot.dal.entity.ModelEntity;
 import org.chobit.knot.dal.entity.ModelPoolEntity;
@@ -27,6 +28,8 @@ import org.chobit.knot.common.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -61,8 +64,19 @@ public class ModelPoolService {
             PageInfo<ModelPoolEntity> pageInfo = new PageInfo<>(modelPoolMapper.list(
                     StringUtils.trimToNull(keyword), normalizeModelTypes(modelTypes), includeDeleted,
                     EnabledStatusEnum.parse(status)));
-            List<ModelPoolDto> dtos = pageInfo.getList().stream()
-                    .map(entity -> enrich(modelPoolConverter.toDto(entity)))
+            List<ModelPoolEntity> rows = pageInfo.getList();
+            List<String> poolCodes = rows.stream()
+                    .map(ModelPoolEntity::getPoolCode)
+                    .filter(code -> code != null && !code.isBlank())
+                    .distinct()
+                    .toList();
+            // 整页两次批量查询：条目按池分组、路由目标数按池计数，替代逐池 3 条查询
+            Map<String, List<ModelPoolItemDto>> itemsByPool = itemsByPool(poolCodes);
+            Map<String, Long> targetCounts = routingTargetCountsOf(poolCodes);
+            List<ModelPoolDto> dtos = rows.stream()
+                    .map(entity -> enrich(modelPoolConverter.toDto(entity),
+                            itemsByPool.getOrDefault(entity.getPoolCode(), List.of()),
+                            targetCounts.getOrDefault(entity.getPoolCode(), 0L)))
                     .toList();
             return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
@@ -201,9 +215,20 @@ public class ModelPoolService {
     }
 
     private ModelPoolDto enrich(ModelPoolDto dto) {
-        List<ModelPoolItemDto> items = modelPoolMapper.listItemsByPoolCode(dto.poolCode()).stream()
-                .map(modelPoolConverter::toItemDto)
-                .toList();
+        return enrich(dto, loadItems(dto.poolCode()),
+                CodeBindingSupport.countOf(modelPoolMapper.countRoutingTargetsByPoolCode(dto.poolCode())));
+    }
+
+    /**
+     * 模型池编码的绑定数（改码守卫口径）：池内条目一律计入，含已删模型留下的孤儿条目。
+     * 列表展示不调本方法——展示口径是「可见条目数」，与列表 SQL 的内连接一致。
+     */
+    private long boundCount(String poolCode) {
+        return CodeBindingSupport.countOf(modelPoolMapper.countItemsByPoolCode(poolCode))
+                + CodeBindingSupport.countOf(modelPoolMapper.countRoutingTargetsByPoolCode(poolCode));
+    }
+
+    private ModelPoolDto enrich(ModelPoolDto dto, List<ModelPoolItemDto> items, long routingTargetCount) {
         return new ModelPoolDto(
                 dto.id(),
                 dto.poolCode(),
@@ -217,17 +242,38 @@ public class ModelPoolService {
                 dto.deleted(),
                 dto.remark(),
                 items,
-                boundCount(dto.poolCode())
+                // 绑定数 = 池内条目数（entry 已在手）+ 路由规则目标数，无需再 count 一次条目
+                items.size() + routingTargetCount
         );
     }
 
-    /**
-     * 模型池编码的绑定数：池内模型条目 + 路由规则目标，两者均按 pool_code 引用。
-     */
-    private Long boundCount(String poolCode) {
-        Long items = modelPoolMapper.countItemsByPoolCode(poolCode);
-        Long targets = modelPoolMapper.countRoutingTargetsByPoolCode(poolCode);
-        return CodeBindingSupport.countOf(items) + CodeBindingSupport.countOf(targets);
+    private List<ModelPoolItemDto> loadItems(String poolCode) {
+        return modelPoolMapper.listItemsByPoolCode(poolCode).stream()
+                .map(modelPoolConverter::toItemDto)
+                .toList();
+    }
+
+    private Map<String, List<ModelPoolItemDto>> itemsByPool(List<String> poolCodes) {
+        if (poolCodes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<ModelPoolItemDto>> grouped = new HashMap<>();
+        for (ModelPoolItemEntity entity : modelPoolMapper.listItemsByPoolCodes(poolCodes)) {
+            grouped.computeIfAbsent(entity.getPoolCode(), key -> new ArrayList<>())
+                    .add(modelPoolConverter.toItemDto(entity));
+        }
+        return grouped;
+    }
+
+    private Map<String, Long> routingTargetCountsOf(List<String> poolCodes) {
+        if (poolCodes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Long> counts = new HashMap<>();
+        for (CodeCountRow row : modelPoolMapper.countRoutingTargetsByPoolCodes(poolCodes)) {
+            counts.put(row.getCode(), CodeBindingSupport.countOf(row.getTotal()));
+        }
+        return counts;
     }
 
     private void saveItems(String poolCode, List<ModelPoolItemDto> items) {

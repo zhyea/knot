@@ -1,4 +1,5 @@
 import {postQuery, post, put, del, get} from "./http";
+import {listOperationLogsByEntity} from "./operationLogs";
 import type {Dict} from "@/types";
 
 export function listEnumConfigs(params: Dict) {
@@ -15,9 +16,9 @@ export function listEnumItemsByCategory(category: string) {
   return get(`/api/system/enums/items/${encodeURIComponent(category)}`);
 }
 
-/** 某分类下枚举相关操作日志 */
+/** 某分类下枚举相关操作日志：走统一日志分页接口，按 module=enum + entity_name 前缀过滤 */
 export function listEnumOperationLogs(category: string) {
-  return get(`/api/system/enums/operation-logs/${encodeURIComponent(category)}`);
+  return listOperationLogsByEntity({module: "enum", entityNamePrefix: category});
 }
 
 export function createEnumConfig(payload: Dict) {
