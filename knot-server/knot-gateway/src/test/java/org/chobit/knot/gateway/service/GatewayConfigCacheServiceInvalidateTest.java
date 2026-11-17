@@ -4,6 +4,8 @@ import com.github.benmanes.caffeine.cache.Cache;
 import org.chobit.knot.gateway.config.ConfigCacheDomain;
 import org.chobit.knot.svc.service.GatewayConfigQueryService;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
+import org.chobit.knot.svc.vo.gateway.AppConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -104,6 +106,17 @@ class GatewayConfigCacheServiceInvalidateTest {
 
         private EmptyQuery() {
             super(null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        /** 本测试只看缓存的条目数与失效范围，取不到数据即可；不覆写就会落到真 Mapper 上 NPE。 */
+        @Override
+        public ModelConfigVo getModelById(Long id) {
+            return null;
+        }
+
+        @Override
+        public AppConfigVo getAppById(Long id) {
+            return null;
         }
     }
 }
