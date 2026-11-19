@@ -45,6 +45,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -603,7 +604,8 @@ public class BillingService {
         if (value instanceof Map<?, ?> mapValue) {
             List<Map.Entry<String, Object>> entries = new ArrayList<>();
             for (Map.Entry<?, ?> entry : mapValue.entrySet()) {
-                entries.add(Map.entry(String.valueOf(entry.getKey()), canonicalizeJsonValue(entry.getValue())));
+                entries.add(new AbstractMap.SimpleImmutableEntry<>(
+                        String.valueOf(entry.getKey()), canonicalizeJsonValue(entry.getValue())));
             }
             entries.sort(Comparator.comparing(Map.Entry::getKey));
             Map<String, Object> sorted = new LinkedHashMap<>();
