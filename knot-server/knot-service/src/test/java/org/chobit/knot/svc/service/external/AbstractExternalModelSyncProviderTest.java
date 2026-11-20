@@ -16,6 +16,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,7 +26,7 @@ import static org.mockito.Mockito.when;
  *
  * <p>2026-11-01 robin 拍板：去重键从 {@code (source_code, model_id)} 收窄为
  * {@code model_id}——同一模型跨源视为同一条目，后同步的源覆盖旧数据，条目归属
- * （source_code）翻到最近同步的源。这里锁四件事：查重只按 model_id、插入/更新时
+ * （source_code）翻到最近同步的源。这里锁五件事：查重按 model_id 的大小写不敏感口径、插入/更新时
  * 带上当前源、更新分支保留 id 与 logicalModelId、单条异常落 FAILED。</p>
  */
 class AbstractExternalModelSyncProviderTest {
@@ -208,5 +209,64 @@ class AbstractExternalModelSyncProviderTest {
         assertEquals(0, result.skipped());
         assertEquals(1, result.updated());
         verify(mapper).updateItem(any(ExternalModelItemEntity.class));
+    }
+
+    @Test
+    @DisplayName("库里是 Kimi-K2.5、上游给 kimi-k2.5 → 走更新，不执行插入")
+    void updatesExistingRowWhoseModelIdDiffersInCase() {
+        ExternalModelItemEntity existing = item("Kimi-K2.5", "old-hash");
+        existing.setId(60L);
+        existing.setLogicalModelId(9L);
+        when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
+        when(mapper.listItemsByModelIds(anyList())).thenReturn(List.of(existing));
+
+        ExternalModelSyncResult result = provider(List.of(item("kimi-k2.5", "new-hash"))).sync();
+
+        assertEquals(1, result.updated());
+        assertEquals(0, result.failed());
+        verify(mapper, never()).insertItem(any());
+        ArgumentCaptor<ExternalModelItemEntity> captor = ArgumentCaptor.forClass(ExternalModelItemEntity.class);
+        verify(mapper).updateItem(captor.capture());
+        assertEquals(60L, captor.getValue().getId());
+        assertEquals(9L, captor.getValue().getLogicalModelId());
+    }
+
+    @Test
+    @DisplayName("仅大小写不同但指纹一致 → 记 skipped，保留 id 与逻辑模型绑定")
+    void keepsIdAndBindingWhenOnlyCaseDiffers() {
+        ExternalModelItemEntity existing = item("Kimi-K2.5", "same-hash");
+        existing.setId(60L);
+        existing.setLogicalModelId(9L);
+        when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
+        when(mapper.listItemsByModelIds(anyList())).thenReturn(List.of(existing));
+
+        ExternalModelSyncResult result = provider(List.of(item("kimi-k2.5", "same-hash"))).sync();
+
+        assertEquals(1, result.skipped());
+        verify(mapper, never()).insertItem(any());
+        ArgumentCaptor<ExternalModelItemEntity> captor = ArgumentCaptor.forClass(ExternalModelItemEntity.class);
+        verify(mapper).updateItem(captor.capture());
+        assertEquals(60L, captor.getValue().getId());
+        assertEquals(9L, captor.getValue().getLogicalModelId());
+    }
+
+    @Test
+    @DisplayName("同一批含仅大小写不同的两条 → 只插入一次，第二条走更新")
+    void insertsOnceWhenPayloadCarriesCaseVariants() {
+        when(mapper.getSourceByCode("STUB")).thenReturn(stubSource());
+        when(mapper.insertItem(any())).thenAnswer(invocation -> {
+            invocation.getArgument(0, ExternalModelItemEntity.class).setId(100L);
+            return 1;
+        });
+
+        ExternalModelSyncResult result = provider(List.of(item("kimi-k2.5", "h1"), item("Kimi-K2.5", "h2"))).sync();
+
+        assertEquals(1, result.inserted());
+        assertEquals(1, result.updated());
+        assertEquals(0, result.failed());
+        verify(mapper, times(1)).insertItem(any());
+        ArgumentCaptor<ExternalModelItemEntity> captor = ArgumentCaptor.forClass(ExternalModelItemEntity.class);
+        verify(mapper, times(1)).updateItem(captor.capture());
+        assertEquals(100L, captor.getValue().getId());
     }
 }
