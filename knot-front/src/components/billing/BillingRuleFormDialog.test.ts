@@ -10,6 +10,8 @@ import BillingModeVideoUsageConfig from "@/components/billing/modes/BillingModeV
 import BillingModeCustomConfig from "@/components/billing/modes/BillingModeCustomConfig.vue";
 import PricingPlanVendorMiniMaxConfig from "@/components/billing/plans/PricingPlanVendorMiniMaxConfig.vue";
 import PricingPlanDimensionTieredConfig from "@/components/billing/plans/PricingPlanDimensionTieredConfig.vue";
+import PricingPlanImageDimensionConfig from "@/components/billing/plans/PricingPlanImageDimensionConfig.vue";
+import BillingModeImageConfig from "@/components/billing/modes/BillingModeImageConfig.vue";
 import ResolutionComboPicker from "@/components/billing/ResolutionComboPicker.vue";
 import ResolutionTierTable from "@/components/billing/ResolutionTierTable.vue";
 import type {Dict} from "@/types";
@@ -74,6 +76,7 @@ const CAPABILITIES = {
       supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK"]
     },
     {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "VENDOR_MINIMAX", "DIMENSION_TIERED"]},
+    {code: "IMAGE", defaultUnit: "PER_IMAGE", supportedUnits: ["PER_IMAGE"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "DIMENSION_TIERED"]},
     {code: "CUSTOM", defaultUnit: "CUSTOM", supportedUnits: ["CUSTOM"], supportedPricingPlans: ["FIXED"]},
     {code: "FREE", defaultUnit: "PER_REQUEST", supportedUnits: ["PER_REQUEST"], supportedPricingPlans: ["FIXED"]}
   ]
@@ -1195,6 +1198,101 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     // 清空后保存照常通过，且库里不会残留一条看不见的输入秒单价
     expect(configOf(updatePayload()).video).toEqual({dimensionCombos: ["BASE"]});
     expect(vi.mocked(updateBillingRule)).toHaveBeenCalled();
+  });
+
+  // ==================== 图片计费：像素档位 ====================
+
+  it("图片规则：像素档位与输入图片分量按 image 段落库，回显后原样保存", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      pricingPlan: "DIMENSION_TIERED",
+      unit: "PER_IMAGE",
+      configJson: JSON.stringify({
+        defaultUnitPrice: 0.008,
+        image: {
+          tiers: [{maxPixels: 2601123, price: 0.02}, {price: 0.035}],
+          inputImagePerImage: 0.003,
+          freeInputImages: 1
+        }
+      })
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeImageConfig);
+    // 回显：两档 + 输入分量，行序与落档顺序一致
+    expect(form.imageTiers).toHaveLength(2);
+    expect(form.imageTiers[1].maxPixels).toBeNull();
+    expect(form.imageInputImagePerImage).toBe(0.003);
+
+    await save(wrapper);
+    const config = configOf(updatePayload());
+    expect(config.image).toEqual({
+      tiers: [{maxPixels: 2601123, price: 0.02}, {price: 0.035}],
+      inputImagePerImage: 0.003,
+      freeInputImages: 1
+    });
+    // 质量档位与分辨率不再是图片规则的一部分
+    expect(config.imageResolution).toBeUndefined();
+    expect(config.imageQuality).toBeUndefined();
+  });
+
+  it("图片维度分档价：没有像素档位时拒绝保存", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      pricingPlan: "DIMENSION_TIERED",
+      unit: "PER_IMAGE",
+      configJson: JSON.stringify({defaultUnitPrice: 0.008})
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    await save(wrapper);
+
+    expect(warned()).toContain("维度分档价请至少填写一个像素档位及其单价");
+    expect(updateBillingRule).not.toHaveBeenCalled();
+  });
+
+  it("像素档位只在维度分档价下落库：切回固定价后不残留", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      pricingPlan: "DIMENSION_TIERED",
+      unit: "PER_IMAGE",
+      configJson: JSON.stringify({
+        defaultUnitPrice: 0.008,
+        image: {tiers: [{maxPixels: 2601123, price: 0.02}]}
+      })
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeImageConfig);
+    // 档位行留在表单里（切换方案不清空），但固定价下不得进入 config_json
+    expect(form.imageTiers).toHaveLength(1);
+    form.pricingPlan = "FIXED";
+    await flushPromises();
+
+    await save(wrapper);
+    expect(configOf(updatePayload()).image).toBeUndefined();
+  });
+
+  it("维度分档价的档位表按模式切换：图片用像素表，视频用分辨率表", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      pricingPlan: "DIMENSION_TIERED",
+      unit: "PER_IMAGE",
+      configJson: JSON.stringify({defaultUnitPrice: 0.008, image: {tiers: [{price: 0.02}]}})
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    expect(wrapper.findComponent(PricingPlanImageDimensionConfig).exists()).toBe(true);
+    expect(wrapper.findComponent(PricingPlanDimensionTieredConfig).exists()).toBe(false);
+
+    const form = formOf(wrapper, BillingModeImageConfig);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+    form.pricingPlan = "DIMENSION_TIERED";
+    await flushPromises();
+
+    expect(wrapper.findComponent(PricingPlanImageDimensionConfig).exists()).toBe(false);
+    expect(wrapper.findComponent(PricingPlanDimensionTieredConfig).exists()).toBe(true);
   });
 
   it("保存成功后关闭抽屉并抛出 saved", async () => {

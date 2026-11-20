@@ -12,6 +12,7 @@ import org.chobit.knot.common.util.TextSupport;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,6 +37,8 @@ public record BillingConfig(
         Map<String, BigDecimal> resolutionPrices,
         /** 视频模式扩展：合成量口径 + 多分量单价 + 免费额度；null 时退化为「仅按输出秒数」 */
         VideoConfig video,
+        /** 图片模式扩展：像素上界档位表 + 输入图片分量；null 时为「张数 × 默认单价」 */
+        ImageConfig image,
         /** 附加费：与用量无关的常数项，命中触发条件即加进总价 */
         List<Surcharge> surcharges,
         Pricing pricing,
@@ -111,6 +114,59 @@ public record BillingConfig(
     /** 阶梯区间：from 必填（含），to 可空（含，空表示上不封顶） */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Condition(BigDecimal from, BigDecimal to) {
+    }
+
+    // ==================== 图片模式扩展 ====================
+
+    /**
+     * 图片模式扩展配置：输出图片的像素上界档位表 + 输入图片分量。
+     *
+     * {@code tiers} 按 {@code maxPixels} 升序声明，{@code maxPixels} 为 {@code null} 表示上不封顶；
+     * 落档判据是第一个 {@code maxPixels} 不小于实际像素的档。{@code inputImagePerImage} 非空时才计输入图片分量，
+     * 张数先扣 {@code freeInputImages}（未配置视为 0 张免费）。
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ImageConfig(List<ImageTier> tiers,
+                              BigDecimal inputImagePerImage,
+                              Integer freeInputImages) {
+
+        /** 输入图片分量的明细类型 */
+        public static final String DETAIL_INPUT_IMAGE = "IMAGE_INPUT_IMAGE";
+
+        /**
+         * 按输出像素落档：跳过 {@code price} 为空的档，返回第一个覆盖该像素的单价；无覆盖返回 {@code null}。
+         *
+         * {@code pixels <= 0}（上游未上报尺寸）同样返回 {@code null}，由调用方按默认单价出账。
+         */
+        public BigDecimal priceFor(long pixels) {
+            if (pixels <= 0 || tiers == null) {
+                return null;
+            }
+            return tiers.stream()
+                    .filter(tier -> tier != null && tier.price() != null)
+                    .sorted(Comparator.comparing(ImageTier::maxPixels,
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .filter(tier -> tier.maxPixels() == null || pixels <= tier.maxPixels())
+                    .map(ImageTier::price)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        /** 输入图片计费张数：扣掉免费额度后剩余；免费额度未配置或为负时按 0 */
+        public long billableImageCount(long inputCount) {
+            long free = freeInputImages == null || freeInputImages < 0 ? 0L : freeInputImages;
+            return Math.max(inputCount - free, 0L);
+        }
+
+        /** 是否启用输入图片分量 */
+        public boolean billsInputImage() {
+            return inputImagePerImage != null;
+        }
+    }
+
+    /** 像素档位：{@code maxPixels} 含本档（{@code null} = 上不封顶），{@code price} 为该档每张单价 */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ImageTier(Long maxPixels, BigDecimal price) {
     }
 
     // ==================== 视频模式扩展（2026-10-25） ====================
@@ -402,6 +458,14 @@ public record BillingConfig(
          * 非 PROGRESSIVE 时返回 {@code null}，调用方回退到「量 × 单价」；返回值为单价域的和，单位基数换算在计算器侧。
          */
         BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback);
+
+        /**
+         * 把配置层算出的单价送进方案层的倍率链：高低峰 MULTIPLIER 乘相位倍率、ABSOLUTE 取相位自带价，
+         * 固定价与阶梯价原样返回。
+         *
+         * 供不按字符串维度键查表的价格使用（图片像素档位），使档位价与默认价过同一条相位链。
+         */
+        BigDecimal resolveConfiguredPrice(BigDecimal configured, PricingContext context);
 
         /**
          * 维度分档价的严格取价：规则配了档位表则返回命中价（已乘相位倍率），未命中即抛；

@@ -1,5 +1,6 @@
 package org.chobit.knot.common.model;
 
+import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
 import org.junit.jupiter.api.Test;
 
@@ -625,12 +626,76 @@ class BillingConfigTest {
         return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC).toInstant();
     }
 
+    // ==================== 图片像素档位 ====================
+
+    private static String validateImage(String json, PricingPlanEnum plan) {
+        return BillingConfigSupport.validate(BillingConfig.parse(json), plan, BillingModeEnum.IMAGE);
+    }
+
+    @Test
+    void imageTiersAcceptAscendingWithOpenEndedLast() {
+        String json = """
+                {"defaultUnitPrice":0.008,
+                 "image":{"tiers":[{"maxPixels":2601123,"price":0.02},
+                                   {"maxPixels":4624220,"price":0.035},
+                                   {"price":0.05}]}}
+                """;
+        assertNull(validateImage(json, PricingPlanEnum.DIMENSION_TIERED));
+        BillingConfig config = BillingConfig.parse(json);
+        assertEquals(0, new BigDecimal("0.02").compareTo(config.image().priceFor(1_048_576L)));
+        assertEquals(0, new BigDecimal("0.035").compareTo(config.image().priceFor(4_624_220L)));
+        assertEquals(0, new BigDecimal("0.05").compareTo(config.image().priceFor(9_999_999L)));
+        assertNull(config.image().priceFor(0L));
+    }
+
+    @Test
+    void imageTiersRejectOpenEndedBeforeLast() {
+        String json = """
+                {"defaultUnitPrice":0.008,
+                 "image":{"tiers":[{"price":0.05},{"maxPixels":2601123,"price":0.02}]}}
+                """;
+        assertTrue(validate(json).contains("open-ended"));
+    }
+
+    @Test
+    void imageTiersRejectNonAscending() {
+        String json = """
+                {"defaultUnitPrice":0.008,
+                 "image":{"tiers":[{"maxPixels":4624220,"price":0.035},
+                                   {"maxPixels":2601123,"price":0.02}]}}
+                """;
+        assertTrue(validate(json).contains("strictly ascending"));
+    }
+
+    @Test
+    void imageTiersOnlyAllowedForDimensionTiered() {
+        String json = """
+                {"defaultUnitPrice":0.008,"image":{"tiers":[{"maxPixels":2601123,"price":0.02}]}}
+                """;
+        assertTrue(validate(json, PricingPlanEnum.FIXED).contains("only allowed for DIMENSION_TIERED"));
+        assertNull(validateImage(json, PricingPlanEnum.DIMENSION_TIERED));
+    }
+
+    @Test
+    void dimensionTieredImageRequiresTiersAndDefaultPrice() {
+        assertTrue(validateImage("{\"defaultUnitPrice\":0.02}", PricingPlanEnum.DIMENSION_TIERED)
+                .contains("requires image.tiers"));
+        assertTrue(validateImage("{\"image\":{\"tiers\":[{\"price\":0.02}]}}", PricingPlanEnum.DIMENSION_TIERED)
+                .contains("requires defaultUnitPrice"));
+    }
+
+    @Test
+    void imageInputComponentRejectsNegativeValues() {
+        assertTrue(validate("{\"image\":{\"inputImagePerImage\":-1}}").contains("cannot be negative"));
+        assertTrue(validate("{\"image\":{\"freeInputImages\":-3}}").contains("cannot be negative"));
+    }
+
     @Test
     void resolutionPricesAndUnknownFields() {
         BillingConfig config = BillingConfig.parse("""
                 {"defaultUnitPrice":0.05,
                  "resolutionPrices":{"720P":0.1,"1080P":0.2},
-                 "imageResolution":"1024x1024"}
+                 "orphanField":"1024x1024"}
                 """);
         assertEquals(0, new BigDecimal("0.1").compareTo(config.resolutionPrices().get("720P")));
         assertNull(config.resolutionPrices().get("480P"));

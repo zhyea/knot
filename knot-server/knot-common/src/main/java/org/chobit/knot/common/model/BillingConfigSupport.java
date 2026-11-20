@@ -1,6 +1,9 @@
 package org.chobit.knot.common.model;
 
+import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
+import org.chobit.knot.common.model.BillingConfig.ImageConfig;
+import org.chobit.knot.common.model.BillingConfig.ImageTier;
 import org.chobit.knot.common.model.BillingConfig.PhaseCondition;
 import org.chobit.knot.common.model.BillingConfig.PhaseRule;
 import org.chobit.knot.common.model.BillingConfig.PriceKind;
@@ -87,6 +90,10 @@ public final class BillingConfigSupport {
         if (tierError != null) {
             return tierError;
         }
+        String imageError = validateImage(config.image());
+        if (imageError != null) {
+            return imageError;
+        }
         return validateSurcharges(config.surcharges());
     }
 
@@ -97,6 +104,14 @@ public final class BillingConfigSupport {
      * FIXED 不接受 {@code resolutionPrices}——档位表只属于维度分档价。
      */
     public static String validate(BillingConfig config, PricingPlanEnum plan) {
+        return validate(config, plan, null);
+    }
+
+    /**
+     * 带计费模式的方案级校验：维度分档价的档位表形状按模式区分——{@code IMAGE} 用 {@code image.tiers}（像素档），
+     * 其余模式用 {@code resolutionPrices}（分辨率档）。{@code mode} 为 {@code null} 时按分辨率档校验。
+     */
+    public static String validate(BillingConfig config, PricingPlanEnum plan, BillingModeEnum mode) {
         PricingPlanEnum resolved = plan == null ? PricingPlanEnum.FIXED : plan;
         if (!resolved.isAvailable()) {
             return "pricing plan not supported yet: " + resolved.code();
@@ -117,6 +132,11 @@ public final class BillingConfigSupport {
         if (resolved == PricingPlanEnum.FIXED && config.resolutionPrices() != null && !config.resolutionPrices().isEmpty()) {
             return "FIXED plan does not accept resolutionPrices; use DIMENSION_TIERED instead";
         }
+        // 像素档位表只属于维度分档价：其它方案不渲染这张表，放行会配出界面上无处可见、取价却命中的价。
+        if (resolved != PricingPlanEnum.DIMENSION_TIERED
+                && config.image() != null && config.image().tiers() != null && !config.image().tiers().isEmpty()) {
+            return "image.tiers is only allowed for DIMENSION_TIERED plan";
+        }
         if (resolved == PricingPlanEnum.TIERED) {
             String modeError = validateTierMode(config);
             return modeError != null ? modeError : validateTierComplete(config.tier());
@@ -128,7 +148,9 @@ public final class BillingConfigSupport {
             return validateVendorMiniMax(config);
         }
         if (resolved == PricingPlanEnum.DIMENSION_TIERED) {
-            return validateDimensionTiered(config);
+            return mode == BillingModeEnum.IMAGE
+                    ? validateImageDimensionTiered(config)
+                    : validateDimensionTiered(config);
         }
         return null;
     }
@@ -206,6 +228,68 @@ public final class BillingConfigSupport {
         // 音频输入免费，故只有图片单价是必须显式配置的分量单价
         if (config.video() == null || config.video().inputImagePerImage() == null) {
             return "VENDOR_MINIMAX requires video.inputImagePerImage (per-image price)";
+        }
+        return null;
+    }
+
+    /**
+     * 图片模式基础校验：分量单价非负、免费额度非负；档位表按 {@code maxPixels} 严格升序，
+     * 上不封顶档（{@code maxPixels = null}）只允许一个且必须是最后一项。
+     */
+    private static String validateImage(ImageConfig image) {
+        if (image == null) {
+            return null;
+        }
+        if (image.inputImagePerImage() != null && image.inputImagePerImage().signum() < 0) {
+            return "image.inputImagePerImage cannot be negative";
+        }
+        if (image.freeInputImages() != null && image.freeInputImages() < 0) {
+            return "image.freeInputImages cannot be negative";
+        }
+        List<ImageTier> tiers = image.tiers();
+        if (tiers == null || tiers.isEmpty()) {
+            return null;
+        }
+        Long previous = null;
+        for (int index = 0; index < tiers.size(); index++) {
+            ImageTier tier = tiers.get(index);
+            String item = "image.tiers[" + index + "]";
+            if (tier == null) {
+                return item + " must not be null";
+            }
+            if (tier.price() == null) {
+                return item + ".price is required";
+            }
+            if (tier.price().signum() < 0) {
+                return item + ".price cannot be negative";
+            }
+            if (tier.maxPixels() == null) {
+                if (index != tiers.size() - 1) {
+                    return "image.tiers open-ended tier must be the last one";
+                }
+                continue;
+            }
+            if (tier.maxPixels() <= 0) {
+                return item + ".maxPixels must be greater than 0";
+            }
+            if (previous != null && tier.maxPixels() <= previous) {
+                return "image.tiers maxPixels must be strictly ascending";
+            }
+            previous = tier.maxPixels();
+        }
+        return null;
+    }
+
+    /**
+     * 图片模式下的维度分档价：必须配至少一个像素档，且必须有默认单价（输出像素未知时按它出账）。
+     */
+    private static String validateImageDimensionTiered(BillingConfig config) {
+        ImageConfig image = config.image();
+        if (image == null || image.tiers() == null || image.tiers().isEmpty()) {
+            return "DIMENSION_TIERED requires image.tiers (at least one pixel tier) for IMAGE mode";
+        }
+        if (config.defaultUnitPrice() == null) {
+            return "DIMENSION_TIERED requires defaultUnitPrice (price used when output pixels are unknown)";
         }
         return null;
     }

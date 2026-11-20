@@ -404,6 +404,23 @@ XML 用 `<foreach>` 展开。写死 `in (0,1)` 时，将来往枚举加一个在
 ⚠ `where|and` 两种前缀都得接受：`<where>` 会把紧跟其后的首个 `and` 剥掉，只写 `and` 会让「修好 XML 后测试仍然红」。
 ℹ 仍然判不了的（列名、join、`now(3)` 时区口径、`order by ... limit` 方言合法性）仍归 `schema.sql` + 真库冒烟。
 
+### 8.16 图片计费的维度分档：像素上界档（2026-11-20）
+
+⭐⭐ **IMAGE 模式的分档键是输出像素，不是分辨率标签**：`config_json.image.tiers = [{maxPixels, price}]`，
+`maxPixels` 含本档、缺省表示上不封顶；落档取**第一个上界不小于实际像素**的档。
+
+- 判据：图片请求可写 `size=1024x1024`、也可能只说 `2K`，上游更常回传实际宽高。像素总量是唯一各侧都对得上的事实；
+  分辨率标签在图片域不可枚举，拿它当键必然漏配。
+- 表非空、像素已知却无档覆盖 → `VALIDATION_ERROR`（不回落默认单价）；像素未知（`pixels <= 0`）→ 默认单价。
+  与视频「请求未声明分辨率才用默认价」同口径。
+- `image.tiers` 只允许 `DIMENSION_TIERED`：其它方案不渲染这张表，放行即「界面上无处可见、取价却命中」。
+  校验出口 `BillingConfigSupport.validate(config, plan, mode)` 按 mode 分流（IMAGE 走 `image.tiers`，其余走 `resolutionPrices`）。
+- 输入图片按张计费复用 `image.inputImagePerImage` / `image.freeInputImages`，张数取自请求体
+  （`images` / `input_images` / `reference_images` / `image_urls`，单数字段按 1 张）。「首张免费」= 免费张数 1。
+- 计算器是 `ImageBillingModeCalculator`（不再由 `SimpleBillingModeCalculator` 兜底）：总价 = 出图张数 × 像素档单价
+  + 输入图片张数 × 每张单价。档位价经 `PricingPlan#resolveConfiguredPrice` 过相位倍率链。
+- 基础计费规则不再保存 `imageResolution` / `imageQuality`：两者是死字段（取价从未读过），档位语义已由 `image.tiers` 表达。
+
 ## 9. 上游适配器职责边界（2026-10-28）
 
 ### 9.1 视频适配器只做透传（红线）

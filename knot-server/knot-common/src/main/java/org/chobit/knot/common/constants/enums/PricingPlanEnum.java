@@ -33,12 +33,13 @@ public enum PricingPlanEnum implements EnumOption {
     VENDOR_MINIMAX("厂商定制(MiniMax)", BillingModeEnum.VIDEO),
 
     /**
-     * 维度分档价：按请求属性分档取价（分辨率 × 是否输出声音 × 有无输入视频），仅 VIDEO 模式可用。
-     * 每个档位按 {@code 档位:REFERENCE:AUDIO} → {@code 档位:REFERENCE} → {@code 档位:AUDIO} → {@code 档位}
-     * 的顺序逐级去尾降级；「有无输入视频」与「有无参考视频」同义，参考图走图片张数口径。
+     * 维度分档价：按请求属性分档取价，档位表形状随计费模式而定——
+     * VIDEO 用 {@code resolutionPrices}，档位按 {@code 档位:REFERENCE:AUDIO} → {@code 档位:REFERENCE} →
+     * {@code 档位:AUDIO} → {@code 档位} 逐级去尾降级（「有无输入视频」与「有无参考视频」同义，参考图走图片张数口径）；
+     * IMAGE 用 {@code image.tiers}，档位按输出像素上界落档。
      * 取价语义同 {@link #FIXED}（无阶梯、无相位倍率），但维度键拼错或空档位名在保存期直接拒绝。
      */
-    DIMENSION_TIERED("维度分档价", BillingModeEnum.VIDEO);
+    DIMENSION_TIERED("维度分档价", BillingModeEnum.IMAGE, BillingModeEnum.VIDEO);
 
     private final String label;
     private final List<BillingModeEnum> supportedBillingModes;

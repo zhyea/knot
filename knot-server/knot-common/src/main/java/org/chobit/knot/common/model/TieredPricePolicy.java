@@ -63,6 +63,13 @@ record TieredPricePolicy(PriceSet basePrices,
      * PROGRESSIVE：把用量拆成 {@code amount} 个单位，逐单位判定档位后累加单价。
      * 与 {@link #resolvePrice} 共用 {@link #resolveFromTier}，区别是代入单位序号 i 而非本笔总用量。
      */
+    /** 配置层单价原样返回：阶梯价只按用量选档，不再叠加相位调整 */
+    @Override
+    public BigDecimal resolveConfiguredPrice(BigDecimal configured, PricingContext context) {
+        return configured;
+    }
+
+
     @Override
     public BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback) {
         if (!progressive || amount <= 0) {

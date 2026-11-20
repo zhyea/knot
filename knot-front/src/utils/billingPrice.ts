@@ -14,7 +14,7 @@ import {useEnumOptions} from "@/composables/useEnumOptions";
 /** 单价小数位数：8，与计费侧 setScale(8, HALF_UP) 对齐 */
 export const UNIT_PRICE_PRECISION = 8;
 
-/** 单价输入步长：10^-4 只是起步增量，不影响可输入的精度（precision 才是硬约束） */
+/** 单价输入步长：只作加减按钮的起始增量，输入框不声明 precision，可输入精度不受步长限制 */
 export const UNIT_PRICE_STEP = 0.01;
 
 /**

@@ -169,7 +169,7 @@ class ModelUsageNormalizerTest {
         body.put("usage", raw);
         body.put("data", List.of(Map.of("b64_json", "x"), Map.of("b64_json", "y")));
 
-        ImageBillingUsage billing = new ImageBillingUsage(TokenBillingUsage.from(raw), 2L, 0L, 0L, 0L);
+        ImageBillingUsage billing = new ImageBillingUsage(TokenBillingUsage.from(raw), 2L, 0L, 0L, 0L, 0L);
         ModelUsage usage = ModelUsageNormalizer.fromBilling(billing, body);
 
         assertNotNull(usage);
@@ -199,9 +199,11 @@ class ModelUsageNormalizerTest {
     void shouldProjectMediaBillingUsageIntoOutputCounters() {
         // 媒体用量只进各自计量：IMAGE 张数 / VIDEO 秒数 / AUDIO 秒数，token 明细不参与
         ModelUsage image = ModelUsageNormalizer.fromBilling(
-                new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 1_048_576L, 1024L, 1024L), null);
+                new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 1_048_576L, 1024L, 1024L, 2L), null);
         assertNotNull(image);
         assertEquals(3L, image.output().imageCount());
+        // 输入图片张数进 input 侧：它按张参与计费，投影漏掉就丢了「这批钱按什么算的」
+        assertEquals(2L, image.input().imageCount());
         assertEquals(0L, image.totalTokens());
         assertEquals(0L, image.input().tokenTotal());
 
@@ -307,7 +309,7 @@ class ModelUsageNormalizerTest {
     @Test
     void shouldProjectImagePixelsIntoAttributes() {
         ModelUsage usage = ModelUsageNormalizer.fromBilling(
-                new ImageBillingUsage(TokenBillingUsage.empty(), 1L, 1_048_576L, 1024L, 1024L), null);
+                new ImageBillingUsage(TokenBillingUsage.empty(), 1L, 1_048_576L, 1024L, 1024L, 0L), null);
 
         assertNotNull(usage);
         Attributes attributes = usage.attributes();

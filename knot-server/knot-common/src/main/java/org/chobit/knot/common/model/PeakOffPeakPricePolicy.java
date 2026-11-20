@@ -90,6 +90,19 @@ record PeakOffPeakPricePolicy(PriceSet basePrices,
         return base == null ? null : base.multiply(decision.multiplier());
     }
 
+    /**
+     * 配置层单价过相位链：MULTIPLIER 乘相位倍率，ABSOLUTE 取相位自带价（相位缺价时用入参）。
+     */
+    @Override
+    public BigDecimal resolveConfiguredPrice(BigDecimal configured, PricingContext context) {
+        PhaseDecision decision = decide(context);
+        if (absolute()) {
+            return absolutePrice(decision.matchedRule(), PriceKind.INPUT, configured);
+        }
+        return configured == null ? null : configured.multiply(decision.multiplier());
+    }
+
+
     @Override
     public BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback) {
         return null;

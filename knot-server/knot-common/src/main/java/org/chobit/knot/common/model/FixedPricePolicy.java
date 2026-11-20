@@ -58,6 +58,13 @@ record FixedPricePolicy(PricingPlanEnum plan,
                 candidateKeys, dimensionPrices, componentDefault, defaultUnitPrice, fallback);
     }
 
+    /** 配置层单价原样返回：固定价不叠加方案层调整 */
+    @Override
+    public BigDecimal resolveConfiguredPrice(BigDecimal configured, PricingContext context) {
+        return configured;
+    }
+
+
     @Override
     public BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback) {
         return null;

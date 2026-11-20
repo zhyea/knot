@@ -3,6 +3,7 @@ package org.chobit.knot.adapter.usage.extractor;
 import org.chobit.knot.adapter.usage.extractor.*;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.adapter.usage.UsageExtractorDefinition;
+import org.chobit.knot.adapter.usage.calculator.ImageBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.SimpleBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.TokenBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.VideoBillingModeCalculator;
@@ -27,11 +28,12 @@ class UsageExtractorBillingModesTest {
     private final SimpleBillingModeCalculator simple = new SimpleBillingModeCalculator();
     private final TokenBillingModeCalculator token = new TokenBillingModeCalculator();
     private final VideoBillingModeCalculator video = new VideoBillingModeCalculator();
+    private final ImageBillingModeCalculator image = new ImageBillingModeCalculator();
 
     private final List<UsageExtractor<?>> extractors = List.of(
             new DefaultTokenUsageExtractor(token),
             new AnthropicUsageExtractor(token),
-            new ImageUsageExtractor(simple),
+            new ImageUsageExtractor(image),
             new VideoUsageExtractor(video),
             new AudioUsageExtractor(simple)
     );
@@ -41,7 +43,7 @@ class UsageExtractorBillingModesTest {
         // DEFAULT 是通用兜底：Simple 计算器按规则模式分摄取量，声明全部模式
         assertEquals(EnumSet.allOf(BillingModeEnum.class), new DefaultTokenUsageExtractor(token).billingModes());
         assertEquals(EnumSet.of(BillingModeEnum.TOKEN), new AnthropicUsageExtractor(token).billingModes());
-        assertEquals(EnumSet.of(BillingModeEnum.IMAGE), new ImageUsageExtractor(simple).billingModes());
+        assertEquals(EnumSet.of(BillingModeEnum.IMAGE), new ImageUsageExtractor(image).billingModes());
         assertEquals(EnumSet.of(BillingModeEnum.VIDEO), new VideoUsageExtractor(video).billingModes());
         assertEquals(EnumSet.of(BillingModeEnum.AUDIO), new AudioUsageExtractor(simple).billingModes());
     }

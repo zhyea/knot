@@ -9,6 +9,7 @@ import org.chobit.knot.adapter.model.usage.NormalizedUsageDetail;
 import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.model.usage.VideoBillingUsage;
 import org.chobit.knot.adapter.usage.NormalizedUsageContext;
+import org.chobit.knot.adapter.usage.calculator.ImageBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.SimpleBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.TokenBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.VideoBillingModeCalculator;
@@ -36,14 +37,15 @@ class MediaBillingCalculatorTest {
             "{\"defaultUnitPrice\": 0.02, \"resolutionPrices\": {\"720P\": 0.05, \"1080P\": 0.1}}";
 
     private final SimpleBillingModeCalculator simple = new SimpleBillingModeCalculator();
+    private final ImageBillingModeCalculator imageCalculator = new ImageBillingModeCalculator();
     private final VideoBillingModeCalculator videoCalculator = new VideoBillingModeCalculator();
     private final TokenBillingModeCalculator tokenCalculator = new TokenBillingModeCalculator();
 
     @Test
     void shouldBillImageByCount() {
-        NormalizedBillingAmount amount = simple.calculate(context(
+        NormalizedBillingAmount amount = imageCalculator.calculate(context(
                 rule("IMAGE", "PER_IMAGE", SIMPLE_CONFIG),
-                new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 0L, 0L, 0L)));
+                new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 0L, 0L, 0L, 0L)));
 
         assertEquals("1.5", amount.totalCost(), "3 张 × 0.5");
         NormalizedUsageDetail detail = amount.details().get(0);
@@ -53,11 +55,21 @@ class MediaBillingCalculatorTest {
 
     @Test
     void shouldBillAtLeastOneImageWhenCountMissing() {
-        NormalizedBillingAmount amount = simple.calculate(context(
+        NormalizedBillingAmount amount = imageCalculator.calculate(context(
                 rule("IMAGE", "PER_IMAGE", SIMPLE_CONFIG),
                 ImageBillingUsage.empty()));
 
         assertEquals("0.5", amount.totalCost(), "上游未上报张数按 1 张兜底");
+    }
+
+    @Test
+    void imageRuleShouldBillSameAmountOnBothCalculatorPaths() {
+        // 无像素档、无输入图片分量时，模式专属计算器与通用兜底必须同额
+        BillingRuleRef imageRule = rule("IMAGE", "PER_IMAGE", SIMPLE_CONFIG);
+        ImageBillingUsage usage = new ImageBillingUsage(TokenBillingUsage.empty(), 2L, 0L, 1024L, 1024L, 0L);
+
+        assertEquals(imageCalculator.calculate(context(imageRule, usage)).totalCost(),
+                simple.calculate(context(imageRule, usage)).totalCost());
     }
 
     @Test
@@ -174,7 +186,7 @@ class MediaBillingCalculatorTest {
         // 提取器与规则模式错配：热路径不抛异常，按零用量出账
         NormalizedBillingAmount amount = tokenCalculator.calculate(context(
                 rule("TOKEN", "1K_TOKENS", SIMPLE_CONFIG),
-                new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 0L, 0L, 0L)));
+                new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 0L, 0L, 0L, 0L)));
 
         assertEquals("0", amount.totalCost());
         assertTrue(amount.details().isEmpty());

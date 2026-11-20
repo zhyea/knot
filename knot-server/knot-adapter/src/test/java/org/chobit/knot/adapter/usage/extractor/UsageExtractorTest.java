@@ -7,6 +7,7 @@ import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.model.usage.VideoBillingUsage;
 import org.chobit.knot.adapter.usage.UsageExtractItem;
 import org.chobit.knot.adapter.usage.calculator.BillingModeCalculator;
+import org.chobit.knot.adapter.usage.calculator.ImageBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.SimpleBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.TokenBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.VideoBillingModeCalculator;
@@ -38,7 +39,7 @@ class UsageExtractorTest {
 
     private final DefaultTokenUsageExtractor defaultExtractor = new DefaultTokenUsageExtractor(new TokenBillingModeCalculator());
     private final AnthropicUsageExtractor anthropicExtractor = new AnthropicUsageExtractor(new TokenBillingModeCalculator());
-    private final ImageUsageExtractor imageExtractor = new ImageUsageExtractor(new SimpleBillingModeCalculator());
+    private final ImageUsageExtractor imageExtractor = new ImageUsageExtractor(new ImageBillingModeCalculator());
     private final VideoUsageExtractor videoExtractor = new VideoUsageExtractor(new VideoBillingModeCalculator());
     private final AudioUsageExtractor audioExtractor = new AudioUsageExtractor(new SimpleBillingModeCalculator());
 

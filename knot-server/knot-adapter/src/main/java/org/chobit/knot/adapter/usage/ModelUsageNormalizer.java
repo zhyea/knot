@@ -150,9 +150,15 @@ public final class ModelUsageNormalizer {
     }
 
     private static ModelUsage projectImage(ModelUsage base, ImageBillingUsage image) {
+        Input input = inputOf(base);
         Output output = outputOf(base);
         return new ModelUsage(
-                base.input(),
+                Input.builder()
+                        .tokens(input.tokens())
+                        .imageCount(image.inputImageCount())
+                        .audioSeconds(input.audioSeconds())
+                        .videoSeconds(input.videoSeconds())
+                        .build(),
                 Output.builder()
                         .tokens(output.tokens())
                         .imageCount(image.count())

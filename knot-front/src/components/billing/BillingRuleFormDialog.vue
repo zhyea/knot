@@ -157,6 +157,7 @@ import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
 import PricingPlanVendorMiniMaxConfig from "./plans/PricingPlanVendorMiniMaxConfig.vue";
 import PricingPlanDimensionTieredConfig from "./plans/PricingPlanDimensionTieredConfig.vue";
+import PricingPlanImageDimensionConfig from "./plans/PricingPlanImageDimensionConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities, getBillingRule} from "@/api/billing";
 import {formatJsonText, isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
 import {
@@ -186,6 +187,13 @@ import {
   normalizeCombos
 } from "@/utils/billingResolution";
 import type {ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
+import {
+  createImageTierRow,
+  parseImageTierRows,
+  toImageTierPayload,
+  validateImageTierRows
+} from "@/utils/billingImage";
+import type {ImageTierRow} from "@/utils/billingImage";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -290,8 +298,11 @@ interface BillingRuleFormState {
    * 重建数组时丢掉未托管条目，等于管理员打开规则点一次保存就静默删掉别人的配置。</p>
    */
   videoExtraSurcharges: Dict[];
-  imageResolution: string;
-  imageQuality: string;
+  /** 图片像素档位（pricingPlan=DIMENSION_TIERED），保存为 configJson.image.tiers */
+  imageTiers: ImageTierRow[];
+  /** 输入图片每张单价与免费张数：两者留空时输入图片不计费 */
+  imageInputImagePerImage: number | null;
+  imageFreeInputImages: number | null;
   /** 阶梯档位（pricingPlan=TIERED），保存时由 {@link toTierPayload} 并入 configJson.tier */
   tiers: TierRow[];
   /**
@@ -331,8 +342,9 @@ const form = reactive<BillingRuleFormState>({
   videoFreeInputImages: null,
   videoAudioSurcharge: null,
   videoExtraSurcharges: [],
-  imageResolution: "",
-  imageQuality: "",
+  imageTiers: [],
+  imageInputImagePerImage: null,
+  imageFreeInputImages: null,
   tiers: [],
   tierMode: "PER_REQUEST",
   peakPricing: null,
@@ -361,7 +373,13 @@ const codeChanged = computed(() =>
   String(detail.value?.code || "").trim() !== resolveRuleCode()
 );
 const modeComponent = computed(() => componentsByMode[form.billingMode] || BillingModeTokenConfig);
-const planComponent = computed(() => componentsByPlan[form.pricingPlan] || PricingPlanFixedConfig);
+// 维度分档价的档位表按模式分两套：IMAGE 是像素上界档，其余模式是「档位 × 计费组合」表
+const planComponent = computed(() => {
+  if (form.pricingPlan === PricingPlan.DIMENSION_TIERED && form.billingMode === BillingMode.IMAGE) {
+    return PricingPlanImageDimensionConfig;
+  }
+  return componentsByPlan[form.pricingPlan] || PricingPlanFixedConfig;
+});
 
 /** 编辑时按 id 从后端取全量记录（列表是轻量 VO，configJson 不在列表数据里） */
 async function loadDetail() {
@@ -431,7 +449,8 @@ const PRICE_FIELDS = [
   "cacheWrite1hUnitPrice",
   "videoInputVideoPerSecond",
   "videoInputImagePerImage",
-  "videoAudioSurcharge"
+  "videoAudioSurcharge",
+  "imageInputImagePerImage"
 ] as const;
 for (const field of PRICE_FIELDS) {
   watch(
@@ -468,6 +487,12 @@ watch(
     // 首次切到高低峰时补默认骨架（工作日高峰 + 兜底低峰）
     if (plan === PricingPlan.PEAK_OFF_PEAK && !form.peakPricing) {
       form.peakPricing = createDefaultPeakPricing();
+    }
+    // 首次切到维度分档价时给图片一条空档位，避免空白表格无从下手
+    if (plan === PricingPlan.DIMENSION_TIERED
+        && form.billingMode === BillingMode.IMAGE
+        && !form.imageTiers.length) {
+      form.imageTiers.push(createImageTierRow());
     }
     // 首次切到 MiniMax 时补官方默认：图片每张 0.20（H3/H3-Highspeed 价）、前 5 张免费
     if (plan === PricingPlan.VENDOR_MINIMAX) {
@@ -618,8 +643,9 @@ function resetForm() {
   form.videoFreeInputImages = null;
   form.videoAudioSurcharge = null;
   form.videoExtraSurcharges = [];
-  form.imageResolution = "";
-  form.imageQuality = "";
+  form.imageTiers = [];
+  form.imageInputImagePerImage = null;
+  form.imageFreeInputImages = null;
   form.tiers = [];
   form.tierMode = "PER_REQUEST";
   form.peakPricing = null;
@@ -707,8 +733,11 @@ function applyConfig(config: Dict) {
   form.videoAudioSurcharge = toNumberOrNull(audioSurcharge?.amount);
   // 其余触发条件（REFERENCE / ALWAYS）表单不编辑，原样带回去，避免保存时被重建数组吞掉
   form.videoExtraSurcharges = surcharges.filter((item: Dict) => item !== audioSurcharge);
-  form.imageResolution = config.imageResolution || "";
-  form.imageQuality = config.imageQuality || "";
+  // 图片像素档位：键序即落档顺序（上不封顶档靠位置表达），回显不排序、不去重
+  const image = (config.image && typeof config.image === "object") ? config.image : {};
+  form.imageTiers = parseImageTierRows(image.tiers);
+  form.imageInputImagePerImage = toNumberOrNull(image.inputImagePerImage);
+  form.imageFreeInputImages = toNumberOrNull(image.freeInputImages);
   form.tiers = parseTierRows(config.tier);
   form.tierMode = String(config.tierMode || "PER_REQUEST").trim().toUpperCase() === "PROGRESSIVE"
     ? "PROGRESSIVE"
@@ -780,10 +809,23 @@ function buildBaseConfig(): Dict | null {
     };
   }
   if (form.billingMode === BillingMode.IMAGE) {
+    // 像素档位表只属于维度分档价：其它方案下残留的行不落库（界面上也看不见，落库就是静默收费）
+    const image: Dict = {};
+    if (form.pricingPlan === PricingPlan.DIMENSION_TIERED) {
+      const tiers = toImageTierPayload(form.imageTiers || []);
+      if (tiers.length) {
+        image.tiers = tiers;
+      }
+    }
+    if (form.imageInputImagePerImage != null) {
+      image.inputImagePerImage = form.imageInputImagePerImage;
+    }
+    if (form.imageFreeInputImages != null) {
+      image.freeInputImages = form.imageFreeInputImages;
+    }
     return {
       defaultUnitPrice: form.unitPrice,
-      imageResolution: form.imageResolution?.trim() || null,
-      imageQuality: form.imageQuality?.trim() || null
+      ...(Object.keys(image).length ? {image} : {})
     };
   }
   if (form.billingMode === BillingMode.VIDEO) {
@@ -954,7 +996,16 @@ async function submit() {
     return;
   }
   // 维度分档价：一张档位表都没有 = 退化成固定价，与后端 validate 同口径前置拦截
-  if (form.pricingPlan === PricingPlan.DIMENSION_TIERED && !hasTierRow()) {
+  if (form.pricingPlan === PricingPlan.DIMENSION_TIERED && form.billingMode === BillingMode.IMAGE) {
+    const imageIssues = validateImageTierRows(form.imageTiers);
+    if (imageIssues.length) {
+      ElMessage.warning(imageIssues[0]);
+      return;
+    }
+  }
+  if (form.pricingPlan === PricingPlan.DIMENSION_TIERED
+      && form.billingMode === BillingMode.VIDEO
+      && !hasTierRow()) {
     ElMessage.warning("维度分档价请至少填写一个档位名及其单价");
     return;
   }
