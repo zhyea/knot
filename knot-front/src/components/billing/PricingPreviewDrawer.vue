@@ -30,7 +30,8 @@
           v-model="usageAmount"
           :min="0"
           :step="100"
-          :controls="false"
+          :precision="0"
+          controls-position="right"
           size="small"
           class="preview__amount"
         />

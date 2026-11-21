@@ -24,6 +24,8 @@
         :model-value="row.maxPixels"
         :min="1"
         :step="100000"
+        :precision="0"
+        controls-position="right"
         placeholder="留空 = 上不封顶"
         @update:model-value="(value: number | undefined | null) => setMaxPixels(index, value)"
       />
@@ -70,6 +72,7 @@
             v-model="form.imageFreeInputImages"
             :min="0"
             :step="1"
+            :precision="0"
             controls-position="right"
             style="width: 100%"
           />

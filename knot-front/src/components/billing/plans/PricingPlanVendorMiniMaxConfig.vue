@@ -28,6 +28,7 @@
           <el-input-number v-model="form.videoFreeInputImages"
                            :min="0"
                            :step="1"
+                           :precision="0"
                            controls-position="right"
                            style="width: 100%"/>
         </el-form-item>

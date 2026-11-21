@@ -10,7 +10,7 @@
           :model-value="prices[field.key]"
           :min="0"
           :step="UNIT_PRICE_STEP"
-         
+          controls-position="right"
           placeholder="必填"
           class="tier-price-field__input"
           @update:model-value="(value) => update(field.key, value)"
