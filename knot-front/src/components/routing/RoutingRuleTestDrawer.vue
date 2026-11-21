@@ -226,34 +226,34 @@
                         </template>
                       </el-image>
                       <figcaption class="image-result__meta">
-                        <span class="image-result__index">#{{ index + 1 }}</span>
                         <span>{{ item.source === "base64" ? "Base64 内联" : "上游地址" }}</span>
+                        <span class="image-result__actions">
+                          <el-tooltip content="复制原始链接" placement="top">
+                            <el-button
+                              class="image-result__copy"
+                              size="small"
+                              :icon="CopyDocument"
+                              circle
+                              aria-label="复制原始链接"
+                              @click="copyResultUrl(item.src)"
+                            />
+                          </el-tooltip>
+                          <el-button
+                            class="image-result__download"
+                            size="small"
+                            :icon="Download"
+                            tag="a"
+                            :href="item.src"
+                            :download="imageDownloadName(item, index)"
+                            target="_blank"
+                            rel="noreferrer"
+                          >下载</el-button>
+                        </span>
                       </figcaption>
-                      <div class="image-result__actions">
-                        <el-button
-                          class="image-result__open"
-                          size="small"
-                          :icon="Link"
-                          tag="a"
-                          :href="item.src"
-                          target="_blank"
-                          rel="noreferrer"
-                        >新窗口打开</el-button>
-                        <el-button
-                          class="image-result__download"
-                          size="small"
-                          :icon="Download"
-                          tag="a"
-                          :href="item.src"
-                          :download="imageDownloadName(item, index)"
-                          target="_blank"
-                          rel="noreferrer"
-                        >下载</el-button>
-                      </div>
                     </figure>
                   </div>
                   <p class="image-result__note">
-                    图片地址由上游签发（非本站域名），「下载」可能被浏览器忽略而直接打开；此时请用「新窗口打开」或右键另存。
+                    图片地址由上游签发（非本站域名），「下载」可能被浏览器忽略而直接打开；此时请复制原始链接另存。
                   </p>
                 </div>
               </el-tab-pane>
@@ -380,8 +380,17 @@
                       loading="lazy"
                     />
                     <span class="async-result__url-index">#{{ index + 1 }}</span>
-                    <a class="async-result__url-text" :href="url" target="_blank" rel="noreferrer">{{ url }}</a>
                     <span class="async-result__url-actions">
+                      <el-tooltip content="复制原始链接" placement="top">
+                        <el-button
+                          class="async-result__copy"
+                          size="small"
+                          :icon="CopyDocument"
+                          circle
+                          aria-label="复制原始链接"
+                          @click="copyResultUrl(url)"
+                        />
+                      </el-tooltip>
                       <el-button
                         class="async-result__download"
                         size="small"
@@ -393,11 +402,10 @@
                         target="_blank"
                         rel="noreferrer"
                       >下载</el-button>
-                      <el-button size="small" :icon="CopyDocument" @click="copyResultUrl(url)">复制链接</el-button>
                     </span>
                   </div>
                   <p class="async-result__note">
-                    产物地址由上游签发（非本站域名），浏览器可能直接播放而不另存；「下载」无效时请用「复制链接」或右键另存。
+                    产物地址由上游签发（非本站域名），浏览器可能直接播放而不另存；「下载」无效时请复制原始链接另存。
                   </p>
                 </div>
 
@@ -450,7 +458,6 @@ import {
   CopyDocument,
   Delete,
   Download,
-  Link,
   Plus,
   Promotion,
   Select,
@@ -910,8 +917,9 @@ function downloadNameOf(url: string, index: number): string {
   return resultDownloadName(url, taskCode.value, index);
 }
 
+/** 复制产物地址（图片与视频产物共用）：地址为空时提示而不是往剪贴板塞空串 */
 async function copyResultUrl(url: string): Promise<void> {
-  await copy(url, "该产物没有地址");
+  await copy(url, "没有可复制的地址");
 }
 
 /** 视频协议却没拿到句柄：同步链路下这是最常见的配置错误，必须能指路 */
@@ -1723,10 +1731,9 @@ onBeforeUnmount(disposeTestResources);
   font-size: 12px;
 }
 
-/* 自适应列宽：一张图也不拉成整屏，多张图按容器宽度排开 */
+/* 单列铺满：测试图要看细节，缩到 220px 的小格里没意义 */
 .image-result__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
 }
 
@@ -1740,19 +1747,28 @@ onBeforeUnmount(disposeTestResources);
   background: var(--el-fill-color-blank);
 }
 
+/* 宽度铺满卡片、高度由图片比例决定；超高图限高避免一张图占满整屏 */
 .image-result__img {
+  display: block;
   width: 100%;
-  height: 180px;
   border-radius: 6px;
   background: var(--el-fill-color-light);
   cursor: zoom-in;
 }
 
+.image-result__img :deep(img) {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+/* 图片高度自适应后容器可能塌成 0：失败占位给个最小高度，错误文案才看得见 */
 .image-result__broken {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  min-height: 160px;
   color: var(--el-text-color-secondary);
   font-size: 12px;
 }
@@ -1766,25 +1782,15 @@ onBeforeUnmount(disposeTestResources);
   font-size: 11px;
 }
 
-.image-result__index {
-  color: var(--el-color-primary);
-  font-family: Consolas, "Courier New", monospace;
-  font-weight: 700;
-}
-
 .image-result__actions {
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 
 /* 两个按钮并排用 gap 控距，去掉 el-button 相邻兄弟的默认左外边距 */
 .image-result__actions :deep(.el-button + .el-button) {
   margin-left: 0;
-}
-
-/* tag="a" 的按钮：去掉链接下划线，视觉与普通 small 按钮一致 */
-.image-result__open {
-  text-decoration: none;
 }
 
 .image-result__note {
@@ -2225,7 +2231,7 @@ onBeforeUnmount(disposeTestResources);
   color: var(--el-text-color-placeholder);
 }
 
-/* 图片产物缩略图：与行内序号/链接同高，一眼确认是不是这张 */
+/* 图片产物缩略图：与行内序号同高，一眼确认是不是这张 */
 .async-result__thumb {
   flex: 0 0 auto;
   width: 44px;
@@ -2235,17 +2241,12 @@ onBeforeUnmount(disposeTestResources);
   object-fit: cover;
 }
 
-.async-result__url-text {
-  flex: 1;
-  min-width: 0;
-  color: var(--el-color-primary);
-  word-break: break-all;
-}
-
 .async-result__url-actions {
   display: flex;
   flex: 0 0 auto;
+  align-items: center;
   gap: 6px;
+  margin-left: auto;
 }
 
 /* 下载按钮是 <a>（tag="a"）：去掉链接下划线，视觉与普通 small 按钮一致 */

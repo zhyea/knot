@@ -883,10 +883,15 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     // 跨域地址的新标签打开：download 被浏览器忽略时至少能打开而不是白点
     expect(links[0].attributes("target")).toBe("_blank");
 
-    // 「复制链接」是跨域下载受限时的兜底路径
-    await wrapper.findAll(".async-result__url-actions .el-button")[1].trigger("click");
+    // 原始链接不再铺在页面上（长 URL 会把整行撑乱），只留复制图标兜底
+    expect(wrapper.text()).not.toContain("https://cdn.example.com/a.mp4");
+    const copies = wrapper.findAll(".async-result__copy");
+    expect(copies).toHaveLength(2);
+    expect(copies[0].attributes("aria-label")).toBe("复制原始链接");
+
+    await copies[0].trigger("click");
     await flushPromises();
-    expect(h.copy).toHaveBeenCalledWith("https://cdn.example.com/a.mp4", "该产物没有地址");
+    expect(h.copy).toHaveBeenCalledWith("https://cdn.example.com/a.mp4", "没有可复制的地址");
   });
 
   it("失败：环标红且文案是「失败」，不能与「已停止」混为一谈", async () => {
@@ -1045,11 +1050,19 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(wrapper.findAll(".image-result__card")).toHaveLength(2);
     expect(wrapper.find(".image-result__count").text()).toContain("2 张图片");
 
-    const opens = wrapper.findAll("a.image-result__open");
-    expect(opens[0].attributes("href")).toBe("https://cdn.example.com/a.png");
-    expect(opens[0].attributes("target")).toBe("_blank");
-    // 裸 base64 必须补成可渲染的 data URL，否则 img 拿到一串乱码
-    expect(opens[1].attributes("href")).toBe("data:image/png;base64,iVBORw0KGgo=");
+    // 自造的 #序号 没有含义（单图时更是噪音），不展示
+    expect(wrapper.text()).not.toContain("#1");
+    // 「新窗口打开」已去掉：复制原始链接 + 下载足够
+    expect(wrapper.text()).not.toContain("新窗口打开");
+
+    const copies = wrapper.findAll(".image-result__copy");
+    expect(copies).toHaveLength(2);
+    expect(copies[0].attributes("aria-label")).toBe("复制原始链接");
+    // 裸 base64 必须复制成可用的 data URL，否则拿到一串乱码
+    await copies[1].trigger("click");
+    await flushPromises();
+    expect(h.copy).toHaveBeenCalledWith("data:image/png;base64,iVBORw0KGgo=", "没有可复制的地址");
+
     // 下载名带白名单扩展名，双击就能打开
     expect(wrapper.findAll("a.image-result__download")[0].attributes("download")).toBe("knot-image.png");
   });
