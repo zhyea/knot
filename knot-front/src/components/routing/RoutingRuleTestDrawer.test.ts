@@ -1022,4 +1022,72 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
       vi.useRealTimers();
     }
   });
+
+  // ==================== 图片结果页 ====================
+
+  it("⭐ 图片协议出图：出现「图片」tab 并自动停在该页，地址图与 base64 图都能展示", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: {
+        created: 1,
+        data: [{url: "https://cdn.example.com/a.png"}, {b64_json: "iVBORw0KGgo="}]
+      }
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    expect(tabLabels(wrapper)).toContain("图片");
+    // 出图后停在图片页：停在 Body 只给一串地址，还得手点一次才看得到图
+    expect(activeTabLabel(wrapper)).toBe("图片");
+    expect(wrapper.findAll(".image-result__card")).toHaveLength(2);
+    expect(wrapper.find(".image-result__count").text()).toContain("2 张图片");
+
+    const opens = wrapper.findAll("a.image-result__open");
+    expect(opens[0].attributes("href")).toBe("https://cdn.example.com/a.png");
+    expect(opens[0].attributes("target")).toBe("_blank");
+    // 裸 base64 必须补成可渲染的 data URL，否则 img 拿到一串乱码
+    expect(opens[1].attributes("href")).toBe("data:image/png;base64,iVBORw0KGgo=");
+    // 下载名带白名单扩展名，双击就能打开
+    expect(wrapper.findAll("a.image-result__download")[0].attributes("download")).toBe("knot-image.png");
+  });
+
+  it("没有图片语义的响应不出现「图片」tab（普通链接不拿来凑数）", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: {links: [{url: "https://cdn.example.com/doc.pdf"}]}
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    expect(tabLabels(wrapper)).not.toContain("图片");
+    expect(activeTabLabel(wrapper)).toBe("Body");
+  });
+
+  it("异步产物是图片时给缩略图，视频产物不给（不把 mp4 塞进 img）", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    h.async.taskStatus.value = AsyncTaskStatus.SUCCEEDED;
+    h.async.result.value = {
+      result_urls: ["https://cdn.example.com/a.png", "https://cdn.example.com/b.mp4"]
+    };
+    await nextTick();
+
+    const thumbs = wrapper.findAll(".async-result__thumb");
+    expect(thumbs).toHaveLength(1);
+    expect(thumbs[0].attributes("src")).toBe("https://cdn.example.com/a.png");
+  });
 });

@@ -244,6 +244,158 @@ export function resultDownloadName(url: string, taskCode?: string | null, index 
   return `knot-${code}${ordinal}${downloadExtensionOf(url)}`;
 }
 
+/** 图片结果的来源：上游签发的地址 / base64 内联 */
+export type ImageResultSource = "url" | "base64";
+
+/** 一张可展示的图片：`src` 可直接放进 `<img>` */
+export interface ImageResult {
+  src: string;
+  source: ImageResultSource;
+}
+
+/** 图片格式白名单：既用于下载名，也用于异步产物缩略图的判定 */
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".avif", ".svg"];
+
+/** 图片语义键：这些键的值就是图片本身（地址或 base64），其余 URL 字段不参与；顺序即结果优先序 */
+const IMAGE_KEYS = ["image", "images", "image_url", "image_urls", "b64_json"];
+
+/**
+ * 从响应体里收集图片结果。
+ *
+ * <p>网关测试链路是透传调试，同一语义在不同供应商手上形态不同：OpenAI `data[].url` /
+ * `data[].b64_json`、Qwen 多模态 `output.choices[].message.content[].image`、
+ * 以及 `images` / `image_url(s)` 这类直给数组。因此分两路取：先认 OpenAI 的 `data` 数组，
+ * 再按图片语义键深搜；**不做泛化 `url` 深搜**——那会把响应里任意链接误当成图。</p>
+ *
+ * @param body 响应体（对象，或 JSON 文本）
+ * @returns 按出现顺序去重后的图片列表；认不出给空数组
+ */
+export function collectImageResults(body: unknown): ImageResult[] {
+  const payload = typeof body === "string" ? parseJsonResult(body, null).value : body;
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+  const results: ImageResult[] = [];
+  const seen = new Set<string>();
+  const push = (value: unknown, base64 = false) => {
+    // `images` / `image_urls` 的数组元素可能是对象（`{url}`），一律摊平成候选值
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const dict = value as Dict;
+      push(dict.url);
+      push(dict.image);
+      push(dict.b64_json, true);
+      return;
+    }
+    if (typeof value !== "string") {
+      return;
+    }
+    const src = normalizeImageSource(value, base64);
+    if (!src || seen.has(src)) {
+      return;
+    }
+    seen.add(src);
+    results.push({src, source: src.startsWith("data:image/") ? "base64" : "url"});
+  };
+
+  // 一、OpenAI images 规范：data: [{url} | {b64_json} | {image}]
+  const data = (payload as Dict).data;
+  if (Array.isArray(data)) {
+    data.forEach((item) => push(item));
+  }
+  // 二、其余供应商形态：按图片语义键深搜
+  IMAGE_KEYS.forEach((key) => collectImageByKey(payload, key, push));
+  return results;
+}
+
+/** 深搜指定图片语义键；数组值逐项摊平（`images: ["..."]`） */
+function collectImageByKey(node: unknown, key: string, push: (value: unknown, base64?: boolean) => void): void {
+  if (!node || typeof node !== "object") {
+    return;
+  }
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectImageByKey(item, key, push));
+    return;
+  }
+  for (const [name, value] of Object.entries(node as Dict)) {
+    if (name === key) {
+      if (Array.isArray(value)) {
+        value.forEach((item) => push(item, key === "b64_json"));
+      } else {
+        push(value, key === "b64_json");
+      }
+    } else if (value && typeof value === "object") {
+      collectImageByKey(value, key, push);
+    }
+  }
+}
+
+/**
+ * 候选值 → 可展示地址：http(s) 原样、`data:image/` 原样、裸 base64 补 PNG 前缀。
+ *
+ * @param value 候选值
+ * @param base64 该值来自 `b64_json`（允许裸 base64）
+ * @returns 合法地址；其余（相对路径、普通文本）返回空串
+ */
+function normalizeImageSource(value: string, base64: boolean): string {
+  const text = value.trim();
+  if (!text) {
+    return "";
+  }
+  if (base64) {
+    return text.startsWith("data:") ? text : `data:image/png;base64,${text}`;
+  }
+  if (/^data:image\//i.test(text) || /^https?:\/\//i.test(text)) {
+    return text;
+  }
+  return "";
+}
+
+/** 地址是否指向图片（data URL 或白名单扩展名）：异步产物据此决定渲染缩略图还是纯链接 */
+export function isImageSource(value: unknown): boolean {
+  if (typeof value !== "string" || !value) {
+    return false;
+  }
+  if (/^data:image\//i.test(value)) {
+    return true;
+  }
+  let pathname = "";
+  try {
+    pathname = new URL(value, "http://localhost").pathname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return IMAGE_EXTENSIONS.some((extension) => pathname.endsWith(extension));
+}
+
+/**
+ * 图片下载文件名：`knot-image[-序号]<扩展名>`。
+ *
+ * <p>扩展名优先取 data URL 的 MIME，其次取地址白名单；都认不出给 `.png`
+ * （图片总是要能被双击打开，缺扩展名比猜错更难用）。</p>
+ */
+export function imageDownloadName(item: ImageResult, index = 0): string {
+  const ordinal = index > 0 ? `-${index + 1}` : "";
+  return `knot-image${ordinal}${imageExtensionOf(item)}`;
+}
+
+function imageExtensionOf(item: ImageResult): string {
+  if (item.source === "base64") {
+    const mime = /^data:image\/([a-z0-9.+-]+);/i.exec(item.src)?.[1]?.toLowerCase() || "";
+    if (mime === "jpeg") {
+      return ".jpg";
+    }
+    return IMAGE_EXTENSIONS.includes(`.${mime}`) ? `.${mime}` : ".png";
+  }
+  let pathname = "";
+  try {
+    pathname = new URL(item.src, "http://localhost").pathname.toLowerCase();
+  } catch {
+    return ".png";
+  }
+  const matched = IMAGE_EXTENSIONS.find((extension) => pathname.endsWith(extension));
+  return matched || ".png";
+}
+
 /** 白名单内的扩展名；地址非法或认不出返回空串（不猜） */
 function downloadExtensionOf(url: string): string {
   if (!url) {

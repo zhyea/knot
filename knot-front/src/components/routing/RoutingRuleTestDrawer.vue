@@ -203,6 +203,60 @@
                   </span>
                 </div>
               </el-tab-pane>
+              <!-- 图片协议：出图后单独一页看结果（Body 里只有一串地址，测试的核心产出是那张图） -->
+              <el-tab-pane v-if="imageResults.length" label="图片" name="image" class="response-image-pane">
+                <div class="image-result">
+                  <div class="image-result__head">
+                    <span class="image-result__title">生成结果</span>
+                    <span class="image-result__count">共 {{ imageResults.length }} 张图片</span>
+                  </div>
+                  <div class="image-result__grid">
+                    <figure v-for="(item, index) in imageResults" :key="item.src + index" class="image-result__card">
+                      <el-image
+                        class="image-result__img"
+                        :src="item.src"
+                        :preview-src-list="imagePreviewList"
+                        :initial-index="index"
+                        :preview-teleported="true"
+                        fit="contain"
+                        loading="lazy"
+                      >
+                        <template #error>
+                          <div class="image-result__broken">图片无法加载</div>
+                        </template>
+                      </el-image>
+                      <figcaption class="image-result__meta">
+                        <span class="image-result__index">#{{ index + 1 }}</span>
+                        <span>{{ item.source === "base64" ? "Base64 内联" : "上游地址" }}</span>
+                      </figcaption>
+                      <div class="image-result__actions">
+                        <el-button
+                          class="image-result__open"
+                          size="small"
+                          :icon="Link"
+                          tag="a"
+                          :href="item.src"
+                          target="_blank"
+                          rel="noreferrer"
+                        >新窗口打开</el-button>
+                        <el-button
+                          class="image-result__download"
+                          size="small"
+                          :icon="Download"
+                          tag="a"
+                          :href="item.src"
+                          :download="imageDownloadName(item, index)"
+                          target="_blank"
+                          rel="noreferrer"
+                        >下载</el-button>
+                      </div>
+                    </figure>
+                  </div>
+                  <p class="image-result__note">
+                    图片地址由上游签发（非本站域名），「下载」可能被浏览器忽略而直接打开；此时请用「新窗口打开」或右键另存。
+                  </p>
+                </div>
+              </el-tab-pane>
               <el-tab-pane label="Body" name="body" class="response-body-pane">
                 <ShellCodeBlock
                   v-if="resultBodyText"
@@ -317,6 +371,14 @@
                   </div>
                   <video v-if="asyncResultUrl" class="async-result__video" :src="asyncResultUrl" controls/>
                   <div v-for="(url, index) in asyncResultUrls" :key="url + index" class="async-result__url">
+                    <!-- 图片产物直接给缩略图：只列地址的话，异步出图还得手点才能看见结果 -->
+                    <img
+                      v-if="isImageSource(url)"
+                      class="async-result__thumb"
+                      :src="url"
+                      :alt="`产物 ${index + 1}`"
+                      loading="lazy"
+                    />
                     <span class="async-result__url-index">#{{ index + 1 }}</span>
                     <a class="async-result__url-text" :href="url" target="_blank" rel="noreferrer">{{ url }}</a>
                     <span class="async-result__url-actions">
@@ -388,6 +450,7 @@ import {
   CopyDocument,
   Delete,
   Download,
+  Link,
   Plus,
   Promotion,
   Select,
@@ -417,12 +480,16 @@ import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing"
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {EMPTY_PLACEHOLDER, parseJsonResult} from "@/utils/format";
 import {
+  collectImageResults,
   extractField,
   highlightBlock,
+  imageDownloadName,
   isAbortError,
+  isImageSource,
   parseAsyncTaskAccepted,
   resultDownloadName,
-  stripModelField
+  stripModelField,
+  type ImageResult
 } from "@/utils/routingTestPayload";
 import {
   normalizeErrorResult,
@@ -950,6 +1017,20 @@ const resultBodyText = computed(() => {
 });
 
 /**
+ * 图片结果：从响应体提取（同步 200 与异步终态写的是同一个 `responseBody`）。
+ *
+ * <p>要不要出现「图片」页只由响应体决定，不看协议：图片协议也可能返回纯错误体，
+ * 那时给一个空图片页只是噪音；反过来非图片协议若真回了图片，也该能看见。</p>
+ */
+const imageResults = computed<ImageResult[]>(() => {
+  const body = testResult.value?.responseBody;
+  return body ? collectImageResults(body) : [];
+});
+
+/** 预览列表与网格同源：点开一张后可左右翻看本轮全部图片 */
+const imagePreviewList = computed(() => imageResults.value.map((item) => item.src));
+
+/**
  * 从非流式响应体里按优先级取顶层字段（一次解析、多字段兜底）。
  * 流式阶段的值优先由调用方各自处理——两者的「流式优先」语义不同，不在这里合并。
  */
@@ -1223,7 +1304,8 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
     }
     // 被告提取：整包响应体顶层 knot_extend{usage, billing} + 并列 upstream_usage（上游原文）
     captureKnotExtend(response.data);
-    responseTab.value = "body";
+    // 出图则直接停在「图片」页：图片测试的产出就是那张图，停在 Body 只给一串地址
+    responseTab.value = imageResults.value.length ? "image" : "body";
     // 裁判第二步：不阻塞上方测试结果的渲染；开关关闭时跳过校验
     if (testBillingVerify.value) {
       void triggerBillingVerdict(gatewayBody, false);
@@ -1611,6 +1693,105 @@ onBeforeUnmount(disposeTestResources);
 
 .response-body-code :deep(.el-scrollbar__wrap) {
   max-height: none !important;
+}
+
+/* ===================== 图片结果页 ===================== */
+
+.response-image-pane {
+  height: 100%;
+}
+
+.image-result {
+  display: grid;
+  gap: 10px;
+}
+
+.image-result__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.image-result__title {
+  color: var(--el-text-color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.image-result__count {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+/* 自适应列宽：一张图也不拉成整屏，多张图按容器宽度排开 */
+.image-result__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.image-result__card {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-fill-color-blank);
+}
+
+.image-result__img {
+  width: 100%;
+  height: 180px;
+  border-radius: 6px;
+  background: var(--el-fill-color-light);
+  cursor: zoom-in;
+}
+
+.image-result__broken {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.image-result__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+}
+
+.image-result__index {
+  color: var(--el-color-primary);
+  font-family: Consolas, "Courier New", monospace;
+  font-weight: 700;
+}
+
+.image-result__actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* 两个按钮并排用 gap 控距，去掉 el-button 相邻兄弟的默认左外边距 */
+.image-result__actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+/* tag="a" 的按钮：去掉链接下划线，视觉与普通 small 按钮一致 */
+.image-result__open {
+  text-decoration: none;
+}
+
+.image-result__note {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .result-meta {
@@ -2042,6 +2223,16 @@ onBeforeUnmount(disposeTestResources);
 
 .async-result__url-index {
   color: var(--el-text-color-placeholder);
+}
+
+/* 图片产物缩略图：与行内序号/链接同高，一眼确认是不是这张 */
+.async-result__thumb {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  background: var(--el-fill-color-light);
+  object-fit: cover;
 }
 
 .async-result__url-text {

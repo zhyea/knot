@@ -1,12 +1,15 @@
 import {describe, expect, it} from "vitest";
 import {
+  collectImageResults,
   extractField,
   extractTextValue,
   findObjectField,
   findSiblingField,
   formatUpstreamEvent,
   highlightBlock,
+  imageDownloadName,
   isAbortError,
+  isImageSource,
   parseAsyncTaskAccepted,
   parseStreamJson,
   resultDownloadName,
@@ -237,5 +240,97 @@ describe("resultDownloadName（产物下载文件名）", () => {
   it("空地址 / 非法地址不抛错，只是不带扩展名", () => {
     expect(resultDownloadName("", "tc-1", 0)).toBe("knot-tc-1");
     expect(resultDownloadName("http://[bad", "tc-1", 0)).toBe("knot-tc-1");
+  });
+});
+
+describe("collectImageResults（图片协议出图提取）", () => {
+  it("OpenAI images 规范：data[].url 逐张取出", () => {
+    expect(collectImageResults({
+      created: 1,
+      data: [{url: "https://cdn/x/a.png"}, {url: "https://cdn/x/b.png"}]
+    })).toEqual([
+      {src: "https://cdn/x/a.png", source: "url"},
+      {src: "https://cdn/x/b.png", source: "url"}
+    ]);
+  });
+
+  it("data[].b64_json 补成 data URL（裸 base64 没有前缀也能直接给 img）", () => {
+    const [item] = collectImageResults({data: [{b64_json: "iVBORw0KGgo="}]});
+    expect(item.source).toBe("base64");
+    expect(item.src).toBe("data:image/png;base64,iVBORw0KGgo=");
+  });
+
+  it("已带 data: 前缀的 base64 不重复拼前缀", () => {
+    const [item] = collectImageResults({data: [{b64_json: "data:image/jpeg;base64,AAAA"}]});
+    expect(item.src).toBe("data:image/jpeg;base64,AAAA");
+    expect(imageDownloadName(item)).toBe("knot-image.jpg");
+  });
+
+  it("Qwen 多模态形态：output.choices[].message.content[].image 也能取到", () => {
+    const results = collectImageResults({
+      output: {choices: [{message: {content: [{image: "https://dashscope/out.png"}]}}]},
+      usage: {image_count: 1}
+    });
+    expect(results).toEqual([{src: "https://dashscope/out.png", source: "url"}]);
+  });
+
+  it("images / image_urls 直给数组（元素可为对象）逐张摊平", () => {
+    const results = collectImageResults({
+      images: ["https://cdn/x/a.png", {url: "https://cdn/x/b.png"}],
+      image_urls: ["https://cdn/x/c.webp"]
+    });
+    expect(results.map((item) => item.src)).toEqual([
+      "https://cdn/x/a.png",
+      "https://cdn/x/b.png",
+      "https://cdn/x/c.webp"
+    ]);
+  });
+
+  it("同一张图在 data 与 images 里各出现一次时只留一份", () => {
+    const results = collectImageResults({
+      data: [{url: "https://cdn/x/a.png"}],
+      images: ["https://cdn/x/a.png"]
+    });
+    expect(results).toHaveLength(1);
+  });
+
+  it("泛化 url 不认：没有图片语义键的普通链接不会被当成图", () => {
+    expect(collectImageResults({links: [{url: "https://cdn/x/doc.pdf"}]})).toEqual([]);
+    expect(collectImageResults({url: "https://cdn/x/a.png"})).toEqual([]);
+  });
+
+  it("相对路径与普通文本一律丢弃（不能放进 img）", () => {
+    expect(collectImageResults({images: ["/files/a.png", "not a url", ""]})).toEqual([]);
+  });
+
+  it("接收 JSON 文本（响应体就是字符串的情形）", () => {
+    expect(collectImageResults('{"data":[{"url":"https://cdn/x/a.png"}]}'))
+      .toEqual([{src: "https://cdn/x/a.png", source: "url"}]);
+  });
+
+  it("空值 / 非法 JSON / 非对象输入给空数组（不抛）", () => {
+    expect(collectImageResults(null)).toEqual([]);
+    expect(collectImageResults("")).toEqual([]);
+    expect(collectImageResults("{oops")).toEqual([]);
+    expect(collectImageResults([{url: "https://cdn/x/a.png"}])).toEqual([]);
+  });
+
+  it("文件名：knot-image 前缀 + 序号 + 白名单扩展名，认不出给 .png", () => {
+    expect(imageDownloadName({src: "https://cdn/x/a.png", source: "url"}, 0)).toBe("knot-image.png");
+    expect(imageDownloadName({src: "https://cdn/x/a.WEBP", source: "url"}, 2)).toBe("knot-image-3.webp");
+    expect(imageDownloadName({src: "https://cdn/x/download", source: "url"}, 0)).toBe("knot-image.png");
+    expect(imageDownloadName({src: "data:image/webp;base64,AA", source: "base64"})).toBe("knot-image.webp");
+  });
+});
+
+describe("isImageSource（异步产物缩略图判定）", () => {
+  it("图片扩展名与 data URL 认；视频、文档、非法值不认", () => {
+    expect(isImageSource("https://cdn/x/a.png")).toBe(true);
+    expect(isImageSource("https://cdn/x/a.JPEG")).toBe(true);
+    expect(isImageSource("data:image/png;base64,AA")).toBe(true);
+    expect(isImageSource("https://cdn/x/a.mp4")).toBe(false);
+    expect(isImageSource("https://cdn/x/download?id=1")).toBe(false);
+    expect(isImageSource("")).toBe(false);
+    expect(isImageSource(null)).toBe(false);
   });
 });
