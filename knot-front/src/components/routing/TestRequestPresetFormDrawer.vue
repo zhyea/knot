@@ -13,7 +13,7 @@
           <div class="section-head">
             <div>
               <h3>基础信息</h3>
-              <p>维护预设编码、名称与关联协议，按协议归类、全局共享复用；统一模型为可选归类维度，不影响调试面板的用例过滤。</p>
+              <p>维护预设编码、名称与关联协议，按协议与模型族归类、全局共享复用；模型族决定调试面板在哪些目标下提供该用例，留空为通用用例。</p>
             </div>
             <el-form-item label="启用" class="inline-switch" :disabled="readonly">
               <el-switch v-model="form.enabled" />
@@ -53,13 +53,15 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="统一模型">
-                <RemoteEntitySelect
-                  v-model="form.logicalModelCode"
-                  :load-function="loadLogicalModelOptions"
+              <el-form-item label="模型族">
+                <EnumSelect
+                  v-model="form.modelFamily"
+                  category="model_family"
                   :disabled="readonly"
                   clearable
-                  placeholder="可选，仅作归类"
+                  filterable
+                  placeholder="可选：不选为通用用例"
+                  style="width: 100%"
                 />
               </el-form-item>
             </el-col>
@@ -113,14 +115,11 @@
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import EnumControl from "../common/EnumControl.vue";
-import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
+import EnumSelect from "../common/EnumSelect.vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import {createTestRequestPreset, updateTestRequestPreset} from "@/api/routing";
-import {listLogicalModelOptions} from "@/api/options";
 import type {Dict, Row} from "@/types";
-import {toOptionsLoader} from "@/utils/options";
 import {formatJsonText, parseJsonResult} from "@/utils/format";
-import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -151,13 +150,11 @@ const form = reactive({
   code: "",
   name: "",
   protocolCode: "",
-  logicalModelCode: null as string | null,
+  modelFamily: "",
   requestBody: "",
   remark: "",
   enabled: true
 });
-
-const loadLogicalModelOptions = toOptionsLoader(listLogicalModelOptions);
 
 watch(
   () => props.modelValue,
@@ -182,7 +179,7 @@ function resetForm(row: Row | null = null) {
   form.code = row?.code || "";
   form.name = row?.name || "";
   form.protocolCode = row?.protocolCode || "";
-  form.logicalModelCode = row?.logicalModelCode || null;
+  form.modelFamily = row?.modelFamily || "";
   form.requestBody = formatJsonText(row?.requestBody);
   form.remark = row?.remark ?? "";
   // 数字状态：0 是合法值（停用），不能用 truthy 判断
@@ -225,21 +222,14 @@ function buildPayload() {
     name: form.name.trim(),
     protocolCode: form.protocolCode,
     // 可选归类维度：留空提交 null（通用用例）
-    logicalModelCode: form.logicalModelCode || null,
+    modelFamily: form.modelFamily || null,
     requestBody: form.requestBody,
     remark: form.remark?.trim() || null,
     status: form.enabled ? 1 : 0
   };
 }
 
-// 下拉缺失值守卫：已选项被删除/无权限时阻止提交（options 契约第 10 条）
-const missing = useMissingOptionGuard();
-
 async function submit() {
-  if (missing.hasMissing.value) {
-    ElMessage.warning(missing.hint.value);
-    return;
-  }
   if (!form.name?.trim()) {
     ElMessage.warning("请填写名称");
     return;

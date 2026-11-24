@@ -1297,6 +1297,67 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
 
   // ==================== 图片计费：按 token 计价的模态单价 ====================
 
+  it("图片按 token 计价：表单出现五个模态单价输入", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      unit: "1M_TOKENS",
+      configJson: JSON.stringify({
+        image: {tokenPrices: {inputText: 5, inputImage: 8, outputImage: 30}}
+      })
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const labels = wrapper.findAll(".el-form-item__label").map((node) => node.text());
+    expect(labels.some((text) => text.includes("文本输入")), "缺少文本输入单价输入框").toBe(true);
+    expect(labels.some((text) => text.includes("图像输入")), "缺少图像输入单价输入框").toBe(true);
+    expect(labels.some((text) => text.includes("图像输出")), "缺少图像输出单价输入框").toBe(true);
+    expect(labels.some((text) => text.includes("文本缓存输入")), "缺少文本缓存输入单价输入框").toBe(true);
+    expect(labels.some((text) => text.includes("图像缓存输入")), "缺少图像缓存输入单价输入框").toBe(true);
+    expect(labels.some((text) => text.startsWith("默认")), "token 量纲不应再显示「默认单价」").toBe(false);
+  });
+
+  it("图片按张计价：基础计费区给出切到 token 的入口，点一下就能填五个模态单价", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      unit: "PER_IMAGE",
+      configJson: JSON.stringify({defaultUnitPrice: 0.2})
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    expect(wrapper.text()).toContain("把「计费单位」切到");
+    expect(
+      wrapper.findAll(".el-form-item__label").some((node) => node.text().includes("文本输入")),
+      "按张计价时不应渲染模态单价"
+    ).toBe(false);
+
+    const link = wrapper.findAll(".el-link").find((node) => node.text().includes("切换为"));
+    expect(link, "缺少切到 token 量纲的入口").toBeTruthy();
+    await link!.trigger("click");
+    await flushPromises();
+
+    expect(formOf(wrapper, BillingModeImageConfig).unit).toBe("1M_TOKENS");
+    const labels = wrapper.findAll(".el-form-item__label").map((node) => node.text());
+    expect(labels.some((text) => text.includes("文本输入"))).toBe(true);
+    expect(labels.some((text) => text.includes("图像缓存输入"))).toBe(true);
+  });
+
+  it("图片按张计价：能力矩阵没给 token 单位时只提示按张，不给切换入口", async () => {
+    vi.mocked(listModeCapabilities).mockResolvedValue({
+      billingModes: [
+        {code: "IMAGE", defaultUnit: "PER_IMAGE", supportedUnits: ["PER_IMAGE"], supportedPricingPlans: ["FIXED"]}
+      ]
+    } as never);
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      unit: "PER_IMAGE",
+      configJson: JSON.stringify({defaultUnitPrice: 0.2})
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    expect(wrapper.text()).toContain("未提供图片的 Token 计量单位");
+    expect(wrapper.findAll(".el-link").some((node) => node.text().includes("切换为"))).toBe(false);
+  });
+
   it("图片按 token 计价：模态单价按 image.tokenPrices 落库，按张字段不落库", async () => {
     vi.mocked(getBillingRule).mockResolvedValue(detailRow({
       billingMode: "IMAGE",

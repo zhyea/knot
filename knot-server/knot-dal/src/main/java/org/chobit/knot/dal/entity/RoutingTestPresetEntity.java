@@ -14,9 +14,9 @@ public class RoutingTestPresetEntity {
     private String code;
     private String name;
     private String protocolCode;
-    private String logicalModelCode;
-    /** 派生自 kb_logical_models，非本表列 */
-    private String logicalModelName;
+    private String modelFamily;
+    /** 派生自枚举表 {@code ks_enum_configs}（category=model_family），非本表列 */
+    private String modelFamilyName;
     private String requestBody;
     private String remark;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */

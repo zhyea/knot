@@ -429,8 +429,14 @@ XML 用 `<foreach>` 展开。写死 `in (0,1)` 时，将来往枚举加一个在
 - 价表在 `config_json.image.tokenPrices`：`inputText` / `inputImage` / `outputImage` **必填**，
   `cacheReadText` / `cacheReadImage` 可选（缺省按同模态输入价计，即不享缓存折扣）。基准随规则单位
   （`1M_TOKENS` = 每百万 Token 价），与明细行 `unit` 同源。
-- 明细类型：`inputText` / `inputImage` / `cachedInputText` / `cachedImageInput` / `outputImage`；
+- 明细类型：`inputText` / `inputImage` / `cachedInputText` / `cachedInputImage` / `outputImage`（`ImageTokenDetailKind#key()`）；
   缓存量先从同模态输入量扣掉再计。**文本输出不在价目表内，不单独计价**（余额不计费）。
+- 试算（`POST /api/billing/rules/{id}/preview`）同口径：图片按 token 计价时 `prices` 给上述五个模态键，
+  键与明细 type 同源；按张量纲仍只给 `default`。未配置的模态价记 0（试算只展示，不替用户补价）。
+- 管理端表单只在 token 量纲下渲染五个模态单价输入。按张量纲时基础计费区给出「切换为每百万 Token」入口
+  （目标单位取自能力矩阵 `supportedUnits` 里的 token 单位），能力矩阵没给 token 单位时只提示「只能按张」。
+  ⚠ 打开图片规则只看到「默认单价」时，先查 `GET /api/billing/mode-capabilities` 的 IMAGE 单位集合是否含 token 单位，
+  不要按「表单没做」处理。
 - **两套价表互斥，保存期拒绝**（`BillingConfigSupport#validate(config, plan, mode, unit)`）：token 量纲配 `image.tiers`
   或 `image.inputImagePerImage`、按张量纲配 `image.tokenPrices`，都是「界面上看不见、取价却可能命中」的僵尸配置。
 - token 量纲**只允许 `FIXED`**：TIERED 的档位价槽位与 PEAK_OFF_PEAK ABSOLUTE 的相位价槽位都是六项通用价格

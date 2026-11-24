@@ -10,7 +10,8 @@ import java.util.List;
 public interface RoutingTestPresetMapper {
 
     List<RoutingTestPresetEntity> listPresets(@Param("keyword") String keyword,
-                                             @Param("protocolCode") String protocolCode);
+                                             @Param("protocolCode") String protocolCode,
+                                             @Param("modelFamily") String modelFamily);
 
     RoutingTestPresetEntity getById(Long id);
 

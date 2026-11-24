@@ -32,21 +32,22 @@ public class RoutingTestPresetController {
         PageResult<RoutingTestPresetDto> page = presetService.list(
                 PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword(),
-                query == null ? null : query.protocol()
+                query == null ? null : query.protocol(),
+                query == null ? null : query.modelFamilyCode()
         );
         return page.mapList(presetConverter::toVOList);
     }
 
     /**
-     * 下拉候选：统一 OptionPage 契约（value=id，label=name，meta.protocolCode=接口协议）。
-     * 协议码属绑定键之外的业务属性，按 options 契约一律走资源专属 meta，不塞进 {@code OptionItem}。
+     * 下拉候选：统一 OptionPage 契约（value=id，label=name，meta 带协议与模型族）。
+     * 协议码与模型族属绑定键之外的业务属性，按 options 契约一律走资源专属 meta，不塞进 {@code OptionItem}。
      */
     @GetMapping("/options")
     public OptionPage<OptionItem<RoutingTestPresetOptionMeta>> options() {
         List<OptionItem<RoutingTestPresetOptionMeta>> list =
                 presetConverter.toVOList(presetService.listActiveOptions()).stream()
                         .map(p -> new OptionItem<RoutingTestPresetOptionMeta>(
-                                p.id(), p.name(), null, new RoutingTestPresetOptionMeta(p.protocolCode())))
+                                p.id(), p.name(), null, new RoutingTestPresetOptionMeta(p.protocolCode(), p.modelFamily())))
                         .toList();
         return OptionPage.of(list, list.size(), 1, Math.max(list.size(), 1));
     }

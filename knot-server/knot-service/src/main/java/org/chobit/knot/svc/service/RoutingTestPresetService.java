@@ -3,7 +3,6 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.svc.converter.RoutingTestPresetConverter;
@@ -11,12 +10,13 @@ import org.chobit.knot.svc.dto.routing.RoutingTestPresetDto;
 import org.chobit.knot.dal.entity.RoutingTestPresetEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
-import org.chobit.knot.dal.mapper.LogicalModelMapper;
+import org.chobit.knot.dal.mapper.ModelFamilyMapper;
 import org.chobit.knot.dal.mapper.RoutingTestPresetMapper;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
 import org.chobit.knot.common.util.JsonKit;
+import org.chobit.knot.common.util.TextSupport;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,26 +25,29 @@ import java.util.Map;
 
 /**
  * 路由调试预设请求用例服务。用例替代 {@code RoutingRuleService#defaultRequestBody} 的硬编码骨架，
- * 由用户维护完整、具体的请求体 JSON，按协议归类、全局共享复用。
+ * 由用户维护完整、具体的请求体 JSON，按协议与模型族归类、全局共享复用。
  */
 @Service
 public class RoutingTestPresetService {
     private final RoutingTestPresetMapper presetMapper;
-    private final LogicalModelMapper logicalModelMapper;
+    private final ModelFamilyMapper modelFamilyMapper;
     private final RoutingTestPresetConverter presetConverter;
 
     public RoutingTestPresetService(RoutingTestPresetMapper presetMapper,
-                                    LogicalModelMapper logicalModelMapper,
+                                    ModelFamilyMapper modelFamilyMapper,
                                     RoutingTestPresetConverter presetConverter) {
         this.presetMapper = presetMapper;
-        this.logicalModelMapper = logicalModelMapper;
+        this.modelFamilyMapper = modelFamilyMapper;
         this.presetConverter = presetConverter;
     }
 
-    public PageResult<RoutingTestPresetDto> list(PageRequest pageRequest, String keyword, String protocolCode) {
+    public PageResult<RoutingTestPresetDto> list(PageRequest pageRequest, String keyword, String protocolCode,
+                                                 String modelFamily) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<RoutingTestPresetEntity> pageInfo = new PageInfo<>(
-                    presetMapper.listPresets(StringUtils.trimToNull(keyword), normalizeProtocol(protocolCode))
+                    presetMapper.listPresets(TextSupport.blankToNull(keyword),
+                            TextSupport.blankToNull(protocolCode),
+                            TextSupport.blankToNull(modelFamily))
             );
             return PageResult.fromPage(pageInfo, presetConverter::toDtoList, pageRequest);
         }
@@ -133,10 +136,10 @@ public class RoutingTestPresetService {
         if (protocol == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "协议不支持或不存在");
         }
-        // 统一模型维度可空：留空为通用用例；填了则必须指向真实存在的统一模型（按业务码判定）
-        String logicalModelCode = normalizeLogicalModelCode(request.logicalModelCode());
-        if (logicalModelCode != null && logicalModelMapper.getByCode(logicalModelCode) == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "统一模型不存在");
+        // 模型族可空：留空为通用用例；填了则必须是枚举表中存在的模型族（category=model_family）
+        String modelFamily = TextSupport.blankToNull(request.modelFamily());
+        if (modelFamily != null && modelFamilyMapper.getByCode(modelFamily) == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型族不存在");
         }
     }
 
@@ -147,7 +150,7 @@ public class RoutingTestPresetService {
         // 协议归一为 canonical code，保证跨别名一致
         entity.setProtocolCode(ModelApiProtocolEnum.fromCode(request.protocolCode()).canonical().code());
         // 可空归类维度：空串归一为 null（通用用例）
-        entity.setLogicalModelCode(normalizeLogicalModelCode(request.logicalModelCode()));
+        entity.setModelFamily(TextSupport.blankToNull(request.modelFamily()));
         entity.setRequestBody(request.requestBody());
         entity.setRemark(request.remark() == null ? null : request.remark().trim());
         entity.setStatus(request.status() == null
@@ -156,14 +159,4 @@ public class RoutingTestPresetService {
         return entity;
     }
 
-    private static String normalizeProtocol(String protocolCode) {
-        String value = protocolCode == null ? "" : protocolCode.trim();
-        return value.isEmpty() ? null : value;
-    }
-
-    /** 统一模型归一：空白视为未归类（通用用例），返回 null。 */
-    private static String normalizeLogicalModelCode(String logicalModelCode) {
-        String value = logicalModelCode == null ? "" : logicalModelCode.trim();
-        return value.isEmpty() ? null : value;
-    }
 }

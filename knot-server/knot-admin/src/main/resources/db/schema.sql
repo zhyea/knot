@@ -761,18 +761,18 @@ CREATE TABLE IF NOT EXISTS ks_enum_configs (
 -- 路由调试预设请求用例
 -- =========================
 -- 替代 RoutingRuleService#defaultRequestBody 的硬编码骨架：由用户维护完整、具体的请求体 JSON，
--- 按协议归类、全局共享复用。调试面板按当前协议从预设中载入请求体。
+-- 按协议 + 模型族归类、全局共享复用。调试面板按当前协议与目标模型族从预设中载入请求体。
 CREATE TABLE IF NOT EXISTS kb_test_request_presets (
     id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
     code          VARCHAR(64)  NOT NULL COMMENT '预设编码，人工填写，唯一',
     name          VARCHAR(100) NOT NULL COMMENT '预设名称',
     protocol_code VARCHAR(64)  NOT NULL COMMENT '关联协议 canonical code，如 CHAT_COMPLETIONS',
-    logical_model_code VARCHAR(128) DEFAULT NULL COMMENT '关联统一模型 code（kb_logical_models.model_code），可空，仅作归类',
+    model_family  VARCHAR(64)  DEFAULT NULL COMMENT '模型族 code（ks_enum_configs.category=model_family 的 item_code），可空：空表示通用用例，任何模型族都可选用',
     request_body  LONGTEXT     NOT NULL COMMENT '完整请求体 JSON（具体值；model/prompt 由调试面板按目标覆盖）',
     remark        VARCHAR(255) DEFAULT NULL COMMENT '备注',
     status        TINYINT      NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_test_request_presets_code (code),
-    KEY idx_test_request_presets_logical (logical_model_code)
+    KEY idx_test_request_presets_family (model_family)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT = '路由调试预设请求用例（替代硬编码默认请求体）';

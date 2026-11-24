@@ -248,7 +248,7 @@ class RoutingRuleStreamControllerTest {
         boolean handleClosed;
 
         StubRoutingRuleDebugService() {
-            super(null, null, null, null, null, null);
+            super(null, null, null, null, null, null, null);
         }
 
         void setUpstream(String... chunks) {

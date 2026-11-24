@@ -16,6 +16,15 @@
             placeholder="按协议筛选"
           />
         </FilterField>
+        <FilterField label="模型族" :width="240">
+          <EnumSelect
+            v-model="query.modelFamilyCode"
+            category="model_family"
+            clearable
+            filterable
+            placeholder="按模型族筛选"
+          />
+        </FilterField>
       </FilterBar>
 
       <section class="list-page-block list-page-block--content">
@@ -66,6 +75,7 @@ import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import EnumControl from "../../components/common/EnumControl.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
 import TestRequestPresetListPanel from "../../components/routing/TestRequestPresetListPanel.vue";
 import TestRequestPresetFormDrawer from "../../components/routing/TestRequestPresetFormDrawer.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
@@ -95,7 +105,7 @@ const {
   resetPage,
   handleQuery,
   handleReset
-} = useListQuery({ apiFn: listTestRequestPresets, fields: { keyword: "", protocol: "" } });
+} = useListQuery({ apiFn: listTestRequestPresets, fields: { keyword: "", protocol: "", modelFamilyCode: null } });
 
 const viewMode = ref(false);
 const togglingId = ref<number | string | null>(null);

@@ -16,12 +16,14 @@ import org.chobit.knot.svc.dto.routing.RoutingRuleDto;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.svc.dto.routing.RoutingTestPreparation;
 import org.chobit.knot.svc.dto.routing.RoutingTestStreamHandle;
+import org.chobit.knot.dal.entity.LogicalModelEntity;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 import org.chobit.knot.dal.entity.ModelEntity;
 import org.chobit.knot.dal.entity.ModelPoolEntity;
 import org.chobit.knot.dal.entity.RoutingConsumerEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
+import org.chobit.knot.dal.mapper.LogicalModelMapper;
 import org.chobit.knot.dal.mapper.ModelApiBindingMapper;
 import org.chobit.knot.dal.mapper.ModelMapper;
 import org.chobit.knot.dal.mapper.ModelPoolMapper;
@@ -49,6 +51,7 @@ public class RoutingRuleDebugService {
     private final ModelApiBindingMapper modelApiBindingMapper;
     private final ModelMapper modelMapper;
     private final ModelPoolMapper modelPoolMapper;
+    private final LogicalModelMapper logicalModelMapper;
     private final RoutingRuleDebugRunner debugRunner;
 
     public RoutingRuleDebugService(RoutingRuleService routingRuleService,
@@ -56,12 +59,14 @@ public class RoutingRuleDebugService {
                                    ModelApiBindingMapper modelApiBindingMapper,
                                    ModelMapper modelMapper,
                                    ModelPoolMapper modelPoolMapper,
+                                   LogicalModelMapper logicalModelMapper,
                                    RoutingRuleDebugRunner debugRunner) {
         this.routingRuleService = routingRuleService;
         this.routingConsumerMapper = routingConsumerMapper;
         this.modelApiBindingMapper = modelApiBindingMapper;
         this.modelMapper = modelMapper;
         this.modelPoolMapper = modelPoolMapper;
+        this.logicalModelMapper = logicalModelMapper;
         this.debugRunner = debugRunner;
     }
 
@@ -142,6 +147,7 @@ public class RoutingRuleDebugService {
                 RouteTargetTypeEnum.ofOrDefault(target.targetType(), RouteTargetTypeEnum.MODEL).code(),
                 target.targetId(),
                 target.primary(),
+                modelFamilyOf(target),
                 supportedProtocolsForTarget(target).stream()
                     .map(ModelApiProtocolEnum::code)
                     .toList()
@@ -242,6 +248,28 @@ public class RoutingRuleDebugService {
 
     private ModelApiProtocolEnum firstSupportedProtocol(RoutingRuleTargetDto target) {
         return supportedProtocolsForTarget(target).stream().findFirst().orElse(ModelApiProtocolEnum.CHAT_COMPLETIONS);
+    }
+
+    /**
+     * 目标解析出的模型族 code：MODEL 取映射到的统一模型族，MODEL_POOL 取池归属统一模型族。
+     * 目标是池内展开模型时仍按供应商模型自身的映射解析。无法解析返回 {@code null}。
+     */
+    private String modelFamilyOf(RoutingRuleTargetDto target) {
+        RouteTargetTypeEnum targetType =
+                RouteTargetTypeEnum.ofOrDefault(target.targetType(), RouteTargetTypeEnum.MODEL);
+        if (targetType == RouteTargetTypeEnum.MODEL) {
+            ModelEntity model = modelMapper.getByCode(target.targetCode());
+            return model == null ? null : model.getModelFamilyCode();
+        }
+        if (targetType != RouteTargetTypeEnum.MODEL_POOL || target.targetId() == null) {
+            return null;
+        }
+        ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
+        if (pool == null) {
+            return null;
+        }
+        LogicalModelEntity logicalModel = logicalModelMapper.getByCode(pool.getLogicalModelCode());
+        return logicalModel == null ? null : logicalModel.getModelFamily();
     }
 
     private Set<ModelApiProtocolEnum> supportedProtocolsForTarget(RoutingRuleTargetDto target) {

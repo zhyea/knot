@@ -30,11 +30,14 @@ export interface TestPresetOption {
   id: number;
   name: string;
   protocolCode: string;
+  /** 模型族 code；null = 通用用例，任何调试目标都可选用 */
+  modelFamily: string | null;
 }
 
 /** 预设项 meta（对应后端 OptionItem<TestRequestPresetOptionMeta>；后端可为 null） */
 interface TestPresetOptionMeta {
   protocolCode?: string | null;
+  modelFamily?: string | null;
 }
 
 /** 请求头表格行：抽屉打开时按当前密钥 / 规则编码生成默认三行，之后以表格为准 */
@@ -63,6 +66,8 @@ export interface TestRequestCompositionContext {
   targetKey: () => string | null | undefined;
   /** 当前生效协议 code（归一后） */
   protocol: ComputedRef<string>;
+  /** 当前调试目标的模型族 code：空表示不限，预设下拉不做族过滤 */
+  targetModelFamily: () => string | null | undefined;
   /** 「执行计费规则校验」开关：打开时请求头补临时测试头 */
   billingVerifyEnabled: Ref<boolean>;
   /** 规则绑定消费者是否已默认返回消费详情：已开启则无需临时头 */
@@ -241,7 +246,14 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
     if (!protocol) {
       return [];
     }
-    return presetOptions.value.filter((preset) => preset.protocolCode === protocol);
+    const family = (ctx.targetModelFamily() || "").trim();
+    return presetOptions.value.filter((preset) => {
+      if (preset.protocolCode !== protocol) {
+        return false;
+      }
+      // 通用用例（未绑族）对任何目标都可用；目标解析不出族时不做族过滤
+      return !family || !preset.modelFamily || preset.modelFamily === family;
+    });
   });
 
   async function loadPresetOptions(): Promise<void> {
@@ -252,7 +264,8 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
       presetOptions.value = (page?.list ?? []).map((item) => ({
         id: Number(item.value),
         name: item.label,
-        protocolCode: item.meta?.protocolCode ?? ""
+        protocolCode: item.meta?.protocolCode ?? "",
+        modelFamily: item.meta?.modelFamily ?? null
       }));
     } catch {
       presetOptions.value = [];
@@ -321,7 +334,10 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
     }
   }
 
-  /** 协议切换 / 首次进入时确保有模板：没有就播种，有空白占位就补选预设 */
+  /**
+   * 协议切换 / 首次进入时确保有模板：没有就播种，有空白占位就补选预设。
+   * 切换目标导致族过滤后原选中项不再可用时，只改选中项、不覆盖模板（模板可能已被用户编辑）。
+   */
   function ensureTemplateForCurrentSelection(): void {
     const protocol = ctx.protocol.value;
     if (!protocol || !activeTemplateKey.value) {
@@ -329,7 +345,14 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
     }
     if (!templateStore[activeTemplateKey.value]) {
       seedTemplateForProtocol();
-    } else if (selectedPresetId.value == null && filteredPresetOptions.value.length) {
+      return;
+    }
+    if (selectedPresetId.value != null
+      && !filteredPresetOptions.value.some((preset) => String(preset.id) === String(selectedPresetId.value))) {
+      selectedPresetId.value = filteredPresetOptions.value[0]?.id ?? null;
+      return;
+    }
+    if (selectedPresetId.value == null && filteredPresetOptions.value.length) {
       autoSelectFirstPreset();
     }
   }

@@ -113,12 +113,20 @@ watch(
   }
 );
 
-/** 价格种类键 -> 中文（后端 TOKEN 给四项，其余给 default） */
+/**
+ * 价格种类键 -> 中文（后端 TOKEN 给四项、图片按 token 计价给五个模态、其余给 default）。
+ * 模态键与计费明细 type 同源，文案跟「基础计费规则」里的模态单价输入框一致。
+ */
 const PRICE_LABELS: Record<string, string> = {
   input: "输入",
   output: "输出",
   cache_read: "缓存读取",
   cache_write: "缓存写",
+  inputText: "文本输入",
+  inputImage: "图像输入",
+  cachedInputText: "文本缓存输入",
+  cachedInputImage: "图像缓存输入",
+  outputImage: "图像输出",
   default: "默认单价"
 };
 

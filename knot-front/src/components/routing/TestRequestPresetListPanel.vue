@@ -9,6 +9,11 @@
           {{ protocolLabel(row.protocolCode) }}
         </template>
       </el-table-column>
+      <el-table-column label="模型族" min-width="140" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ displayText(row.modelFamilyName || row.modelFamily, "通用") }}
+        </template>
+      </el-table-column>
       <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
@@ -56,6 +61,7 @@ import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
+import {displayText} from "@/utils/format";
 import {EnabledStatus} from "@/constants/status";
 
 defineProps({

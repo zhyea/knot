@@ -81,7 +81,7 @@
                     <el-select
                       v-model="selectedPresetId"
                       :disabled="filteredPresetOptions.length === 0"
-                      placeholder="从预设请求载入请求模板"
+                      :placeholder="filteredPresetOptions.length === 0 ? '该协议与模型族下暂无预设请求' : '从预设请求载入请求模板'"
                       clearable
                       filterable
                       class="preset-select"
@@ -559,6 +559,8 @@ const testResult = ref<RoutingTestResult | null>(null);
 const responseHeaders = ref<Record<string, string>>({});
 /** 目标 key → 该目标可调试的协议 code；清空就是整体换一个空对象（比逐个 delete key 更省心） */
 const targetProtocolMap = ref<Record<string, string[]>>({});
+/** 目标 key → 该目标解析出的模型族 code（预设请求按族过滤；null 表示无法解析，不过滤） */
+const targetFamilyMap = ref<Record<string, string | null>>({});
 
 /** 区块滚动容器引用，用于追加后自动滚到底部 */
 const streamScrollbar = ref<ScrollbarLike | null>(null);
@@ -686,6 +688,10 @@ const targetOptions = computed(() =>
 );
 
 const activeTarget = computed(() => targetOptions.value.find((item) => item.key === testForm.targetKey) || null);
+/** 当前选中目标的模型族：「全部目标」不带族，预设下拉只按协议过滤 */
+const activeTargetFamily = computed<string | null>(() =>
+  testForm.targetKey === ALL_TARGETS_KEY ? null : (targetFamilyMap.value[testForm.targetKey] ?? null)
+);
 const availableProtocols = computed(() =>
   // 与 syncCurrentProtocol 同一口径：这里只负责加 label，协议集合只由 currentProtocolCodes 决定
   currentProtocolCodes().map((code) => ({code, label: protocolLabel(code)}))
@@ -720,6 +726,7 @@ const {
   ruleCode: () => props.ruleCode,
   targetKey: () => testForm.targetKey,
   protocol: activeProtocol,
+  targetModelFamily: () => activeTargetFamily.value,
   billingVerifyEnabled: testBillingVerify,
   consumerReturnUsageDetail: () => props.consumerReturnUsageDetail,
   canonicalOf,
@@ -1186,23 +1193,29 @@ async function loadAllTargetProtocols() {
   protocolLoading.value = true;
   try {
     targetProtocolMap.value = {};
+    targetFamilyMap.value = {};
     if (props.ruleId == null) {
       syncCurrentProtocol();
       return;
     }
     const detail = await listRoutingRuleDebugProtocols(props.ruleId);
     const next: Record<string, string[]> = {};
+    const nextFamilies: Record<string, string | null> = {};
     for (const item of detail?.targets || []) {
       if (item?.targetId == null) {
         continue;
       }
-      next[`${normalizeTargetType(item.targetType)}:${item.targetId}`] = item.protocols || [];
+      const key = `${normalizeTargetType(item.targetType)}:${item.targetId}`;
+      next[key] = item.protocols || [];
+      nextFamilies[key] = item.modelFamily ?? null;
     }
     targetProtocolMap.value = next;
+    targetFamilyMap.value = nextFamilies;
     syncCurrentProtocol();
   } catch {
     // 载入失败保持空表：协议下拉随之置空，不做本地兜底，避免下拉出后端实际不放行的协议
     targetProtocolMap.value = {};
+    targetFamilyMap.value = {};
     syncCurrentProtocol();
   } finally {
     protocolLoading.value = false;

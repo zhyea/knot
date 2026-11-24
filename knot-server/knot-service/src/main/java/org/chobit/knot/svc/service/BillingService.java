@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.adapter.model.usage.ImageTokenDetailKind;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.BillingUnitEnum;
 import org.chobit.knot.common.constants.enums.CurrencyCodeEnum;
@@ -113,17 +114,22 @@ public class BillingService {
         BigDecimal zero = BigDecimal.ZERO;
 
         PhaseDecision decision = null;
+        BillingConfig.PricingPlan pricingPlan = config == null
+            ? null
+            : config.pricingPlan(plan, HolidayCalendar.EMPTY);
+        if (config != null && PricingPlanEnum.PEAK_OFF_PEAK == plan) {
+            decision = PeakOffPeakResolver.resolve(config.pricing(), occurredAt, HolidayCalendar.EMPTY);
+        }
         Map<String, BigDecimal> prices;
-        if (config == null) {
-            prices = BillingModeEnum.TOKEN == modeEnum ? tokenPricesOf(null, context, zero) : Map.of("default", zero);
+        if (BillingModeEnum.TOKEN == modeEnum) {
+            prices = tokenPricesOf(pricingPlan, context, zero);
+        } else if (imageTokenPriced(modeEnum, rule.unit())) {
+            // 图片按 token 计价：五个模态单价分别展示，未配置的记为 0，与明细行逐模态出价同源
+            prices = imageTokenPricesOf(config == null || config.image() == null
+                ? null
+                : config.image().tokenPrices(), zero);
         } else {
-            BillingConfig.PricingPlan pricingPlan = config.pricingPlan(plan, HolidayCalendar.EMPTY);
-            if (PricingPlanEnum.PEAK_OFF_PEAK == plan) {
-                decision = PeakOffPeakResolver.resolve(config.pricing(), occurredAt, HolidayCalendar.EMPTY);
-            }
-            prices = BillingModeEnum.TOKEN == modeEnum
-                ? tokenPricesOf(pricingPlan, context, zero)
-                : Map.of("default", pricingPlan.resolveDefaultPrice(context, zero));
+            prices = Map.of("default", pricingPlan == null ? zero : pricingPlan.resolveDefaultPrice(context, zero));
         }
         return new PricingPreviewResult(
             rule.id(),
@@ -152,6 +158,32 @@ public class BillingService {
         for (BillingConfig.PriceKind kind : BillingConfig.PriceKind.values()) {
             BigDecimal price = pricingPlan == null ? zero : pricingPlan.resolvePrice(kind, context, zero);
             prices.put(kind.name().toLowerCase(Locale.ROOT), price);
+        }
+        return prices;
+    }
+
+    /**
+     * 图片是否按 token 计量：量纲由规则单位声明（{@link BillingUnitEnum#tokenBased()}），
+     * 单位先过 {@link BillingModeEnum#normalizeUnit(String)}，与计费计算器同口径。
+     */
+    private boolean imageTokenPriced(BillingModeEnum mode, String unit) {
+        if (BillingModeEnum.IMAGE != mode) {
+            return false;
+        }
+        BillingUnitEnum unitEnum = BillingUnitEnum.fromCode(mode.normalizeUnit(unit));
+        return unitEnum != null && unitEnum.tokenBased();
+    }
+
+    /**
+     * 图片五个模态单价：键取 {@link ImageTokenDetailKind#key()}，与计费明细的 type 同源；
+     * 价表缺失或某项未填时记 0（试算只做展示，不替用户补价）。
+     */
+    private Map<String, BigDecimal> imageTokenPricesOf(BillingConfig.ImageTokenPrices tokenPrices,
+                                                      BigDecimal zero) {
+        LinkedHashMap<String, BigDecimal> prices = new LinkedHashMap<>();
+        for (ImageTokenDetailKind kind : ImageTokenDetailKind.values()) {
+            BigDecimal price = kind.unitPriceIn(tokenPrices);
+            prices.put(kind.key(), price == null ? zero : price);
         }
         return prices;
     }

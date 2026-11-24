@@ -99,7 +99,7 @@
               <!-- 第一层：模式组件（用量与基础价格）；第二层：方案组件（进阶定价明细） -->
               <div class="billing-base-card">
                 <div class="billing-base-card__title">基础计费规则</div>
-                <component :is="modeComponent" :form="form"/>
+                <component :is="modeComponent" :form="form" v-bind="modeExtraProps"/>
               </div>
               <component :is="planComponent" :form="form"/>
             </div>
@@ -258,6 +258,18 @@ const availablePlanCodes = computed<string[]>(() => {
     return codes.filter((code) => code === PricingPlan.FIXED);
   }
   return codes;
+});
+
+/**
+ * 模式组件的额外入参：图片模式下发「当前能力矩阵里可用的 token 单位」，
+ * 让基础计费区能提示并一键切到模态定价。其它模式不传，避免未声明该 prop 的组件把它落到根元素上。
+ */
+const modeExtraProps = computed<Record<string, unknown>>(() => {
+  if (form.billingMode !== BillingMode.IMAGE) {
+    return {};
+  }
+  const tokenUnitCode = (unitCodes.value as string[]).find((code) => isTokenPricedUnit(code));
+  return tokenUnitCode ? {tokenUnitCode} : {};
 });
 
 interface BillingRuleFormState {

@@ -43,6 +43,19 @@ class BillingServicePreviewTest {
             }
             """;
 
+    private static final String IMAGE_TOKEN_CONFIG = """
+            {
+              "image": {
+                "tokenPrices": {"inputText": 5, "inputImage": 8, "cacheReadText": 1.25,
+                                "cacheReadImage": 2, "outputImage": 30}
+              }
+            }
+            """;
+
+    private static final String IMAGE_TOKEN_CONFIG_WITHOUT_CACHE = """
+            {"image": {"tokenPrices": {"inputText": 5, "inputImage": 8, "outputImage": 30}}}
+            """;
+
     @Test
     void shouldReportPeakDecisionAndMultipliedPrices() {
         PricingPreviewResult result = preview("2026-09-28T02:30:00Z", "PEAK_OFF_PEAK");
@@ -83,18 +96,58 @@ class BillingServicePreviewTest {
         assertEquals(0, new BigDecimal("8").compareTo(result.prices().get("output")));
     }
 
+    @Test
+    void shouldPreviewImageModalityPricesWhenBilledByToken() {
+        PricingPreviewResult result = preview("IMAGE", "1M_TOKENS", "FIXED",
+                IMAGE_TOKEN_CONFIG, "2026-09-28T02:30:00Z");
+
+        assertEquals("IMAGE", result.billingMode());
+        assertEquals(5, result.prices().size());
+        assertEquals(0, new BigDecimal("5").compareTo(result.prices().get("inputText")));
+        assertEquals(0, new BigDecimal("8").compareTo(result.prices().get("inputImage")));
+        assertEquals(0, new BigDecimal("1.25").compareTo(result.prices().get("cachedInputText")));
+        assertEquals(0, new BigDecimal("2").compareTo(result.prices().get("cachedInputImage")));
+        assertEquals(0, new BigDecimal("30").compareTo(result.prices().get("outputImage")));
+        assertEquals(1_000_000, result.unitSize());
+        assertNull(result.phase());
+    }
+
+    @Test
+    void shouldFallBackCacheModalityPriceToModalityInputPrice() {
+        PricingPreviewResult result = preview("IMAGE", "1M_TOKENS", "FIXED",
+                IMAGE_TOKEN_CONFIG_WITHOUT_CACHE, "2026-09-28T02:30:00Z");
+
+        assertEquals(0, new BigDecimal("5").compareTo(result.prices().get("cachedInputText")));
+        assertEquals(0, new BigDecimal("8").compareTo(result.prices().get("cachedInputImage")));
+    }
+
+    @Test
+    void shouldKeepSingleDefaultPriceWhenImageBilledByCount() {
+        PricingPreviewResult result = preview("IMAGE", "PER_IMAGE", "FIXED",
+                "{\"defaultUnitPrice\": 0.3}", "2026-09-28T02:30:00Z");
+
+        assertEquals(1, result.prices().size());
+        assertEquals(0, new BigDecimal("0.3").compareTo(result.prices().get("default")));
+        assertEquals(1, result.unitSize());
+    }
+
     /**
      * mapper / converter 都走 mock：这里验的是「DTO -> 试算结果」这一段纯逻辑，
      * 不想被 MapStruct 的字段注入绑住。
      */
     private PricingPreviewResult preview(String occurredAt, String pricingPlan) {
-        BillingRuleEntity entity = entity(pricingPlan);
+        return preview("TOKEN", "1K_TOKENS", pricingPlan, CONFIG, occurredAt);
+    }
+
+    private PricingPreviewResult preview(String mode, String unit, String pricingPlan,
+                                         String config, String occurredAt) {
+        BillingRuleEntity entity = entity(mode, unit, pricingPlan, config);
         BillingRuleMapper mapper = mock(BillingRuleMapper.class);
         when(mapper.getById(7L)).thenReturn(entity);
 
         BillingRuleDto dto = new BillingRuleDto(
                 7L, "BR-TOKEN-PEAK", null, null,
-                "v1", null, "TOKEN", pricingPlan, "USD", "1K_TOKENS", CONFIG,
+                "v1", null, mode, pricingPlan, "USD", unit, config,
                 true, LocalDateTime.now(), null, null, 0L);
         BillingConverter converter = mock(BillingConverter.class);
         when(converter.toRuleDto(entity)).thenReturn(dto);
@@ -103,16 +156,16 @@ class BillingServicePreviewTest {
         return service.previewPricing(7L, new PricingPreviewRequest(occurredAt, null));
     }
 
-    private BillingRuleEntity entity(String pricingPlan) {
+    private BillingRuleEntity entity(String mode, String unit, String pricingPlan, String config) {
         BillingRuleEntity entity = new BillingRuleEntity();
         entity.setId(7L);
         entity.setCode("BR-TOKEN-PEAK");
-        entity.setBillingMode("TOKEN");
+        entity.setBillingMode(mode);
         entity.setPricingPlan(pricingPlan);
         entity.setCurrency("USD");
-        entity.setUnit("1K_TOKENS");
+        entity.setUnit(unit);
         entity.setVersionCode("v1");
-        entity.setConfigJson(CONFIG);
+        entity.setConfigJson(config);
         return entity;
     }
 }

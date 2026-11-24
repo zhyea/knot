@@ -116,7 +116,14 @@ export function listDebugCapabilities() {
  */
 export function listRoutingRuleDebugProtocols(ruleId: number | string) {
   return get<{
-    targets: Array<{ targetType: string; targetId: number | string; primary: boolean; protocols: string[] }>;
+    targets: Array<{
+      targetType: string;
+      targetId: number | string;
+      primary: boolean;
+      /** 目标解析出的模型族 code（MODEL 取映射统一模型、MODEL_POOL 取池归属统一模型）；null 表示无法解析 */
+      modelFamily?: string | null;
+      protocols: string[];
+    }>;
   }>(`/api/routing-rules/${ruleId}/debug-protocols`);
 }
 

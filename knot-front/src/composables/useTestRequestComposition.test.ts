@@ -24,6 +24,7 @@ function makeCtx(overrides: Partial<TestRequestCompositionContext> = {}): TestRe
     ruleCode: () => "rule-abc",
     targetKey: () => "__ALL__",
     protocol,
+    targetModelFamily: () => null,
     billingVerifyEnabled: ref(true),
     consumerReturnUsageDetail: () => false,
     canonicalOf: (code) => String(code ?? ""),
@@ -214,5 +215,29 @@ describe("useTestRequestComposition 请求构造", () => {
 
     // 过期响应的结果被丢弃，模板仍是 P2 的
     expect(api.currentTemplateText.value).toContain("p2");
+  });
+
+  it("filteredPresetOptions：按目标模型族过滤，通用用例始终可选；目标无族时不过滤", async () => {
+    const family = ref<string | null>("openai");
+    const api = useTestRequestComposition(
+      makeCtx({
+        targetModelFamily: () => family.value,
+        listPresetOptions: vi.fn().mockResolvedValue({
+          list: [
+            { value: 1, label: "同族", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: "openai" } },
+            { value: 2, label: "异族", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: "anthropic" } },
+            { value: 3, label: "通用", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: null } }
+          ],
+          total: 3
+        })
+      })
+    );
+
+    await api.loadPresetOptions();
+    expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([1, 3]);
+
+    family.value = null;
+    await nextTick();
+    expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([1, 2, 3]);
   });
 });

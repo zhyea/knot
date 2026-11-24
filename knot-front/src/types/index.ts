@@ -96,6 +96,8 @@ export interface RoleOptionMeta {
 /** 测试请求预设：接口协议（value 是预设 id），决定调试面板的协议适配器。 */
 export interface TestRequestPresetOptionMeta {
   protocolCode?: string | null;
+  /** 模型族 code；null 表示通用用例，任何调试目标都可选用 */
+  modelFamily?: string | null;
 }
 
 /** 所有带 meta 的下拉候选项类型联合（无 meta 资源 meta 恒为 null）。 */
