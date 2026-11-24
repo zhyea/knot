@@ -1,8 +1,8 @@
 <template>
   <template v-if="tokenUnit">
     <el-row :gutter="16">
-      <el-col :xs="24" :span="8">
-        <el-form-item :label="`文本输入 · ${unitLabel}`">
+      <el-col :xs="24" :span="12">
+        <el-form-item :label="文本输入">
           <el-input-number
             v-model="form.imageTokenInputText"
             :min="0"
@@ -12,8 +12,8 @@
           />
         </el-form-item>
       </el-col>
-      <el-col :xs="24" :span="8">
-        <el-form-item :label="`图像输入 · ${unitLabel}`">
+      <el-col :xs="24" :span="12">
+        <el-form-item :label="图像输入">
           <el-input-number
             v-model="form.imageTokenInputImage"
             :min="0"
@@ -23,8 +23,8 @@
           />
         </el-form-item>
       </el-col>
-      <el-col :xs="24" :span="8">
-        <el-form-item :label="`图像输出 · ${unitLabel}`">
+      <el-col :xs="24" :span="12">
+        <el-form-item :label="图像输出">
           <el-input-number
             v-model="form.imageTokenOutputImage"
             :min="0"
@@ -34,8 +34,8 @@
           />
         </el-form-item>
       </el-col>
-      <el-col :xs="24" :span="8">
-        <el-form-item :label="`文本缓存输入 · ${unitLabel}`">
+      <el-col :xs="24" :span="12">
+        <el-form-item :label="文本缓存输入">
           <el-input-number
             v-model="form.imageTokenCacheReadText"
             :min="0"
@@ -45,8 +45,8 @@
           />
         </el-form-item>
       </el-col>
-      <el-col :xs="24" :span="8">
-        <el-form-item :label="`图像缓存输入 · ${unitLabel}`">
+      <el-col :xs="24" :span="12">
+        <el-form-item :label="图像缓存输入">
           <el-input-number
             v-model="form.imageTokenCacheReadImage"
             :min="0"
