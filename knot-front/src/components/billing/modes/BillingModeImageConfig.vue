@@ -56,7 +56,7 @@
           />
         </el-form-item>
       </el-col>
-      <el-col :xs="24" :span="16">
+      <el-col :xs="24" :span="24">
         <el-form-item label="口径">
           <span class="image-config__readonly">{{ volumeHint }}</span>
         </el-form-item>
