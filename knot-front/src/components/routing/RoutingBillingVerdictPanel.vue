@@ -145,11 +145,11 @@
         </div>
       </div>
 
-      <!-- 自检七项 -->
+      <!-- 自检八项 -->
       <div class="bv-zone bv-zone--checks">
         <div class="bv-zone__head">
           <span class="bv-zone__index">①</span>
-          <span class="bv-zone__title">自检（七项）</span>
+          <span class="bv-zone__title">自检（八项）</span>
           <span class="bv-zone__hint">算术正确性 · 代码精确 · SKIP 不充 PASS</span>
         </div>
         <ul class="bv-checks">
@@ -193,14 +193,15 @@
                 <span
                   class="bv-answer__status"
                   :class="answer.status === 'NOT_RETURNED' ? 'bv-muted' : `bv-answer__status--${answerSeverityClass(answer)}`"
+                  :title="answer.status === 'NOT_RETURNED' ? '裁判未给出该项答案' : '裁判已给出选择，结论见下方取值'"
                 >
-                  {{ answer.status === "NOT_RETURNED" ? "未返回" : "已返回" }}
+                  {{ answer.status === "NOT_RETURNED" ? "未返回" : "已作答" }}
                 </span>
               </div>
               <div class="bv-answer__value" :class="`bv-answer__value--${answerSeverityClass(answer)}`">
                 {{ answerText(answer) }}
               </div>
-              <div v-if="answer.note" class="bv-answer__note">{{ answer.note }}</div>
+              <div v-if="answer.note" class="bv-answer__note">释义：{{ answer.note }}</div>
             </div>
             <div v-if="!result.verdict.answers?.length" class="bv-empty">裁判未给出答案</div>
           </div>
@@ -212,6 +213,7 @@
 
 <script setup lang="ts">
 import {EMPTY_PLACEHOLDER, displayText} from "@/utils/format";
+import {buildUsagePairs, type UsagePair} from "@/utils/usagePairs";
 import {labelOf} from "@/composables/useEnumOptions";
 import {computed} from "vue";
 import type {
@@ -237,29 +239,13 @@ const shadowLines = computed<BillingFactAmountLine[]>(
   () => props.result?.shadowBilling?.details ?? []
 );
 
-/** 用量对照：上游原文 usage ↔ 网关归一化 knot_extend.usage，按字段并集对齐 */
-const usagePairs = computed<Array<{ key: string; upstream: string; produced: string }>>(() => {
-  const upstream = (props.result?.upstreamUsage ?? {}) as Record<string, unknown>;
-  const produced = (props.result?.producedUsage ?? {}) as Record<string, unknown>;
-  const keys = new Set<string>([...Object.keys(upstream), ...Object.keys(produced)]);
-  return [...keys]
-    .sort()
-    .map((key) => ({
-      key,
-      upstream: formatValue(upstream[key]),
-      produced: formatValue(produced[key]),
-    }));
-});
-
-function formatValue(value: unknown): string {
-  if (value == null || value === "") {
-    return EMPTY_PLACEHOLDER;
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
+/** 用量对照：上游原文 usage ↔ 网关归一化 knot_extend.usage，按段落对齐（扁平键 ↔ output / input / attributes） */
+const usagePairs = computed<UsagePair[]>(() =>
+  buildUsagePairs(
+    (props.result?.upstreamUsage ?? {}) as Record<string, unknown>,
+    (props.result?.producedUsage ?? {}) as Record<string, unknown>
+  )
+);
 
 /** 影子重算与被告账的差额说明（仅数值可解析时给出） */
 const shadowDiffText = computed(() => {

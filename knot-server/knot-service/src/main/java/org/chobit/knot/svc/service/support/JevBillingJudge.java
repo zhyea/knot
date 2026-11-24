@@ -108,10 +108,13 @@ public class JevBillingJudge {
 
         // 凭据仅用于鉴权头——本方法任何日志都不引用 secretKey
         String secretKey = consumer.getSecretKey();
+        String billingMode = billingModeOf(context);
+        Map<String, String> usageCriteria = usageParseCriteria(billingMode);
+        Map<String, String> costCriteria = costPlausibleCriteria(billingMode);
         Map<String, Object> body = buildRequestBody(context, sessionId, false);
         try {
             String raw = transport.post(gatewayBaseUrl, secretKey, ruleCode, body);
-            return parseVerdict(raw);
+            return parseVerdict(raw, usageCriteria, costCriteria);
         } catch (HttpStatusCodeException ex) {
             int status = ex.getStatusCode().value();
             String respBody = safeBody(ex);
@@ -123,7 +126,7 @@ public class JevBillingJudge {
                 try {
                     Map<String, Object> minimal = buildRequestBody(context, sessionId, true);
                     String raw2 = transport.post(gatewayBaseUrl, secretKey, ruleCode, minimal);
-                    return parseVerdict(raw2);
+                    return parseVerdict(raw2, usageCriteria, costCriteria);
                 } catch (HttpStatusCodeException ex2) {
                     return unavailable("裁判请求体过大（413），已截断重试仍失败");
                 } catch (Exception ex2) {
@@ -139,7 +142,7 @@ public class JevBillingJudge {
                 }
                 try {
                     String raw2 = transport.post(gatewayBaseUrl, secretKey, ruleCode, body);
-                    return parseVerdict(raw2);
+                    return parseVerdict(raw2, usageCriteria, costCriteria);
                 } catch (HttpStatusCodeException ex2) {
                     return unavailable("裁判限流（429），已退避重试仍失败");
                 } catch (Exception ex2) {
@@ -239,6 +242,27 @@ public class JevBillingJudge {
         return BillingModeEnum.VIDEO.code().equals(billingMode);
     }
 
+    /** 图片计费模式判定：{@code IMAGE} 按张计量，题面与释义单独一档。 */
+    private static boolean isImageMode(String billingMode) {
+        return BillingModeEnum.IMAGE.code().equals(billingMode);
+    }
+
+    /** 用量解析题面：按计费模式取对应计量口径的说明文本。 */
+    private static String usageParseInstructions(String billingMode) {
+        if (isImageMode(billingMode)) {
+            return imageUsageParseInstructions();
+        }
+        return isVideoMode(billingMode) ? videoUsageParseInstructions() : tokenUsageParseInstructions();
+    }
+
+    /** 费用相称题面：按计费模式取对应档位口径的说明文本。 */
+    private static String costPlausibleInstructions(String billingMode) {
+        if (isImageMode(billingMode)) {
+            return imageCostPlausibleInstructions();
+        }
+        return isVideoMode(billingMode) ? videoCostPlausibleInstructions() : tokenCostPlausibleInstructions();
+    }
+
     /**
      * provider 段只保留下发数据合规约束。
      */
@@ -250,16 +274,15 @@ public class JevBillingJudge {
     }
 
     /**
-     * 四题，按计费模式分族；选项键（{@code CORRECT} / {@code INCORRECT} / {@code INSUFFICIENT_EVIDENCE} 等）两族一致，
+     * 四题，按计费模式分族；选项键（{@code CORRECT} / {@code INCORRECT} / {@code INSUFFICIENT_EVIDENCE} 等）跨族一致，
      * 变化只在 {@code instructions}（让裁判知道该看哪些字段），响应解析与摘要生成不分叉。
      */
     private static Map<String, Object> buildQuestions(String billingMode) {
-        boolean video = isVideoMode(billingMode);
         Map<String, Object> questions = new LinkedHashMap<>();
         questions.put("usage_parse_ok", Map.of(
                 "type", "choice",
-                "instructions", video ? videoUsageParseInstructions() : tokenUsageParseInstructions(),
-                "criteria", usageParseCriteria()));
+                "instructions", usageParseInstructions(billingMode),
+                "criteria", usageParseCriteria(billingMode)));
         questions.put("rule_match_ok", Map.of(
                 "type", "choice",
                 "instructions", "本次命中（见 evidence.billingRule.matchedBy）的计费规则是否适用于"
@@ -271,8 +294,8 @@ public class JevBillingJudge {
                         "MISSING", "完全未命中任何计费规则")));
         questions.put("cost_plausible", Map.of(
                 "type", "choice",
-                "instructions", video ? videoCostPlausibleInstructions() : tokenCostPlausibleInstructions(),
-                "criteria", costPlausibleCriteria()));
+                "instructions", costPlausibleInstructions(billingMode),
+                "criteria", costPlausibleCriteria(billingMode)));
         questions.put("risk_level", Map.of(
                 "type", "choice",
                 "instructions", "综合 state.subject、state.produced 与 state.evidence 给出一个离散风险等级。"
@@ -320,6 +343,25 @@ public class JevBillingJudge {
                 + "必须且只能返回一个 criteria 中的 choice。";
     }
 
+    /**
+     * IMAGE 题组：核对「计费张数 / 产物张数 / 像素档位」，不套 token 公式。
+     * 计费张数在 {@code state.produced.usage.output.image_count}（网关按上游产物数组数出），
+     * 上游自报张数在 {@code state.evidence.upstreamUsage} 的 {@code image_count} 等别名字段。
+     */
+    private static String imageUsageParseInstructions() {
+        return "这是<b>图片生成</b>调用，计费量是产物张数（按张计价），不是 token——"
+                + "不要把图片核对套成 prompt_tokens / completion_tokens / total_tokens 那一套。"
+                + "请核对 state.produced.usage.output.image_count（网关计费张数，由产物数组数出）与 "
+                + "state.evidence.upstreamUsage 中的 image_count / images / n / num_images（上游自报张数）；"
+                + "像素档位看 attributes 与 requestAttributes（size / width / height）。"
+                + "核对关系：output.image_count 应等于本次真实产出的图片张数；"
+                + "上游自报张数与网关张数一致即同一事实，不要求上游给出 token 字段。"
+                + "上游 usage 为空但产物张数可核对（同步图片接口常见）不构成 INCORRECT。"
+                + "只有证据明确指向「张数或像素档位与产物不符」时选 INCORRECT；"
+                + "产物张数与上游自报张数都缺失、无从确认时选 INSUFFICIENT_EVIDENCE。"
+                + "必须且只能返回一个 criteria 中的 choice。";
+    }
+
     /** TOKEN 题组的费用合理性说明（随明细契约同步：quantity/unit/cost/price + price 为原始单价） */
     private static String tokenCostPlausibleInstructions() {
         return "请依据 state.produced.billing 的 totalCost、details（quantity/unit/cost/price）与 "
@@ -348,14 +390,56 @@ public class JevBillingJudge {
                 + "upstreamCost 缺失本身不代表证据不足。必须且只能返回一个 criteria 中的 choice。";
     }
 
-    private static Map<String, String> usageParseCriteria() {
+    /**
+     * IMAGE 题组的费用合理性说明：看「张数 × 每张单价」与账是否相称；只做语义嗅探，不复算。
+     */
+    private static String imageCostPlausibleInstructions() {
+        return "请依据 state.produced.billing 的 totalCost、details（quantity/unit/cost/price）与 "
+                + "state.evidence.billingRule、state.produced.usage.output.image_count 判断图片账单是否<b>语义相称</b>，"
+                + "不做精确算术复核（你没有价目表，不要试图反推或编造单价）。"
+                + "图片账单按「张数 × 每张单价」构成，明细 unit 为 PER_IMAGE，price 是每张的原始单价。"
+                + "核对要点：① 明细 quantity 与产物张数是否同一数量级；② 币种与规则 currency 一致；"
+                + "③ 账上出现多张计费而产物为 0 张属可证实的矛盾。"
+                + "证据足以支持金额与「张数 × 单价」相称时选 PLAUSIBLE；"
+                + "证据足以确认张数、币种或量级明显矛盾时选 SUSPICIOUS；"
+                + "必要账单或张数依据缺失、无法判断时选 INSUFFICIENT_EVIDENCE。"
+                + "upstreamCost 缺失本身不代表证据不足。必须且只能返回一个 criteria 中的 choice。";
+    }
+
+    /** 用量解析选项释义：键集合跨族一致（解析与摘要不分叉），描述随计量口径切换。 */
+    private static Map<String, String> usageParseCriteria(String billingMode) {
+        if (isImageMode(billingMode)) {
+            return Map.of(
+                    "CORRECT", "计费张数与产物张数一致且口径可核对",
+                    "INCORRECT", "存在可证实的张数或像素档位矛盾",
+                    "INSUFFICIENT_EVIDENCE", "产物张数与上游自报张数均缺失，无法核验");
+        }
+        if (isVideoMode(billingMode)) {
+            return Map.of(
+                    "CORRECT", "时长与产物条数可核对且与依据一致",
+                    "INCORRECT", "存在可证实的时长、条数或档位矛盾",
+                    "INSUFFICIENT_EVIDENCE", "产物与请求声明均缺失，无法核验");
+        }
         return Map.of(
                 "CORRECT", "归一化完整且与上游依据一致",
                 "INCORRECT", "存在可证实的遗漏、错位或数值矛盾",
                 "INSUFFICIENT_EVIDENCE", "必要的上游原始 usage 字段缺失，无法核验");
     }
 
-    private static Map<String, String> costPlausibleCriteria() {
+    /** 费用相称选项释义：键集合跨族一致，描述随计费量形态切换。 */
+    private static Map<String, String> costPlausibleCriteria(String billingMode) {
+        if (isImageMode(billingMode)) {
+            return Map.of(
+                    "PLAUSIBLE", "账单金额与张数、每张单价相称",
+                    "SUSPICIOUS", "存在可证实的张数、币种或量级矛盾",
+                    "INSUFFICIENT_EVIDENCE", "必要账单或张数依据缺失，无法判断");
+        }
+        if (isVideoMode(billingMode)) {
+            return Map.of(
+                    "PLAUSIBLE", "账单金额与时长、档位单价相称",
+                    "SUSPICIOUS", "存在可证实的档位、币种或量级矛盾",
+                    "INSUFFICIENT_EVIDENCE", "必要账单或档位依据缺失，无法判断");
+        }
         return Map.of(
                 "PLAUSIBLE", "账单金额与用量、价格及规则依据相称",
                 "SUSPICIOUS", "存在可证实的金额量级、币种或规则矛盾",
@@ -516,7 +600,9 @@ public class JevBillingJudge {
     // ---- 响应解析（§6.4 防御式） ----
 
     @SuppressWarnings("unchecked")
-    private RoutingBillingVerdict parseVerdict(String raw) {
+    private RoutingBillingVerdict parseVerdict(String raw,
+                                              Map<String, String> usageCriteria,
+                                              Map<String, String> costCriteria) {
         List<JevAnswerItem> answers = new ArrayList<>();
         try {
             Map<String, Object> root = objectMapper.readValue(raw, Map.class);
@@ -528,9 +614,9 @@ public class JevBillingJudge {
                     "FALLBACK_ONLY", "只命中默认/兜底规则",
                     "MODE_MISMATCH", "计费模式与用量不匹配",
                     "MISSING", "完全未命中规则");
-            answers.add(parseAnswer("usage_parse_ok", "choice", answersMap.get("usage_parse_ok"), usageParseCriteria()));
+            answers.add(parseAnswer("usage_parse_ok", "choice", answersMap.get("usage_parse_ok"), usageCriteria));
             answers.add(parseAnswer("rule_match_ok", "choice", answersMap.get("rule_match_ok"), ruleCriteria));
-            answers.add(parseAnswer("cost_plausible", "choice", answersMap.get("cost_plausible"), costPlausibleCriteria()));
+            answers.add(parseAnswer("cost_plausible", "choice", answersMap.get("cost_plausible"), costCriteria));
             answers.add(parseAnswer("risk_level", "choice", answersMap.get("risk_level"), riskLevelCriteria()));
         } catch (Exception ex) {
             log.warn("裁判响应解析失败，按未返回处理: {}", ex.getMessage());

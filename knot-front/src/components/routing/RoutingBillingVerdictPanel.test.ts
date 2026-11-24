@@ -114,3 +114,69 @@ describe("RoutingBillingVerdictPanel 明细量纲", () => {
     }
   });
 });
+
+describe("RoutingBillingVerdictPanel 裁判答案口径", () => {
+  it("「已作答」只表达裁判给了选择，结论与释义另行展示", () => {
+    const wrapper = mountPanel({
+      result: {
+        verdict: {
+          available: true,
+          answers: [{
+            key: "usage_parse_ok",
+            type: "choice",
+            value: "INSUFFICIENT_EVIDENCE",
+            confidence: 0.74,
+            status: "ANSWERED",
+            note: "产物张数与上游自报张数均缺失，无法核验",
+          }],
+        },
+      },
+    });
+
+    const answer = wrapper.find(".bv-answer");
+    expect(answer.find(".bv-answer__status").text()).toBe("已作答");
+    expect(answer.text()).not.toContain("已返回");
+    expect(answer.find(".bv-answer__value").text()).toContain("证据不足");
+    expect(answer.find(".bv-answer__note").text()).toBe("释义：产物张数与上游自报张数均缺失，无法核验");
+  });
+
+  it("未作答时不出释义行", () => {
+    const wrapper = mountPanel({
+      result: {
+        verdict: {
+          available: true,
+          answers: [{key: "risk_level", type: "choice", value: null, status: "NOT_RETURNED"}],
+        },
+      },
+    });
+
+    expect(wrapper.find(".bv-answer__status").text()).toBe("未返回");
+    expect(wrapper.find(".bv-answer__note").exists()).toBe(false);
+  });
+});
+
+describe("RoutingBillingVerdictPanel 用量对照", () => {
+  it("图片场景把上游扁平键对到 output / attributes 段，不整段塞进一格", () => {
+    const wrapper = mountPanel({
+      result: {
+        upstreamUsage: {image_count: 1, width: 1024, height: 1024},
+        producedUsage: {output: {image_count: 1}, attributes: {width: 1024, height: 1024}},
+      },
+    });
+
+    const table = wrapper.findAll(".bv-table-wrap").find((node) => node.text().includes("用量对照"));
+    expect(table, "未找到用量对照表").toBeTruthy();
+    const rows = table!.findAll("tbody tr").map((row) => row.findAll("td").map((cell) => cell.text()));
+    expect(rows).toEqual([
+      ["height", "1024", "1024"],
+      ["image_count", "1", "1"],
+      ["width", "1024", "1024"],
+    ]);
+    expect(table!.text()).not.toContain('"image_count"');
+  });
+
+  it("自检区标题与后端实际项数一致（八项）", () => {
+    const wrapper = mountPanel({result: {checks: []}});
+    expect(wrapper.text()).toContain("自检（八项）");
+  });
+});

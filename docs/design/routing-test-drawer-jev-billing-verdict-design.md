@@ -26,7 +26,7 @@
 | `knot_extend` 是网关自产的**被告**（三角：被告账 / 影子重算基准 / 上游 cost 证人） | v6 §4（代码实证表） |
 | `state` 输入契约：进「已产出 + 底层依据」，禁 `computed`/`parsedUsage`/自检结论 | v6 §5.3 硬约束表 |
 | `cost_plausible` 是语义嗅探不是算术复核；questions 四条与防御式解析 | v6 §5.4 / §5.6 |
-| 自检七项（含 `GATEWAY_RECOMPUTE_MATCH`）与三态纪律（SKIP 不充 PASS） | v6 §5.1 |
+| 自检八项（含 `GATEWAY_RECOMPUTE_MATCH`）与三态纪律（SKIP 不充 PASS） | v6 §5.1 |
 | 失明场景⑥（单价错 10 倍 + 上游无 cost → 自检全绿唯 JEV 咬到） | v6 §8 |
 
 ### 0.4 v7 相对 v6 的实质差异
@@ -45,7 +45,7 @@
 
 对路由规则测试抽屉的当次调用，以其真实产出的 `knot_extend.billing`（网关账）为**被告**，双通道校验：
 
-- **自检区（代码，权威）**：同口径影子重算 + 七项确定性校验，抓算术错误；
+- **自检区（代码，权威）**：同口径影子重算 + 八项确定性校验，抓算术错误；
 - **裁判区（JEV，辅助）**：以「被告 + 底层依据」为输入做语义嗅探，抓自检原理上抓不到的场景性错误（规则错配、账目与依据相悖）。
 
 人对照两区下结论，**不自动阻断、不改账**。
@@ -67,7 +67,7 @@
 ③ 编排服务 RoutingTestBillingVerdictService（knot-service，薄壳）
       ├─▶ 被告链：原样记录已产出（knot_extend）+ 底层依据（upstreamUsage 原文 / 规则快照 / 请求侧属性）——不算钱
       ├─▶ 影子链：BillingFactAssembler 离线重算（adapter 提取器 → 三级回退取规则 → 归一化，生产同口径）
-      │     └─▶ BillingFactChecks 七项（代码精确，权威；SKIP 三态纪律）
+      │     └─▶ BillingFactChecks 八项（代码精确，权威；SKIP 三态纪律）
       └─▶ 判定链：JevBillingJudge → 网关 POST /v1/decisions
             state = 被告链全部（不见重算值、不见自检结论——双盲）
             questions = 四条（usage_parse_ok / rule_match_ok / cost_plausible / risk_level）
@@ -151,7 +151,7 @@ POST /api/routing-rules/{id}/test/billing-verdict
 
 ---
 
-## 5. 自检层（代码精确，七项，权威）
+## 5. 自检层（代码精确，八项，权威）
 
 `BillingFactChecks`（`service/support`，纯函数）：输入 `BillingFact`（含 `gatewayBilling` 被告账），输出 `BillingCheckResult[]`。
 
@@ -185,7 +185,7 @@ POST /api/routing-rules/{id}/test/billing-verdict
 
 | key | 题型 | 判定 |
 |---|---|---|
-| `usage_parse_ok` | choice | `CORRECT` / `INCORRECT` / `INSUFFICIENT_EVIDENCE`；依据上游原始 usage 与网关归一化用量逐项核对，父级总量与缓存/推理等子项不可重复相加；仅同口径明确矛盾判错。OpenAI 兼容字段按 `completion_tokens = output.text + output.reasoning`、`total_tokens = prompt_tokens + completion_tokens` 对照 |
+| `usage_parse_ok` | choice | `CORRECT` / `INCORRECT` / `INSUFFICIENT_EVIDENCE`；依据上游原始 usage 与网关归一化用量逐项核对，父级总量与缓存/推理等子项不可重复相加；仅同口径明确矛盾判错。OpenAI 兼容字段按 `completion_tokens = output.text + output.reasoning`、`total_tokens = prompt_tokens + completion_tokens` 对照。题面按计费模式分三族：TOKEN 逐项核对 token，VIDEO 核对时长 / 产物条数 / 档位，IMAGE 核对 `output.image_count` 与上游 `image_count` 等别名字段及像素档位；选项键跨族一致，`INSUFFICIENT_EVIDENCE` 的释义按族给出 |
 | `rule_match_ok` | choice | 命中规则是否合适（APPROPRIATE / FALLBACK_ONLY / MODE_MISMATCH / MISSING） |
 | `cost_plausible` | choice | `PLAUSIBLE` / `SUSPICIOUS` / `INSUFFICIENT_EVIDENCE`；**语义嗅探**金额、用量与价格依据是否相称，不做算术复核；上游 cost 缺失本身不构成证据不足 |
 | `risk_level` | choice | `LOW` / `MEDIUM` / `HIGH` 综合风险等级；不再使用难以解释的连续分数 |
@@ -252,7 +252,7 @@ knot:
 |---|---|---|
 | knot-service | `service/RoutingTestBillingVerdictService.java` | **@Service 薄编排**：组装被告/依据 → 影子重算 → 自检 → 调 JEV → 聚合。不含业务逻辑本体 |
 | knot-service | `service/support/BillingFactAssembler.java` | 影子链：adapter 提取器 + 三级回退 + 归一化，产出 `BillingFact`（含 `gatewayBilling`） |
-| knot-service | `service/support/BillingFactChecks.java` | 七项自检，纯函数，三态 |
+| knot-service | `service/support/BillingFactChecks.java` | 八项自检，纯函数，三态 |
 | knot-service | `service/support/JevBillingJudge.java` | DECISIONS 调用 / 解析 / 加固参数 / 错误码降级 / state 截断 |
 | knot-service | `dto/routing/BillingFact{,.Subject,.Usage,.RuleRef,.Amount,.AmountLine}` | 事实数据类型 |
 | knot-service | `dto/routing/BillingCheckCode` / `BillingCheckStatus` / `BillingCheckResult` / `BillingRuleSource` | 自检枚举与结论 |
@@ -268,8 +268,8 @@ knot:
 ## 9. 前端展示（抽屉三区）
 
 1. **计费事实区** — 上游 usage ↔ `knot_extend.usage` 对照；命中规则（matchedBy）；**被告账明细原样**；上游 cost 对照行（缺失显示「上游未返回」）；重算算式摊开（影子链，仅本区）。
-2. **自检区** — 七项 PASS/FAIL/**SKIP** 标签，FAIL 高亮 + 失败含义。
-3. **裁判结论区** — choice 选项翻译为中文结论并附置信度（缺失标「无置信度」）；顶部 summary；`available:false` 显示原因（如「裁判未配置：knot.jev.judge-rule-code 缺失」「余额不足 402」）。
+2. **自检区** — 八项 PASS/FAIL/**SKIP** 标签，FAIL 高亮 + 失败含义。
+3. **裁判结论区** — choice 选项翻译为中文结论并附置信度（缺失标「无置信度」）；顶部 summary；`available:false` 显示原因（如「裁判未配置：knot.jev.judge-rule-code 缺失」「余额不足 402」）。状态徽标只表达裁判是否给出选择（已作答 / 未返回），不承载结论；结论取值下方另起一行，第三行「释义：」标明是本地 criteria 文案而非模型原话。
 
 双盲提示（v6 §7 保留）：两区互不引用——JEV 没看过自检结论。两区同亮红灯 = 两个独立裁判同指问题，可信度远高于单边；仅一边亮 = 优先相信自检（代码精确），JEV 供语义参考。保留人工判断，不自动阻断。
 

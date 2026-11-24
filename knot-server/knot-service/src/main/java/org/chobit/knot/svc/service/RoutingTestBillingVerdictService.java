@@ -29,7 +29,7 @@ import java.util.Map;
 
 /**
  * 路由规则测试·计费裁判编排服务：薄壳编排，不含业务逻辑本体。
- * 四段流水线：被告链 → 影子链（{@link BillingFactAssembler} 重算）→ 自检（{@link BillingFactChecks} 七项）→ 判定（{@link JevBillingJudge} 双盲）；判定层只看「被告账 + 底层依据」，不喂影子 / 自检结论。
+ * 四段流水线：被告链 → 影子链（{@link BillingFactAssembler} 重算）→ 自检（{@link BillingFactChecks} 八项）→ 判定（{@link JevBillingJudge} 双盲）；判定层只看「被告账 + 底层依据」，不喂影子 / 自检结论。
  * 模型定位（{@code targetCode} 优先于 {@code modelCode}）确定计费规则与用量提取器，提取器选择与网关共用 {@code UsageExtractorResolver}；定位失败仅降级，不抛异常。
  * 编排层内部异常以 ERROR 日志报警。
  */

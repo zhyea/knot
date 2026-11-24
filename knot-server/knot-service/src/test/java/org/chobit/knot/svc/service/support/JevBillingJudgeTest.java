@@ -529,6 +529,64 @@ class JevBillingJudgeTest {
         assertFalse(attrs.containsKey("resolution"));
     }
 
+    /**
+     * ⭐ 图片题组：问「计费张数 / 产物张数 / 像素档位」，不问 token。
+     *
+     * <p>反向探针：把 {@code usageParseInstructions} 的 IMAGE 分支去掉，题面回到 token 逐项核对，
+     * 这条必红。图片用例里上游只给 {@code image_count}，套 token 题面只会得到「证据不足」。</p>
+     */
+    @Test
+    void imageModeAsksAboutCountNotTokens() {
+        FakeDecisionsTransport transport = new FakeDecisionsTransport();
+        JevBillingJudge judge = configuredJudge(transport);
+
+        judge.judge(imageContext(), "http://gw", "sid");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> questions = (Map<String, Object>) transport.lastBody.get("questions");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> usage = (Map<String, Object>) questions.get("usage_parse_ok");
+        String usageText = (String) usage.get("instructions");
+        assertTrue(usageText.contains("output.image_count"), "计费张数在 produced.usage.output 下，题面得指路");
+        assertTrue(usageText.contains("image_count / images / n / num_images"), "上游别名字段要列全");
+        assertTrue(usageText.contains("像素档位"), "像素档位是图片分档依据");
+        assertTrue(usageText.contains("不要把图片核对套成"), "必须明确禁止套 token 口径");
+        assertFalse(usageText.contains("prompt_tokens 对应 input.tokens.text"),
+                "图片题组不得再要求逐项核对 token 映射");
+        assertFalse(usageText.contains("total_tokens 对应"), "图片题组不得引用 token 总量等式");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cost = (Map<String, Object>) questions.get("cost_plausible");
+        String costText = (String) cost.get("instructions");
+        assertTrue(costText.contains("PER_IMAGE"), "按张计价的单位必须点名");
+        assertTrue(costText.contains("张数"), "费用相称要落到张数上");
+        assertTrue(costText.contains("不要试图反推或编造单价"), "没有价目表就不许算单价");
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> criteria = (Map<String, String>) usage.get("criteria");
+        assertEquals(Set.of("CORRECT", "INCORRECT", "INSUFFICIENT_EVIDENCE"), criteria.keySet());
+        assertEquals("产物张数与上游自报张数均缺失，无法核验", criteria.get("INSUFFICIENT_EVIDENCE"),
+                "图片模式的证据不足释义须落到张数上");
+    }
+
+    /** 图片答案的释义取自图片族 criteria；token 族那份「上游原始 usage 字段缺失」不得串到图片上 */
+    @Test
+    void imageVerdictNoteUsesMediaCriteria() {
+        FakeDecisionsTransport transport = new FakeDecisionsTransport();
+        transport.script("""
+                {"answers":{
+                  "usage_parse_ok":{"choice":"INSUFFICIENT_EVIDENCE","confidence":0.74},
+                  "cost_plausible":{"choice":"PLAUSIBLE","confidence":0.8}}}""");
+        JevBillingJudge judge = configuredJudge(transport);
+
+        RoutingBillingVerdict v = judge.judge(imageContext(), "http://gw", "sid");
+
+        assertEquals("ANSWERED", find(v, "usage_parse_ok").getStatus());
+        assertEquals("INSUFFICIENT_EVIDENCE", find(v, "usage_parse_ok").getValue());
+        assertEquals("产物张数与上游自报张数均缺失，无法核验", find(v, "usage_parse_ok").getNote());
+        assertEquals("账单金额与张数、每张单价相称", find(v, "cost_plausible").getNote());
+    }
+
     private JevBillingJudge configuredJudge(FakeDecisionsTransport transport) {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
@@ -559,6 +617,31 @@ class JevBillingJudgeTest {
                 "br-video", "VIDEO", "PER_SECOND", "USD", "DIMENSION_TIERED",
                 BillingRuleSource.EXPLICIT, "v1");
         return new JevJudgeContext(subject, gatewayUsage, billing, Map.of(),
+                null, ruleRef, requestBody);
+    }
+
+    /** 图片上下文：按张计费，上游自报张数在 usage，网关计费张数在 knot_extend.usage.output；带产物地址当诱饵 */
+    private JevJudgeContext imageContext() {
+        BillingFactSubject subject = new BillingFactSubject(
+                "qwen-image-2.0", "IMAGE_GENERATIONS", false, BillingRuleSource.EXPLICIT, null);
+        Map<String, Object> gatewayUsage = Map.of(
+                "output", Map.of("image_count", 1),
+                "attributes", Map.of("width", 1024, "height", 1024, "pixels", 1048576));
+        List<BillingFactAmountLine> details = List.of(
+                new BillingFactAmountLine("IMAGE", 1L, "PER_IMAGE", "0.035", "0.035"));
+        BillingFactAmount billing = new BillingFactAmount(0L, "0.035", "USD", details);
+        Map<String, Object> upstreamUsage = new LinkedHashMap<>();
+        upstreamUsage.put("image_count", 1);
+        upstreamUsage.put("width", 1024);
+        upstreamUsage.put("height", 1024);
+        upstreamUsage.put("model", "qwen-image-2.0"); // 非数值键，应被过滤
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("size", "1024x1024");
+        requestBody.put("prompt", "a red circle");                 // 非计费维度，应被过滤
+        requestBody.put("image", "https://signed.example/ref.png"); // 敏感，应被过滤
+        BillingFactRuleRef ruleRef = new BillingFactRuleRef(
+                "br-image", "IMAGE", "PER_IMAGE", "USD", "FIXED", BillingRuleSource.EXPLICIT, "v1");
+        return new JevJudgeContext(subject, gatewayUsage, billing, upstreamUsage,
                 null, ruleRef, requestBody);
     }
 
