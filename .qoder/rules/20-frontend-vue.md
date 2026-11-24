@@ -76,6 +76,7 @@ npm run type-check:test                    # 5. 测试代码类型检查（tscon
 | 列表查询 | `composables/useListQuery` |
 | 表单本地草稿 + 防回环 | `composables/useDraftModel.ts`（守卫：normalize 后 `JSON.stringify` 比较） |
 | 空闲登出 | `idleActivity.ts`（30 分钟） |
+| 计费规则数字输入框 | `el-input-number` 一律 `controls-position="right"`；计数类字段（阶梯起点/终点、像素上界、免费张数、试算用量）加 `:precision="0"` 禁小数，单价值不声明 precision 以保留精度。守门 `billingNumberInputs.guard.test.ts` |
 
 ## 6. 业务计算
 

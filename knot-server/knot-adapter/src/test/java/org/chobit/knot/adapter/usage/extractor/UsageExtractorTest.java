@@ -167,6 +167,41 @@ class UsageExtractorTest {
     }
 
     @Test
+    void shouldSplitImageTokensByModality() {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("usage", Map.of(
+                "total_tokens", 2_856,
+                "input_tokens", 1_100,
+                "output_tokens", 1_756,
+                "input_tokens_details", Map.of("text_tokens", 100, "image_tokens", 1_000)));
+        body.put("data", List.of(Map.of("b64_json", "x")));
+
+        ImageBillingUsage usage = imageExtractor.extractUsage(body, Map.of("image", "ref")).billing();
+
+        assertEquals(100L, usage.tokenBreakdown().inputText());
+        assertEquals(1_000L, usage.tokenBreakdown().inputImage());
+        assertEquals(1_756L, usage.tokenBreakdown().outputImage());
+        assertEquals(1L, usage.inputImageCount());
+    }
+
+    @Test
+    void shouldAttributeUnsplitInputTokensByRequestImages() {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("usage", Map.of("input_tokens", 900, "output_tokens", 100));
+        body.put("data", List.of(Map.of("b64_json", "x")));
+
+        ImageBillingUsage withImage = imageExtractor
+                .extractUsage(body, Map.of("images", List.of("a", "b"))).billing();
+        assertEquals(900L, withImage.tokenBreakdown().inputImage(), "带图请求的未拆分输入归图像模态");
+        assertEquals(0L, withImage.tokenBreakdown().inputText());
+
+        ImageBillingUsage textOnly = imageExtractor
+                .extractUsage(body, Map.of("size", "1024x1024")).billing();
+        assertEquals(900L, textOnly.tokenBreakdown().inputText(), "纯文生图的未拆分输入归文本模态");
+        assertEquals(100L, textOnly.tokenBreakdown().outputImage());
+    }
+
+    @Test
     void shouldParsePresetSizeNames() {
         ImageBillingUsage usage = imageExtractor.extractUsage(Map.of(), Map.of("size", "720p")).billing();
         assertEquals(1280L, usage.width());

@@ -690,6 +690,86 @@ class BillingConfigTest {
         assertTrue(validate("{\"image\":{\"freeInputImages\":-3}}").contains("cannot be negative"));
     }
 
+    // ==================== 图片按 token 计价的模态价表 ====================
+
+    private static String validateImageUnit(String json, PricingPlanEnum plan, String unit) {
+        return BillingConfigSupport.validate(BillingConfig.parse(json), plan, BillingModeEnum.IMAGE, unit);
+    }
+
+    private static final String IMAGE_TOKEN_PRICES = """
+            {"image":{"tokenPrices":{"inputText":5,"inputImage":8,
+                                     "cacheReadText":1.25,"cacheReadImage":2,
+                                     "outputImage":30}}}
+            """;
+
+    @Test
+    void tokenBilledImageAcceptsModalityPrices() {
+        assertNull(validateImageUnit(IMAGE_TOKEN_PRICES, PricingPlanEnum.FIXED, "1M_TOKENS"));
+        // 单位为空时跳过价表形状校验（历史调用点不传单位）
+        assertNull(validateImageUnit(IMAGE_TOKEN_PRICES, PricingPlanEnum.FIXED, null));
+    }
+
+    @Test
+    void tokenBilledImageRequiresThreeBasePrices() {
+        assertEquals("IMAGE mode requires image.tokenPrices when billed by token",
+                validateImageUnit("{\"defaultUnitPrice\":0.02}", PricingPlanEnum.FIXED, "1M_TOKENS"));
+        assertEquals("image.tokenPrices.inputText is required", validateImageUnit(
+                "{\"image\":{\"tokenPrices\":{\"inputImage\":8,\"outputImage\":30}}}",
+                PricingPlanEnum.FIXED, "1M_TOKENS"));
+        assertEquals("image.tokenPrices.outputImage is required", validateImageUnit(
+                "{\"image\":{\"tokenPrices\":{\"inputText\":5,\"inputImage\":8}}}",
+                PricingPlanEnum.FIXED, "1M_TOKENS"));
+        // 缓存分项可省：未配置时按同模态输入价计
+        assertNull(validateImageUnit(
+                "{\"image\":{\"tokenPrices\":{\"inputText\":5,\"inputImage\":8,\"outputImage\":30}}}",
+                PricingPlanEnum.FIXED, "1M_TOKENS"));
+    }
+
+    @Test
+    void tokenBilledImageRejectsPerImageFields() {
+        assertEquals("image.tiers is only allowed for per-image billing unit", validateImageUnit("""
+                        {"image":{"tokenPrices":{"inputText":5,"inputImage":8,"outputImage":30},
+                                  "tiers":[{"maxPixels":2601123,"price":0.02}]}}
+                        """, PricingPlanEnum.FIXED, "1M_TOKENS"));
+        assertEquals("image.inputImagePerImage is only allowed for per-image billing unit", validateImageUnit("""
+                        {"image":{"tokenPrices":{"inputText":5,"inputImage":8,"outputImage":30},
+                                  "inputImagePerImage":0.003}}
+                        """, PricingPlanEnum.FIXED, "1M_TOKENS"));
+    }
+
+    @Test
+    void tokenBilledImageSupportsFixedPlanOnly() {
+        assertEquals("IMAGE mode supports FIXED plan only when billed by token",
+                validateImageUnit(IMAGE_TOKEN_PRICES, PricingPlanEnum.DIMENSION_TIERED, "1M_TOKENS"));
+        assertEquals("IMAGE mode supports FIXED plan only when billed by token",
+                validateImageUnit(IMAGE_TOKEN_PRICES, PricingPlanEnum.PEAK_OFF_PEAK, "1M_TOKENS"));
+    }
+
+    @Test
+    void perImageBilledImageRejectsModalityPrices() {
+        assertEquals("image.tokenPrices is only allowed for token billing unit",
+                validateImageUnit(IMAGE_TOKEN_PRICES, PricingPlanEnum.FIXED, "PER_IMAGE"));
+        // 价表在按张量纲下不可见且不参与取价，因此不拦结构性默认：不带 tokenPrices 的按张配置照旧通过
+        assertNull(validateImageUnit("{\"defaultUnitPrice\":0.02}", PricingPlanEnum.FIXED, "PER_IMAGE"));
+    }
+
+    @Test
+    void tokenPriceRejectsNegativeValue() {
+        assertTrue(validateImageUnit("""
+                        {"image":{"tokenPrices":{"inputText":5,"inputImage":8,"outputImage":-30}}}
+                        """, PricingPlanEnum.FIXED, "1M_TOKENS")
+                .contains("image.tokenPrices.outputImage cannot be negative"));
+    }
+
+    @Test
+    void cachePriceFallsBackToSameModalityInputPrice() {
+        BillingConfig.ImageTokenPrices prices = BillingConfig.parse("""
+                {"image":{"tokenPrices":{"inputText":5,"inputImage":8,"outputImage":30}}}
+                """).image().tokenPrices();
+        assertEquals(0, new BigDecimal("5").compareTo(prices.cachedTextPrice()));
+        assertEquals(0, new BigDecimal("8").compareTo(prices.cachedImagePrice()));
+    }
+
     @Test
     void resolutionPricesAndUnknownFields() {
         BillingConfig config = BillingConfig.parse("""

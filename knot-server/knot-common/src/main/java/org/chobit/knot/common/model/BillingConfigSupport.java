@@ -1,6 +1,7 @@
 package org.chobit.knot.common.model;
 
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
+import org.chobit.knot.common.constants.enums.BillingUnitEnum;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
 import org.chobit.knot.common.model.BillingConfig.ImageConfig;
 import org.chobit.knot.common.model.BillingConfig.ImageTier;
@@ -22,7 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@link BillingConfig} 的校验链（12 条规则）：无状态静态判定，只读配置字段、彼此不共享状态。
+ * {@link BillingConfig} 的校验链：无状态静态判定，只读配置字段、彼此不共享状态。
  *
  * 返回值统一为「{@code null} 表示合法，否则返回错误描述」，全部入参传递。
  */
@@ -112,6 +113,15 @@ public final class BillingConfigSupport {
      * 其余模式用 {@code resolutionPrices}（分辨率档）。{@code mode} 为 {@code null} 时按分辨率档校验。
      */
     public static String validate(BillingConfig config, PricingPlanEnum plan, BillingModeEnum mode) {
+        return validate(config, plan, mode, null);
+    }
+
+    /**
+     * 带计费单位的三层校验：结构 -> 单位与模式的交叉约束 -> 方案级约束。
+     *
+     * {@code unit} 为空时跳过交叉约束；非空时按模式归一，图片模式据此区分按张与按 token 两套价表形状。
+     */
+    public static String validate(BillingConfig config, PricingPlanEnum plan, BillingModeEnum mode, String unit) {
         PricingPlanEnum resolved = plan == null ? PricingPlanEnum.FIXED : plan;
         if (!resolved.isAvailable()) {
             return "pricing plan not supported yet: " + resolved.code();
@@ -119,6 +129,12 @@ public final class BillingConfigSupport {
         String baseError = validate(config);
         if (baseError != null) {
             return baseError;
+        }
+        // 单位与价表形状的交叉约束先于方案校验：否则 token 量纲配 DIMENSION_TIERED 会先报「缺 image.tiers」，
+        // 掩盖真正的矛盾（像素档与 token 计价互斥）
+        String unitError = validateImageUnit(config, resolved, mode, unit);
+        if (unitError != null) {
+            return unitError;
         }
         // config.tierMode() 只在 TIERED 下有意义：其它方案配了它说明配置意图与方案不一致，拒绝保存。
         // ⚠ 必须在下面几个分支之前判：DIMENSION_TIERED / VENDOR_MINIMAX / PEAK_OFF_PEAK 各自
@@ -233,7 +249,7 @@ public final class BillingConfigSupport {
     }
 
     /**
-     * 图片模式基础校验：分量单价非负、免费额度非负；档位表按 {@code maxPixels} 严格升序，
+     * 图片模式基础校验：分量单价非负、免费额度非负、token 模态单价非负；档位表按 {@code maxPixels} 严格升序，
      * 上不封顶档（{@code maxPixels = null}）只允许一个且必须是最后一项。
      */
     private static String validateImage(ImageConfig image) {
@@ -245,6 +261,10 @@ public final class BillingConfigSupport {
         }
         if (image.freeInputImages() != null && image.freeInputImages() < 0) {
             return "image.freeInputImages cannot be negative";
+        }
+        String tokenPriceError = validateImageTokenPrices(image.tokenPrices());
+        if (tokenPriceError != null) {
+            return tokenPriceError;
         }
         List<ImageTier> tiers = image.tiers();
         if (tiers == null || tiers.isEmpty()) {
@@ -276,6 +296,83 @@ public final class BillingConfigSupport {
                 return "image.tiers maxPixels must be strictly ascending";
             }
             previous = tier.maxPixels();
+        }
+        return null;
+    }
+
+    /**
+     * token 模态单价：五项一律非负；{@code inputText} / {@code inputImage} / {@code outputImage} 是否必填
+     * 取决于规则单位，由 {@link #validateImageUnit} 判定。
+     */
+    private static String validateImageTokenPrices(BillingConfig.ImageTokenPrices prices) {
+        if (prices == null) {
+            return null;
+        }
+        String error = negativePrice(prices.inputText(), "image.tokenPrices.inputText");
+        if (error != null) {
+            return error;
+        }
+        error = negativePrice(prices.inputImage(), "image.tokenPrices.inputImage");
+        if (error != null) {
+            return error;
+        }
+        error = negativePrice(prices.cacheReadText(), "image.tokenPrices.cacheReadText");
+        if (error != null) {
+            return error;
+        }
+        error = negativePrice(prices.cacheReadImage(), "image.tokenPrices.cacheReadImage");
+        if (error != null) {
+            return error;
+        }
+        return negativePrice(prices.outputImage(), "image.tokenPrices.outputImage");
+    }
+
+    private static String negativePrice(BigDecimal price, String path) {
+        return price != null && price.signum() < 0 ? path + " cannot be negative" : null;
+    }
+
+    /**
+     * 图片模式「按张 / 按 token」两套价表形状互斥：单位决定读哪一套，另一套存放即拒绝。
+     *
+     * 按张量纲读 {@code image.tiers} 与 {@code image.inputImagePerImage}，出现 {@code image.tokenPrices} 即拒绝；
+     * token 量纲读 {@code image.tokenPrices} 五个模态单价（前三个必填），像素档与输入图片分量一律拒绝，
+     * 且只允许 {@link PricingPlanEnum#FIXED}——阶梯与高低峰方案的价槽位是六项通用价格，无法承载模态拆分。
+     */
+    private static String validateImageUnit(BillingConfig config,
+                                            PricingPlanEnum plan,
+                                            BillingModeEnum mode,
+                                            String unit) {
+        if (mode != BillingModeEnum.IMAGE || TextSupport.blankToNull(unit) == null) {
+            return null;
+        }
+        BillingUnitEnum unitEnum = BillingUnitEnum.fromCode(mode.normalizeUnit(unit));
+        ImageConfig image = config.image();
+        if (unitEnum == null || !unitEnum.tokenBased()) {
+            return image != null && image.tokenPrices() != null
+                    ? "image.tokenPrices is only allowed for token billing unit"
+                    : null;
+        }
+        if (plan != PricingPlanEnum.FIXED) {
+            return "IMAGE mode supports FIXED plan only when billed by token";
+        }
+        if (image == null || image.tokenPrices() == null) {
+            return "IMAGE mode requires image.tokenPrices when billed by token";
+        }
+        BillingConfig.ImageTokenPrices prices = image.tokenPrices();
+        if (prices.inputText() == null) {
+            return "image.tokenPrices.inputText is required";
+        }
+        if (prices.inputImage() == null) {
+            return "image.tokenPrices.inputImage is required";
+        }
+        if (prices.outputImage() == null) {
+            return "image.tokenPrices.outputImage is required";
+        }
+        if (image.tiers() != null && !image.tiers().isEmpty()) {
+            return "image.tiers is only allowed for per-image billing unit";
+        }
+        if (image.inputImagePerImage() != null) {
+            return "image.inputImagePerImage is only allowed for per-image billing unit";
         }
         return null;
     }

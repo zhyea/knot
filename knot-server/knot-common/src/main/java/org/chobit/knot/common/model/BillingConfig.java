@@ -119,16 +119,17 @@ public record BillingConfig(
     // ==================== 图片模式扩展 ====================
 
     /**
-     * 图片模式扩展配置：输出图片的像素上界档位表 + 输入图片分量。
+     * 图片模式扩展配置：按张量纲的像素上界档位表与输入图片分量，按 token 量纲的模态单价。
      *
      * {@code tiers} 按 {@code maxPixels} 升序声明，{@code maxPixels} 为 {@code null} 表示上不封顶；
      * 落档判据是第一个 {@code maxPixels} 不小于实际像素的档。{@code inputImagePerImage} 非空时才计输入图片分量，
-     * 张数先扣 {@code freeInputImages}（未配置视为 0 张免费）。
+     * 张数先扣 {@code freeInputImages}（未配置视为 0 张免费）。{@code tokenPrices} 只在规则单位为 token 单位时参与计价。
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ImageConfig(List<ImageTier> tiers,
                               BigDecimal inputImagePerImage,
-                              Integer freeInputImages) {
+                              Integer freeInputImages,
+                              ImageTokenPrices tokenPrices) {
 
         /** 输入图片分量的明细类型 */
         public static final String DETAIL_INPUT_IMAGE = "IMAGE_INPUT_IMAGE";
@@ -167,6 +168,30 @@ public record BillingConfig(
     /** 像素档位：{@code maxPixels} 含本档（{@code null} = 上不封顶），{@code price} 为该档每张单价 */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ImageTier(Long maxPixels, BigDecimal price) {
+    }
+
+    /**
+     * 图片按 token 计价时的模态单价，基准与规则单位一致（{@code 1M_TOKENS} 即每百万 Token 价）。
+     *
+     * {@code inputText} / {@code inputImage} / {@code outputImage} 必填；缓存读分项未配置时按同模态输入价计，
+     * 即不享受缓存折扣。文本输出不在价目表内，不单独计价。
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ImageTokenPrices(BigDecimal inputText,
+                                   BigDecimal inputImage,
+                                   BigDecimal cacheReadText,
+                                   BigDecimal cacheReadImage,
+                                   BigDecimal outputImage) {
+
+        /** 文本缓存读单价：未配置时回落文本输入价 */
+        public BigDecimal cachedTextPrice() {
+            return cacheReadText != null ? cacheReadText : inputText;
+        }
+
+        /** 图像缓存读单价：未配置时回落图像输入价 */
+        public BigDecimal cachedImagePrice() {
+            return cacheReadImage != null ? cacheReadImage : inputImage;
+        }
     }
 
     // ==================== 视频模式扩展（2026-10-25） ====================

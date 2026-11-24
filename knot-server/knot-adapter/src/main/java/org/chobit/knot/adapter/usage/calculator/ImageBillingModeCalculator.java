@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.adapter.model.ref.BillingRuleRef;
 import org.chobit.knot.adapter.model.usage.BillingUsage;
 import org.chobit.knot.adapter.model.usage.ImageBillingUsage;
+import org.chobit.knot.adapter.model.usage.ImageTokenDetailKind;
+import org.chobit.knot.adapter.model.usage.ImageTokenUsage;
 import org.chobit.knot.adapter.model.usage.NormalizedBillingAmount;
 import org.chobit.knot.adapter.model.usage.NormalizedUsageDetail;
 import org.chobit.knot.adapter.usage.NormalizedUsageContext;
@@ -19,11 +21,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * IMAGE 模式计算器：总价 = 出图张数 × 输出图片单价 + 输入图片张数 × 每张单价。
+ * IMAGE 模式计算器：量纲由规则单位声明，按张与按 token 两套口径。
  *
- * 输出单价按像素档落定：{@code image.tiers} 命中档位价 → 方案层倍率链；未配档位表或输出像素未知（
- * {@code pixels <= 0}）时取规则默认单价（含阶梯与相位调整）。档位表非空、像素已知却无档覆盖即抛
- * {@link ErrorCode#VALIDATION_ERROR}。输入图片张数先扣 {@code image.freeInputImages}，单价过方案层分量链。
+ * 按张：总价 = 出图张数 × 输出图片单价 + 输入图片张数 × 每张单价。输出单价按像素档落定：
+ * {@code image.tiers} 命中档位价 → 方案层倍率链；未配档位表或输出像素未知（{@code pixels <= 0}）时取规则默认单价
+ * （含阶梯与相位调整）。档位表非空、像素已知却无档覆盖即抛 {@link ErrorCode#VALIDATION_ERROR}。
+ * 输入图片张数先扣 {@code image.freeInputImages}，单价过方案层分量链。
+ *
+ * 按 token：文本输入、图像输入、两者的缓存命中与图像输出各按 {@code image.tokenPrices} 的模态单价计，
+ * 明细逐行累加；缓存分项未配置时按同模态输入价计；上游未上报 token 用量时零额出账且不出明细行。
  */
 @Slf4j
 @Component
@@ -47,11 +53,16 @@ public class ImageBillingModeCalculator extends AbstractBillingModeCalculator {
         }
         BillingConfig config = configOf(rule);
         BillingConfig.ImageConfig imageConfig = config == null ? null : config.image();
+        int unitSize = unitSize(rule, mode());
+        String unitCode = unitCode(rule, mode());
+
+        if (tokenQuantity(rule, mode())) {
+            return calculateByToken(image, imageConfig, unitSize, unitCode);
+        }
+
         BillingConfig.PricingPlan plan = config == null
                 ? null
                 : config.pricingPlan(PricingPlanEnum.fromCode(rule.pricingPlan()));
-        int unitSize = unitSize(rule, mode());
-        String unitCode = unitCode(rule, mode());
 
         long count = firstAmount(image.count(), 1L);
         BillingConfig.PricingContext outputContext =
@@ -74,6 +85,70 @@ public class ImageBillingModeCalculator extends AbstractBillingModeCalculator {
             }
         }
         return NormalizedBillingAmount.of(usage.tokenUsage().totalTokens(), total, details);
+    }
+
+    /**
+     * 按 token 计价：五个模态分量各自「量 × 模态单价 ÷ 单位基数」，缓存量先从同模态输入量里扣掉再计。
+     *
+     * 三个基础模态价缺失即抛 {@link ErrorCode#VALIDATION_ERROR}；缓存分项未配置时按同模态输入价计。
+     */
+    private NormalizedBillingAmount calculateByToken(ImageBillingUsage image,
+                                                     BillingConfig.ImageConfig imageConfig,
+                                                     int unitSize,
+                                                     String unitCode) {
+        BillingConfig.ImageTokenPrices prices = imageConfig == null ? null : imageConfig.tokenPrices();
+        if (prices == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "image rule billed by token has no image.tokenPrices configured");
+        }
+        BigDecimal textPrice = requireTokenPrice(prices.inputText(), "inputText");
+        BigDecimal imagePrice = requireTokenPrice(prices.inputImage(), "inputImage");
+        BigDecimal outputPrice = requireTokenPrice(prices.outputImage(), "outputImage");
+
+        ImageTokenUsage split = image.tokenBreakdown();
+        if (split.isEmpty()) {
+            // 上游未上报 token 用量：没有可计价的量，按零额出账并留痕（不按张数或像素猜 token）
+            log.warn("IMAGE 按 token 计价但上游未上报 token 用量，已按零额出账");
+            return NormalizedBillingAmount.of(0L, BigDecimal.ZERO, List.of());
+        }
+        long uncachedText = Math.max(0L, split.inputText() - split.cachedInputText());
+        long uncachedImage = Math.max(0L, split.inputImage() - split.cachedInputImage());
+
+        List<NormalizedUsageDetail> details = new ArrayList<>();
+        BigDecimal total = tokenLine(details, ImageTokenDetailKind.TEXT_INPUT,
+                uncachedText, textPrice, unitSize, unitCode);
+        total = total.add(tokenLine(details, ImageTokenDetailKind.IMAGE_INPUT,
+                uncachedImage, imagePrice, unitSize, unitCode));
+        total = total.add(tokenLine(details, ImageTokenDetailKind.CACHED_TEXT_INPUT,
+                split.cachedInputText(), prices.cachedTextPrice(), unitSize, unitCode));
+        total = total.add(tokenLine(details, ImageTokenDetailKind.CACHED_IMAGE_INPUT,
+                split.cachedInputImage(), prices.cachedImagePrice(), unitSize, unitCode));
+        total = total.add(tokenLine(details, ImageTokenDetailKind.IMAGE_OUTPUT,
+                split.outputImage(), outputPrice, unitSize, unitCode));
+        return NormalizedBillingAmount.of(image.tokenUsage().totalTokens(), total, details);
+    }
+
+    /** 单个模态分量的明细行：量为 0 时不出行，返回零金额 */
+    private BigDecimal tokenLine(List<NormalizedUsageDetail> details,
+                                 ImageTokenDetailKind kind,
+                                 long quantity,
+                                 BigDecimal unitPrice,
+                                 int unitSize,
+                                 String unitCode) {
+        if (quantity <= 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal amount = cost(quantity, unitPrice, unitSize);
+        details.add(detail(kind.key(), quantity, amount, unitPrice, unitCode));
+        return amount;
+    }
+
+    private static BigDecimal requireTokenPrice(BigDecimal price, String field) {
+        if (price == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "image.tokenPrices." + field + " is required when the rule is billed by token");
+        }
+        return price;
     }
 
     /**

@@ -344,21 +344,26 @@ public class JevBillingJudge {
     }
 
     /**
-     * IMAGE 题组：核对「计费张数 / 产物张数 / 像素档位」，不套 token 公式。
+     * IMAGE 题组：核对「计费量 / 产物张数 / 像素档位」。计费量随规则单位而定——
+     * {@code PER_IMAGE} 是产物张数，token 单位是 usage 的模态 token 量。
      * 计费张数在 {@code state.produced.usage.output.image_count}（网关按上游产物数组数出），
      * 上游自报张数在 {@code state.evidence.upstreamUsage} 的 {@code image_count} 等别名字段。
      */
     private static String imageUsageParseInstructions() {
-        return "这是<b>图片生成</b>调用，计费量是产物张数（按张计价），不是 token——"
-                + "不要把图片核对套成 prompt_tokens / completion_tokens / total_tokens 那一套。"
+        return "这是<b>图片生成</b>调用，计费量随规则单位而定：unit 为 PER_IMAGE 时是产物张数，"
+                + "unit 为 token 单位（1M_TOKENS / 1K_TOKENS / PER_TOKEN）时是 usage 的 token 量（文本 / 图像输入与图像输出分模态）。"
+                + "不要把图片核对套成 prompt_tokens / completion_tokens / total_tokens 那一套；"
+                + "按 token 计价的图片账单不要求张数与金额存在倍数关系。"
                 + "请核对 state.produced.usage.output.image_count（网关计费张数，由产物数组数出）与 "
                 + "state.evidence.upstreamUsage 中的 image_count / images / n / num_images（上游自报张数）；"
+                + "token 量纲下再核对 state.produced.usage.input.tokens（text / image / cached_read）与 output.tokens "
+                + "是否取自上游 usage 原文。"
                 + "像素档位看 attributes 与 requestAttributes（size / width / height）。"
                 + "核对关系：output.image_count 应等于本次真实产出的图片张数；"
                 + "上游自报张数与网关张数一致即同一事实，不要求上游给出 token 字段。"
                 + "上游 usage 为空但产物张数可核对（同步图片接口常见）不构成 INCORRECT。"
-                + "只有证据明确指向「张数或像素档位与产物不符」时选 INCORRECT；"
-                + "产物张数与上游自报张数都缺失、无从确认时选 INSUFFICIENT_EVIDENCE。"
+                + "只有证据明确指向「张数、token 量或像素档位与产物不符」时选 INCORRECT；"
+                + "产物张数与上游自报用量都缺失、无从确认时选 INSUFFICIENT_EVIDENCE。"
                 + "必须且只能返回一个 criteria 中的 choice。";
     }
 
@@ -391,18 +396,21 @@ public class JevBillingJudge {
     }
 
     /**
-     * IMAGE 题组的费用合理性说明：看「张数 × 每张单价」与账是否相称；只做语义嗅探，不复算。
+     * IMAGE 题组的费用合理性说明：按张看「张数 × 每张单价」，按 token 看「模态 token 量 × 模态单价」；只做语义嗅探，不复算。
      */
     private static String imageCostPlausibleInstructions() {
         return "请依据 state.produced.billing 的 totalCost、details（quantity/unit/cost/price）与 "
-                + "state.evidence.billingRule、state.produced.usage.output.image_count 判断图片账单是否<b>语义相称</b>，"
+                + "state.evidence.billingRule、state.produced.usage 判断图片账单是否<b>语义相称</b>，"
                 + "不做精确算术复核（你没有价目表，不要试图反推或编造单价）。"
-                + "图片账单按「张数 × 每张单价」构成，明细 unit 为 PER_IMAGE，price 是每张的原始单价。"
-                + "核对要点：① 明细 quantity 与产物张数是否同一数量级；② 币种与规则 currency 一致；"
-                + "③ 账上出现多张计费而产物为 0 张属可证实的矛盾。"
-                + "证据足以支持金额与「张数 × 单价」相称时选 PLAUSIBLE；"
-                + "证据足以确认张数、币种或量级明显矛盾时选 SUSPICIOUS；"
-                + "必要账单或张数依据缺失、无法判断时选 INSUFFICIENT_EVIDENCE。"
+                + "图片账单有两种形态：unit 为 PER_IMAGE 时按「张数 × 每张单价」，明细 type 为 IMAGE 与 IMAGE_INPUT_IMAGE；"
+                + "unit 为 token 单位（1M_TOKENS / 1K_TOKENS / PER_TOKEN）时按「模态 token 量 × 该模态单价」，"
+                + "明细 type 为 inputText / inputImage / cachedInputText / cachedImageInput / outputImage。"
+                + "核对要点：① 按张计费时明细 quantity 与产物张数同一数量级；"
+                + "② token 量纲下明细 quantity 与 upstreamUsage 的 token 量同源；③ 币种与规则 currency 一致；"
+                + "④ 账上出现多张计费而产物为 0 张属可证实的矛盾。"
+                + "证据足以支持金额与「张数 × 单价」或「模态 token 量 × 单价」相称时选 PLAUSIBLE；"
+                + "证据足以确认计费量、币种或量级明显矛盾时选 SUSPICIOUS；"
+                + "必要账单或计费量依据缺失、无法判断时选 INSUFFICIENT_EVIDENCE。"
                 + "upstreamCost 缺失本身不代表证据不足。必须且只能返回一个 criteria 中的 choice。";
     }
 
@@ -410,9 +418,9 @@ public class JevBillingJudge {
     private static Map<String, String> usageParseCriteria(String billingMode) {
         if (isImageMode(billingMode)) {
             return Map.of(
-                    "CORRECT", "计费张数与产物张数一致且口径可核对",
-                    "INCORRECT", "存在可证实的张数或像素档位矛盾",
-                    "INSUFFICIENT_EVIDENCE", "产物张数与上游自报张数均缺失，无法核验");
+                    "CORRECT", "计费量与产物张数一致且口径可核对",
+                    "INCORRECT", "存在可证实的张数、token 量或像素档位矛盾",
+                    "INSUFFICIENT_EVIDENCE", "产物张数与上游自报用量均缺失，无法核验");
         }
         if (isVideoMode(billingMode)) {
             return Map.of(
@@ -430,9 +438,9 @@ public class JevBillingJudge {
     private static Map<String, String> costPlausibleCriteria(String billingMode) {
         if (isImageMode(billingMode)) {
             return Map.of(
-                    "PLAUSIBLE", "账单金额与张数、每张单价相称",
-                    "SUSPICIOUS", "存在可证实的张数、币种或量级矛盾",
-                    "INSUFFICIENT_EVIDENCE", "必要账单或张数依据缺失，无法判断");
+                    "PLAUSIBLE", "账单金额与张数（或模态 token 量）、单价相称",
+                    "SUSPICIOUS", "存在可证实的计费量、币种或量级矛盾",
+                    "INSUFFICIENT_EVIDENCE", "必要账单或计费量依据缺失，无法判断");
         }
         if (isVideoMode(billingMode)) {
             return Map.of(

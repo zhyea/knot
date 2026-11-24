@@ -11,7 +11,13 @@ public enum BillingModeEnum implements EnumOption {
     TOKEN("TOKEN", "Token", units(BillingUnitEnum.PER_TOKEN, BillingUnitEnum.ONE_K_TOKENS, BillingUnitEnum.ONE_M_TOKENS),
             BillingUnitEnum.ONE_M_TOKENS),
     REQUEST("REQUEST", "请求", units(BillingUnitEnum.PER_REQUEST), BillingUnitEnum.PER_REQUEST),
-    IMAGE("IMAGE", "图片", units(BillingUnitEnum.PER_IMAGE), BillingUnitEnum.PER_IMAGE),
+    /**
+     * 图片：默认按张（{@code PER_IMAGE}），token 三档供「按 token 计价」的图像模型使用。
+     * 量纲由所选单位声明：{@code PER_IMAGE} 取产物张数，{@code 1M_TOKENS} 取 token 量。
+     * 像素档位与输入图片分量只属于按张量纲；token 量纲按文本 / 图像两种模态分别取价。
+     */
+    IMAGE("IMAGE", "图片", units(BillingUnitEnum.PER_IMAGE, BillingUnitEnum.PER_TOKEN,
+            BillingUnitEnum.ONE_K_TOKENS, BillingUnitEnum.ONE_M_TOKENS), BillingUnitEnum.PER_IMAGE),
     AUDIO("AUDIO", "音频", units(BillingUnitEnum.PER_SECOND), BillingUnitEnum.PER_SECOND),
     /**
      * 视频：默认按秒（{@code PER_SECOND}），token 三档供「视频模型按 token 计价」的厂商使用。

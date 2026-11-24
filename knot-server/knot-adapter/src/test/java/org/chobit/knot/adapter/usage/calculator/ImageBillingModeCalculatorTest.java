@@ -3,15 +3,18 @@ package org.chobit.knot.adapter.usage.calculator;
 import org.chobit.knot.adapter.model.ref.BillingRuleRef;
 import org.chobit.knot.adapter.model.usage.BillingUsage;
 import org.chobit.knot.adapter.model.usage.ImageBillingUsage;
+import org.chobit.knot.adapter.model.usage.ImageTokenUsage;
 import org.chobit.knot.adapter.model.usage.NormalizedBillingAmount;
 import org.chobit.knot.adapter.model.usage.NormalizedUsageDetail;
 import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.usage.NormalizedUsageContext;
+import org.chobit.knot.adapter.usage.extractor.ImageUsageExtractor;
 import org.chobit.knot.common.error.BusinessException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,6 +40,13 @@ class ImageBillingModeCalculatorTest {
 
     /** 无像素档、无输入分量的规则：退化为「张数 × 默认单价」 */
     private static final String PLAIN_CONFIG = "{\"defaultUnitPrice\":0.5}";
+
+    /** 按 token 计价的模态价表：文本 / 图像输入分价、图像输出、缓存输入各一档 */
+    private static final String TOKEN_CONFIG = """
+            {"image":{"tokenPrices":{"inputText":5,"inputImage":8,
+                                     "cacheReadText":1.25,"cacheReadImage":2,
+                                     "outputImage":30}}}
+            """;
 
     private final ImageBillingModeCalculator calculator = new ImageBillingModeCalculator();
 
@@ -143,9 +153,134 @@ class ImageBillingModeCalculatorTest {
         }
     }
 
+    // ---------- 按 token 量纲：文本 / 图像模态分价 ----------
+
+    @Test
+    void shouldBillEveryModalityByItsOwnTokenPrice() {
+        // 100 文本 + 1000 图像输入 × 各自输入价，1756 图像输出 × 30，基准为每百万 Token
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule("FIXED", TOKEN_CONFIG, "1M_TOKENS"),
+                tokenUsage(100L, 1_000L, 0L, 0L, 1_756L)));
+
+        assertEquals("0.06118", amount.totalCost());
+        assertEquals(3, amount.details().size());
+        assertEquals("inputText", amount.details().get(0).type());
+        assertEquals("1M_TOKENS", amount.details().get(0).unit());
+        assertEquals("outputImage", amount.details().get(2).type());
+    }
+
+    @Test
+    void shouldDeductCachedTokensPerModality() {
+        // 文本 100 含 40 缓存、图像 1000 含 200 缓存：未缓存量按输入价、缓存量按缓存价
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule("FIXED", TOKEN_CONFIG, "1M_TOKENS"),
+                tokenUsage(100L, 1_000L, 40L, 200L, 1_756L)));
+
+        assertEquals("0.05983", amount.totalCost());
+        assertEquals(5, amount.details().size());
+        assertEquals("cachedInputText", amount.details().get(2).type());
+        assertEquals("cachedInputImage", amount.details().get(3).type());
+    }
+
+    @Test
+    void shouldFallBackToInputPriceWhenCachePriceMissing() {
+        String noCachePrice = """
+                {"image":{"tokenPrices":{"inputText":5,"inputImage":8,"outputImage":30}}}
+                """;
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule("FIXED", noCachePrice, "1M_TOKENS"),
+                tokenUsage(100L, 0L, 40L, 0L, 0L)));
+
+        // 60 × 5 + 40 × 5（缓存价未配 → 按文本输入价）；无图像输入与输出
+        assertEquals("0.0005", amount.totalCost());
+        assertEquals("5", amount.details().get(1).price());
+    }
+
+    @Test
+    void shouldRejectTokenRuleWithoutModalityPrice() {
+        String missingText = """
+                {"image":{"tokenPrices":{"inputImage":8,"outputImage":30}}}
+                """;
+        BusinessException ex = assertThrows(BusinessException.class, () -> calculator.calculate(context(
+                rule("FIXED", missingText, "1M_TOKENS"),
+                tokenUsage(100L, 0L, 0L, 0L, 10L))));
+        assertTrue(ex.getMessage().contains("inputText"), ex.getMessage());
+    }
+
+    @Test
+    void shouldRejectTokenRuleWithoutPriceTable() {
+        BusinessException ex = assertThrows(BusinessException.class, () -> calculator.calculate(context(
+                rule("FIXED", PLAIN_CONFIG, "1M_TOKENS"),
+                tokenUsage(100L, 0L, 0L, 0L, 10L))));
+        assertTrue(ex.getMessage().contains("tokenPrices"), ex.getMessage());
+    }
+
+    @Test
+    void shouldEmitOnlyOutputLineWhenNoInputTokens() {
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule("FIXED", TOKEN_CONFIG, "1M_TOKENS"),
+                tokenUsage(0L, 0L, 0L, 0L, 1_756L)));
+
+        assertEquals(1, amount.details().size());
+        assertEquals("outputImage", amount.details().get(0).type());
+        assertEquals(1_756L, amount.details().get(0).quantity());
+    }
+
+    @Test
+    void shouldBillExtractedResponseEndToEnd() {
+        // 接线：上游响应 -> 提取器模态拆分 -> token 计价，避免只验手搓用量
+        ImageUsageExtractor extractor = new ImageUsageExtractor(calculator);
+        Map<String, Object> body = Map.of(
+                "usage", Map.of("total_tokens", 2_856, "input_tokens", 1_100, "output_tokens", 1_756,
+                        "input_tokens_details", Map.of("text_tokens", 100, "image_tokens", 1_000)),
+                "data", List.of(Map.of("b64_json", "x")));
+
+        ImageBillingUsage usage = extractor.extractUsage(body, Map.of("image", "ref")).billing();
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule("FIXED", TOKEN_CONFIG, "1M_TOKENS"), usage));
+
+        assertEquals("0.06118", amount.totalCost());
+    }
+
+    @Test
+    void shouldNotChargeWhenTokenUsageMissing() {
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule("FIXED", TOKEN_CONFIG, "1M_TOKENS"),
+                tokenUsage(0L, 0L, 0L, 0L, 0L)));
+
+        assertEquals("0", amount.totalCost());
+        assertTrue(amount.details().isEmpty(), "无 token 用量时不出明细行");
+    }
+
+    @Test
+    void tokenDetailsShouldCloseOnQuantityTimesPricePerMillion() {
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule("FIXED", TOKEN_CONFIG, "1M_TOKENS"),
+                tokenUsage(100L, 1_000L, 40L, 200L, 1_756L)));
+
+        for (NormalizedUsageDetail detail : amount.details()) {
+            BigDecimal expected = BigDecimal.valueOf(detail.quantity())
+                    .multiply(new BigDecimal(detail.price()))
+                    .divide(BigDecimal.valueOf(1_000_000));
+            assertEquals(0, expected.compareTo(new BigDecimal(detail.cost())),
+                    detail.type() + " 复算式闭合：" + detail.quantity() + " × " + detail.price());
+        }
+    }
+
     private static ImageBillingUsage usage(long count, long pixels, long inputImages) {
         long side = pixels > 0 ? (long) Math.sqrt(pixels) : 0L;
-        return new ImageBillingUsage(TokenBillingUsage.empty(), count, pixels, side, side, inputImages);
+        return new ImageBillingUsage(TokenBillingUsage.empty(), ImageTokenUsage.empty(),
+                count, pixels, side, side, inputImages);
+    }
+
+    /** 按 token 量纲的用量：总量由模态拆分加总，缓存量计入 cacheRead */
+    private static ImageBillingUsage tokenUsage(long textInput, long imageInput,
+                                                long cachedText, long cachedImage, long output) {
+        long input = textInput + imageInput;
+        TokenBillingUsage tokens = new TokenBillingUsage(
+                input, output, input + output, cachedText + cachedImage, 0L, 0L, 0L);
+        ImageTokenUsage split = new ImageTokenUsage(textInput, imageInput, cachedText, cachedImage, output);
+        return new ImageBillingUsage(tokens, split, 1L, 0L, 0L, 0L, 0L);
     }
 
     private static NormalizedUsageContext context(BillingRuleRef rule, BillingUsage usage) {
@@ -153,6 +288,10 @@ class ImageBillingModeCalculatorTest {
     }
 
     private static BillingRuleRef rule(String plan, String config) {
-        return new BillingRuleRef("IMAGE", config, "USD", plan, "PER_IMAGE", "v1");
+        return rule(plan, config, "PER_IMAGE");
+    }
+
+    private static BillingRuleRef rule(String plan, String config, String unit) {
+        return new BillingRuleRef("IMAGE", config, "USD", plan, unit, "v1");
     }
 }

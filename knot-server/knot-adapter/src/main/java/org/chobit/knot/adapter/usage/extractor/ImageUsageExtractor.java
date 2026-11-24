@@ -2,8 +2,10 @@ package org.chobit.knot.adapter.usage.extractor;
 
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.adapter.model.usage.ImageBillingUsage;
+import org.chobit.knot.adapter.model.usage.ImageTokenUsage;
 import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.usage.UsageExtractItem;
+import org.chobit.knot.adapter.usage.UsageRawReader;
 import org.chobit.knot.adapter.usage.ModelUsageNormalizer;
 import org.chobit.knot.adapter.usage.calculator.BillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.ImageBillingModeCalculator;
@@ -74,7 +76,9 @@ public class ImageUsageExtractor implements UsageExtractor<ImageBillingUsage> {
             inputImages = 1L;
         }
         ImageBillingUsage billing = new ImageBillingUsage(
-                tokens, count, size.pixels(), size.width(), size.height(), inputImages);
+                tokens,
+                ImageTokenUsage.from(UsageRawReader.readUsage(body), tokens, inputImages > 0),
+                count, size.pixels(), size.width(), size.height(), inputImages);
         return UsageExtractItem.of(billing, ModelUsageNormalizer.fromBilling(billing, body));
     }
 }

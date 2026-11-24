@@ -4,6 +4,7 @@ import org.chobit.knot.adapter.model.ref.BillingRuleRef;
 import org.chobit.knot.adapter.model.usage.AudioBillingUsage;
 import org.chobit.knot.adapter.model.usage.BillingUsage;
 import org.chobit.knot.adapter.model.usage.ImageBillingUsage;
+import org.chobit.knot.adapter.model.usage.ImageTokenUsage;
 import org.chobit.knot.adapter.model.usage.NormalizedBillingAmount;
 import org.chobit.knot.adapter.model.usage.NormalizedUsageDetail;
 import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
@@ -45,7 +46,7 @@ class MediaBillingCalculatorTest {
     void shouldBillImageByCount() {
         NormalizedBillingAmount amount = imageCalculator.calculate(context(
                 rule("IMAGE", "PER_IMAGE", SIMPLE_CONFIG),
-                new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 0L, 0L, 0L, 0L)));
+                new ImageBillingUsage(TokenBillingUsage.empty(), ImageTokenUsage.empty(), 3L, 0L, 0L, 0L, 0L)));
 
         assertEquals("1.5", amount.totalCost(), "3 张 × 0.5");
         NormalizedUsageDetail detail = amount.details().get(0);
@@ -66,7 +67,7 @@ class MediaBillingCalculatorTest {
     void imageRuleShouldBillSameAmountOnBothCalculatorPaths() {
         // 无像素档、无输入图片分量时，模式专属计算器与通用兜底必须同额
         BillingRuleRef imageRule = rule("IMAGE", "PER_IMAGE", SIMPLE_CONFIG);
-        ImageBillingUsage usage = new ImageBillingUsage(TokenBillingUsage.empty(), 2L, 0L, 1024L, 1024L, 0L);
+        ImageBillingUsage usage = new ImageBillingUsage(TokenBillingUsage.empty(), ImageTokenUsage.empty(), 2L, 0L, 1024L, 1024L, 0L);
 
         assertEquals(imageCalculator.calculate(context(imageRule, usage)).totalCost(),
                 simple.calculate(context(imageRule, usage)).totalCost());
@@ -186,7 +187,7 @@ class MediaBillingCalculatorTest {
         // 提取器与规则模式错配：热路径不抛异常，按零用量出账
         NormalizedBillingAmount amount = tokenCalculator.calculate(context(
                 rule("TOKEN", "1K_TOKENS", SIMPLE_CONFIG),
-                new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 0L, 0L, 0L, 0L)));
+                new ImageBillingUsage(TokenBillingUsage.empty(), ImageTokenUsage.empty(), 3L, 0L, 0L, 0L, 0L)));
 
         assertEquals("0", amount.totalCost());
         assertTrue(amount.details().isEmpty());

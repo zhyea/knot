@@ -530,7 +530,7 @@ class JevBillingJudgeTest {
     }
 
     /**
-     * ⭐ 图片题组：问「计费张数 / 产物张数 / 像素档位」，不问 token。
+     * ⭐ 图片题组：计费量随单位而定——按张问「张数 / 像素档位」，按 token 问「模态 token 量」。
      *
      * <p>反向探针：把 {@code usageParseInstructions} 的 IMAGE 分支去掉，题面回到 token 逐项核对，
      * 这条必红。图片用例里上游只给 {@code image_count}，套 token 题面只会得到「证据不足」。</p>
@@ -551,6 +551,7 @@ class JevBillingJudgeTest {
         assertTrue(usageText.contains("image_count / images / n / num_images"), "上游别名字段要列全");
         assertTrue(usageText.contains("像素档位"), "像素档位是图片分档依据");
         assertTrue(usageText.contains("不要把图片核对套成"), "必须明确禁止套 token 口径");
+        assertTrue(usageText.contains("token 单位"), "按 token 计价的图片规则要给出对应核对口径");
         assertFalse(usageText.contains("prompt_tokens 对应 input.tokens.text"),
                 "图片题组不得再要求逐项核对 token 映射");
         assertFalse(usageText.contains("total_tokens 对应"), "图片题组不得引用 token 总量等式");
@@ -565,8 +566,8 @@ class JevBillingJudgeTest {
         @SuppressWarnings("unchecked")
         Map<String, String> criteria = (Map<String, String>) usage.get("criteria");
         assertEquals(Set.of("CORRECT", "INCORRECT", "INSUFFICIENT_EVIDENCE"), criteria.keySet());
-        assertEquals("产物张数与上游自报张数均缺失，无法核验", criteria.get("INSUFFICIENT_EVIDENCE"),
-                "图片模式的证据不足释义须落到张数上");
+        assertEquals("产物张数与上游自报用量均缺失，无法核验", criteria.get("INSUFFICIENT_EVIDENCE"),
+                "图片模式的证据不足释义须落到计费量与张数上");
     }
 
     /** 图片答案的释义取自图片族 criteria；token 族那份「上游原始 usage 字段缺失」不得串到图片上 */
@@ -583,8 +584,8 @@ class JevBillingJudgeTest {
 
         assertEquals("ANSWERED", find(v, "usage_parse_ok").getStatus());
         assertEquals("INSUFFICIENT_EVIDENCE", find(v, "usage_parse_ok").getValue());
-        assertEquals("产物张数与上游自报张数均缺失，无法核验", find(v, "usage_parse_ok").getNote());
-        assertEquals("账单金额与张数、每张单价相称", find(v, "cost_plausible").getNote());
+        assertEquals("产物张数与上游自报用量均缺失，无法核验", find(v, "usage_parse_ok").getNote());
+        assertEquals("账单金额与张数（或模态 token 量）、单价相称", find(v, "cost_plausible").getNote());
     }
 
     private JevBillingJudge configuredJudge(FakeDecisionsTransport transport) {

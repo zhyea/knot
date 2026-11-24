@@ -460,14 +460,14 @@ public class BillingService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                 "pricing plan " + plan.code() + " is not supported by mode " + request.billingMode());
         }
-        validateConfigJson(request.configJson(), plan, mode);
+        validateConfigJson(request.configJson(), plan, mode, request.unit());
     }
 
     /**
-     * config_json 校验：可解析为对象；基础结构合法；并按 pricingPlan 追加方案级约束
+     * config_json 校验：可解析为对象；基础结构合法；按计费单位校验价表形状；并按 pricingPlan 追加方案级约束
      * （TIERED 要求 tier 非空且每项 unitPrices 完整；PEAK_OFF_PEAK 要求 pricing 结构合法）。
      */
-    private void validateConfigJson(String configJson, PricingPlanEnum plan, BillingModeEnum mode) {
+    private void validateConfigJson(String configJson, PricingPlanEnum plan, BillingModeEnum mode, String unit) {
         String normalized = TextSupport.blankToNull(configJson);
         if (normalized == null) {
             return;
@@ -478,7 +478,7 @@ public class BillingService {
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json must be a valid JSON object");
         }
-        String error = config == null ? null : BillingConfigSupport.validate(config, plan, mode);
+        String error = config == null ? null : BillingConfigSupport.validate(config, plan, mode, unit);
         if (error != null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json invalid: " + error);
         }

@@ -58,6 +58,16 @@ class BillingModeEnumTest {
     }
 
     @Test
+    void imageSupportsTokenUnitsForTokenPricedImageModels() {
+        // 图像模型按 token 计价（文本 / 图像输入分价）：量纲由单位声明，默认仍是按张
+        assertTrue(BillingModeEnum.IMAGE.supportsUnit("1M_TOKENS"));
+        assertTrue(BillingModeEnum.IMAGE.supportsUnit("1K_TOKENS"));
+        assertTrue(BillingModeEnum.IMAGE.supportsUnit("PER_TOKEN"));
+        assertEquals(BillingUnitEnum.PER_IMAGE, BillingModeEnum.IMAGE.defaultUnit());
+        assertEquals(BillingUnitEnum.ONE_M_TOKENS.code(), BillingModeEnum.IMAGE.normalizeUnit("1m_tokens"));
+    }
+
+    @Test
     void fromCodeIsCaseInsensitiveAndNullSafe() {
         assertEquals(BillingModeEnum.TOKEN, BillingModeEnum.fromCode(" token "));
         assertEquals(BillingModeEnum.IMAGE, BillingModeEnum.fromCode("IMAGE"));

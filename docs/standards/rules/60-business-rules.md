@@ -421,6 +421,25 @@ XML 用 `<foreach>` 展开。写死 `in (0,1)` 时，将来往枚举加一个在
   + 输入图片张数 × 每张单价。档位价经 `PricingPlan#resolveConfiguredPrice` 过相位倍率链。
 - 基础计费规则不再保存 `imageResolution` / `imageQuality`：两者是死字段（取价从未读过），档位语义已由 `image.tiers` 表达。
 
+### 8.17 图像按 token 计价：模态单价（2026-11-24）
+
+⭐⭐ **量纲由单位声明**（与视频同一条规则）：`PER_IMAGE` 取产物张数，`1M_TOKENS` / `1K_TOKENS` / `PER_TOKEN` 取 token 量。
+新增量纲不新增 `quantitySource` 一类平行字段。
+
+- 价表在 `config_json.image.tokenPrices`：`inputText` / `inputImage` / `outputImage` **必填**，
+  `cacheReadText` / `cacheReadImage` 可选（缺省按同模态输入价计，即不享缓存折扣）。基准随规则单位
+  （`1M_TOKENS` = 每百万 Token 价），与明细行 `unit` 同源。
+- 明细类型：`inputText` / `inputImage` / `cachedInputText` / `cachedImageInput` / `outputImage`；
+  缓存量先从同模态输入量扣掉再计。**文本输出不在价目表内，不单独计价**（余额不计费）。
+- **两套价表互斥，保存期拒绝**（`BillingConfigSupport#validate(config, plan, mode, unit)`）：token 量纲配 `image.tiers`
+  或 `image.inputImagePerImage`、按张量纲配 `image.tokenPrices`，都是「界面上看不见、取价却可能命中」的僵尸配置。
+- token 量纲**只允许 `FIXED`**：TIERED 的档位价槽位与 PEAK_OFF_PEAK ABSOLUTE 的相位价槽位都是六项通用价格
+  （input/output/cacheRead/cacheWrite…），承载不了「文本 / 图像模态各一价」；前端同口径把方案收缩为固定价。
+- 用量侧 `ImageTokenUsage` 从 `usage.input_tokens_details.text_tokens / image_tokens` 与
+  `output_tokens_details.image_tokens` 拆；拆不出来时**输入按请求是否带图整笔归入图像 / 文本、整笔输出归图像输出**。
+  `ImageBillingUsage.tokenBreakdown` 只服务 token 计价，张数与像素仍保留给按张口径与对外 usage。
+- 判例：gpt-image 家族价表——图像输入 $8 / 文本输入 $5 / 图像输出 $30 / 缓存输入 $2 与 $1.25（均每百万 Token）。
+
 ## 9. 上游适配器职责边界（2026-10-28）
 
 ### 9.1 视频适配器只做透传（红线）

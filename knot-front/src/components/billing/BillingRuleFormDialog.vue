@@ -72,7 +72,7 @@
                     <EnumControl
                       v-model="form.pricingPlan"
                       enum-name="PricingPlanEnum"
-                      :include-codes="planCodes"
+                      :include-codes="availablePlanCodes"
                       show-code
                     />
                   </el-form-item>
@@ -194,6 +194,7 @@ import {
   validateImageTierRows
 } from "@/utils/billingImage";
 import type {ImageTierRow} from "@/utils/billingImage";
+import {isTokenPricedUnit} from "@/utils/billingPrice";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -247,6 +248,17 @@ const activeModeCapability = computed(() =>
 const unitCodes = computed(() => activeModeCapability.value?.supportedUnits || []);
 /** 当前模式支持的进阶方案；能力矩阵由后端下发，PEAK_OFF_PEAK 首期只对 TOKEN 开放 */
 const planCodes = computed(() => activeModeCapability.value?.supportedPricingPlans || ["FIXED"]);
+/**
+ * 当前实际可选的进阶方案：图片按 token 计价只支持固定价——阶梯与高低峰的价槽位是六项通用价格，
+ * 承载不了「文本 / 图像模态各一价」，后端保存期同口径拒绝。
+ */
+const availablePlanCodes = computed<string[]>(() => {
+  const codes: string[] = planCodes.value;
+  if (form.billingMode === BillingMode.IMAGE && isTokenPricedUnit(form.unit)) {
+    return codes.filter((code) => code === PricingPlan.FIXED);
+  }
+  return codes;
+});
 
 interface BillingRuleFormState {
   id: number | string | null;
@@ -303,6 +315,15 @@ interface BillingRuleFormState {
   /** 输入图片每张单价与免费张数：两者留空时输入图片不计费 */
   imageInputImagePerImage: number | null;
   imageFreeInputImages: number | null;
+  /**
+   * 图片按 token 计价时的模态单价（写入 configJson.image.tokenPrices）：
+   * 文本 / 图像输入与图像输出三项必填，缓存输入两条留空时按同模态输入价计。
+   */
+  imageTokenInputText: number | null;
+  imageTokenInputImage: number | null;
+  imageTokenOutputImage: number | null;
+  imageTokenCacheReadText: number | null;
+  imageTokenCacheReadImage: number | null;
   /** 阶梯档位（pricingPlan=TIERED），保存时由 {@link toTierPayload} 并入 configJson.tier */
   tiers: TierRow[];
   /**
@@ -345,6 +366,11 @@ const form = reactive<BillingRuleFormState>({
   imageTiers: [],
   imageInputImagePerImage: null,
   imageFreeInputImages: null,
+  imageTokenInputText: null,
+  imageTokenInputImage: null,
+  imageTokenOutputImage: null,
+  imageTokenCacheReadText: null,
+  imageTokenCacheReadImage: null,
   tiers: [],
   tierMode: "PER_REQUEST",
   peakPricing: null,
@@ -437,6 +463,16 @@ watch(
   }
 );
 
+// 单位切到 token 后可选方案收缩（图片只留固定价）：留着非法方案只会在保存时被后端拒绝
+watch(
+  () => form.unit,
+  () => {
+    if (capabilitiesLoaded.value && !availablePlanCodes.value.includes(form.pricingPlan)) {
+      form.pricingPlan = "FIXED";
+    }
+  }
+);
+
 // 计费项精度：输入框不做补零显示，确认后收敛到全站单价精度（`roundPrice` → `UNIT_PRICE_PRECISION`
 // = 8 位，见 utils/billingPrice.ts：与后端 setScale(8, HALF_UP) 对齐，额度计数按 1e-8 缩放）
 const PRICE_FIELDS = [
@@ -450,7 +486,12 @@ const PRICE_FIELDS = [
   "videoInputVideoPerSecond",
   "videoInputImagePerImage",
   "videoAudioSurcharge",
-  "imageInputImagePerImage"
+  "imageInputImagePerImage",
+  "imageTokenInputText",
+  "imageTokenInputImage",
+  "imageTokenOutputImage",
+  "imageTokenCacheReadText",
+  "imageTokenCacheReadImage"
 ] as const;
 for (const field of PRICE_FIELDS) {
   watch(
@@ -471,7 +512,7 @@ watch(
     if (!capabilitiesLoaded.value) {
       return;
     }
-    if (plan && !planCodes.value.includes(plan)) {
+    if (plan && !availablePlanCodes.value.includes(plan)) {
       form.pricingPlan = "FIXED";
       return;
     }
@@ -646,6 +687,11 @@ function resetForm() {
   form.imageTiers = [];
   form.imageInputImagePerImage = null;
   form.imageFreeInputImages = null;
+  form.imageTokenInputText = null;
+  form.imageTokenInputImage = null;
+  form.imageTokenOutputImage = null;
+  form.imageTokenCacheReadText = null;
+  form.imageTokenCacheReadImage = null;
   form.tiers = [];
   form.tierMode = "PER_REQUEST";
   form.peakPricing = null;
@@ -738,6 +784,13 @@ function applyConfig(config: Dict) {
   form.imageTiers = parseImageTierRows(image.tiers);
   form.imageInputImagePerImage = toNumberOrNull(image.inputImagePerImage);
   form.imageFreeInputImages = toNumberOrNull(image.freeInputImages);
+  // 按 token 计价的模态单价：与按张字段并存时不在这里取舍，保存侧按单位只落一套
+  const tokenPrices = (image.tokenPrices && typeof image.tokenPrices === "object") ? image.tokenPrices : {};
+  form.imageTokenInputText = toNumberOrNull(tokenPrices.inputText);
+  form.imageTokenInputImage = toNumberOrNull(tokenPrices.inputImage);
+  form.imageTokenOutputImage = toNumberOrNull(tokenPrices.outputImage);
+  form.imageTokenCacheReadText = toNumberOrNull(tokenPrices.cacheReadText);
+  form.imageTokenCacheReadImage = toNumberOrNull(tokenPrices.cacheReadImage);
   form.tiers = parseTierRows(config.tier);
   form.tierMode = String(config.tierMode || "PER_REQUEST").trim().toUpperCase() === "PROGRESSIVE"
     ? "PROGRESSIVE"
@@ -763,7 +816,7 @@ function applyModeDefaults(mode: string) {
     form.unit = defaults.unit;
   }
   // 模式切换后方案能力矩阵变化：不支持的方案回退固定价
-  if (!planCodes.value.includes(form.pricingPlan)) {
+  if (!availablePlanCodes.value.includes(form.pricingPlan)) {
     form.pricingPlan = "FIXED";
   }
 }
@@ -809,6 +862,21 @@ function buildBaseConfig(): Dict | null {
     };
   }
   if (form.billingMode === BillingMode.IMAGE) {
+    // token 量纲只落模态价表：默认单价、像素档、输入图片分量在 token 计价下都不参与取价，落库即僵尸字段
+    if (isTokenPricedUnit(form.unit)) {
+      const tokenPrices: Dict = {
+        inputText: form.imageTokenInputText,
+        inputImage: form.imageTokenInputImage,
+        outputImage: form.imageTokenOutputImage
+      };
+      if (form.imageTokenCacheReadText != null) {
+        tokenPrices.cacheReadText = form.imageTokenCacheReadText;
+      }
+      if (form.imageTokenCacheReadImage != null) {
+        tokenPrices.cacheReadImage = form.imageTokenCacheReadImage;
+      }
+      return {image: {tokenPrices}};
+    }
     // 像素档位表只属于维度分档价：其它方案下残留的行不落库（界面上也看不见，落库就是静默收费）
     const image: Dict = {};
     if (form.pricingPlan === PricingPlan.DIMENSION_TIERED) {
@@ -993,6 +1061,15 @@ async function submit() {
   // MiniMax 的识别分量是「输入图片按张计费」：缺图片单价与后端 validate 同口径，前置拦截给出明确提示
   if (form.pricingPlan === PricingPlan.VENDOR_MINIMAX && form.videoInputImagePerImage == null) {
     ElMessage.warning("MiniMax 方案请填写「输入图片 每张」单价");
+    return;
+  }
+  // 图片按 token 计价：三个基础模态价必填（缓存两条可留空），与后端 validate 同口径前置拦截
+  if (form.billingMode === BillingMode.IMAGE
+      && isTokenPricedUnit(form.unit)
+      && (form.imageTokenInputText == null
+          || form.imageTokenInputImage == null
+          || form.imageTokenOutputImage == null)) {
+    ElMessage.warning("按 token 计价请填写「文本输入 / 图像输入 / 图像输出」三个模态单价");
     return;
   }
   // 维度分档价：一张档位表都没有 = 退化成固定价，与后端 validate 同口径前置拦截

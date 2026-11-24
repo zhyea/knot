@@ -76,7 +76,7 @@ const CAPABILITIES = {
       supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK"]
     },
     {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "VENDOR_MINIMAX", "DIMENSION_TIERED"]},
-    {code: "IMAGE", defaultUnit: "PER_IMAGE", supportedUnits: ["PER_IMAGE"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "DIMENSION_TIERED"]},
+    {code: "IMAGE", defaultUnit: "PER_IMAGE", supportedUnits: ["PER_IMAGE", "1M_TOKENS", "1K_TOKENS", "PER_TOKEN"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "DIMENSION_TIERED"]},
     {code: "CUSTOM", defaultUnit: "CUSTOM", supportedUnits: ["CUSTOM"], supportedPricingPlans: ["FIXED"]},
     {code: "FREE", defaultUnit: "PER_REQUEST", supportedUnits: ["PER_REQUEST"], supportedPricingPlans: ["FIXED"]}
   ]
@@ -1293,6 +1293,81 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
 
     expect(wrapper.findComponent(PricingPlanImageDimensionConfig).exists()).toBe(false);
     expect(wrapper.findComponent(PricingPlanDimensionTieredConfig).exists()).toBe(true);
+  });
+
+  // ==================== 图片计费：按 token 计价的模态单价 ====================
+
+  it("图片按 token 计价：模态单价按 image.tokenPrices 落库，按张字段不落库", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      pricingPlan: "FIXED",
+      unit: "1M_TOKENS",
+      configJson: JSON.stringify({
+        image: {
+          tokenPrices: {inputText: 5, inputImage: 8, outputImage: 30, cacheReadText: 1.25, cacheReadImage: 2}
+        }
+      })
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeImageConfig);
+    expect(form.imageTokenInputText).toBe(5);
+    expect(form.imageTokenCacheReadImage).toBe(2);
+
+    await save(wrapper);
+    const config = configOf(updatePayload());
+    expect(config).toEqual({
+      image: {tokenPrices: {inputText: 5, inputImage: 8, outputImage: 30, cacheReadText: 1.25, cacheReadImage: 2}}
+    });
+    // token 量纲下默认单价不参与取价，不得作为僵尸字段进库
+    expect(config.defaultUnitPrice).toBeUndefined();
+  });
+
+  it("图片按 token 计价：缓存分项留空时不下发", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      unit: "1M_TOKENS",
+      configJson: JSON.stringify({image: {tokenPrices: {inputText: 5, inputImage: 8, outputImage: 30}}})
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    await save(wrapper);
+
+    expect(configOf(updatePayload()).image.tokenPrices).toEqual({inputText: 5, inputImage: 8, outputImage: 30});
+  });
+
+  it("图片按 token 计价：缺基础模态单价时拒绝保存", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      unit: "1M_TOKENS",
+      configJson: JSON.stringify({image: {tokenPrices: {inputText: 5, inputImage: 8}}})
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    await save(wrapper);
+
+    expect(warned().some((message) => message.includes("文本输入 / 图像输入 / 图像输出"))).toBe(true);
+    expect(updateBillingRule).not.toHaveBeenCalled();
+  });
+
+  it("图片按 token 计价：进阶方案收缩为固定价并回退残留方案", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(detailRow({
+      billingMode: "IMAGE",
+      pricingPlan: "DIMENSION_TIERED",
+      unit: "PER_IMAGE",
+      configJson: JSON.stringify({defaultUnitPrice: 0.008, image: {tiers: [{price: 0.02}]}})
+    }) as never);
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeImageConfig);
+    form.unit = "1M_TOKENS";
+    await flushPromises();
+
+    const planControl = wrapper
+      .findAllComponents(EnumControlStub)
+      .find((node) => node.props("enumName") === "PricingPlanEnum");
+    expect(planControl?.props("includeCodes")).toEqual(["FIXED"]);
+    expect(form.pricingPlan).toBe("FIXED");
   });
 
   it("保存成功后关闭抽屉并抛出 saved", async () => {
