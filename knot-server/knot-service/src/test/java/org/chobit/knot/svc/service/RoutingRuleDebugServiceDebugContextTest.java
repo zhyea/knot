@@ -140,6 +140,40 @@ class RoutingRuleDebugServiceDebugContextTest {
     }
 
     @Test
+    void sameFamilyPresetsComeBeforeGenericOnes() {
+        modelMapper("m-openai", 11L, "openai", "CHAT_COMPLETIONS");
+        ruleService.targets = List.of(modelTarget("m-openai", 11L));
+        // 通用用例 id 更大（预设列表按 id 倒序时它原本排最前）：族命中仍必须顶到第一，
+        // 否则抽屉打开时按第一条播种，默认载入的就是通用请求体而不是本族用例
+        presetService.presets = List.of(
+            preset(9L, "通用", "CHAT_COMPLETIONS", null),
+            preset(7L, "同族-B", "CHAT_COMPLETIONS", "openai"),
+            preset(5L, "同族-A", "CHAT_COMPLETIONS", "openai")
+        );
+
+        RoutingRuleDebugContext context = service().listDebugContext(RULE_ID);
+
+        // 同族在前且保持原相对顺序（稳定排序），通用用例退到最后；「全部目标」并集同一口径
+        assertEquals(List.of(7L, 5L, 9L), presetIds(onlyTarget(context)));
+        assertEquals(List.of(7L, 5L, 9L), context.presets().stream().map(p -> p.id()).toList());
+    }
+
+    @Test
+    void familylessTargetKeepsPresetOrderUntouched() {
+        modelMapper("m-any", 12L, null, "CHAT_COMPLETIONS");
+        ruleService.targets = List.of(modelTarget("m-any", 12L));
+        // 一条族都没绑定：族维度完全放开，顺序也必须原样透传（不能拿「族非空」当排序依据）
+        presetService.presets = List.of(
+            preset(2L, "通用", "CHAT_COMPLETIONS", null),
+            preset(1L, "族A", "CHAT_COMPLETIONS", "openai")
+        );
+
+        RoutingRuleDebugContext context = service().listDebugContext(RULE_ID);
+
+        assertEquals(List.of(2L, 1L), presetIds(onlyTarget(context)));
+    }
+
+    @Test
     void missingPoolYieldsEmptyCapabilityInsteadOfGuessing() {
         when(poolMapper.getById(99L)).thenReturn(null);
         ruleService.targets = List.of(poolTarget("pool-gone", 99L));

@@ -2,6 +2,7 @@ package org.chobit.knot.svc.service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -201,8 +202,9 @@ public class RoutingRuleDebugService {
 
     /**
      * 预设筛选口径（模型族优先，协议兜底）：
-     * 目标（或全部目标）解析出模型族时，只留同族用例与通用用例（{@code modelFamily == null}）；
-     * 一个族都没绑定时，仅按协议筛。协议集合为空则无可选用例。
+     * 目标（或全部目标）解析出模型族时，只留同族用例与通用用例（{@code modelFamily == null}），
+     * 并把同族用例排在通用用例之前——下拉默认选中第一项，顺序即「默认优先展示绑定模型族的预设」；
+     * 一个族都没绑定时，仅按协议筛且保持原顺序。协议集合为空则无可选用例。
      */
     private static List<RoutingDebugPresetItem> filterPresets(List<RoutingDebugPresetItem> presets,
                                                               Set<String> families,
@@ -210,12 +212,21 @@ public class RoutingRuleDebugService {
         if (protocols.isEmpty()) {
             return List.of();
         }
-        return presets.stream()
+        List<RoutingDebugPresetItem> filtered = presets.stream()
             .filter(preset -> protocols.stream()
                 .anyMatch(protocol -> protocol.code().equals(preset.protocolCode())))
             .filter(preset -> families.isEmpty()
                 || preset.modelFamily() == null
                 || families.contains(preset.modelFamily()))
+            .toList();
+        if (families.isEmpty()) {
+            return filtered;
+        }
+        // 族命中优先（通用用例 modelFamily == null 退后）：稳定排序保持同组内原有顺序（预设按 id 倒序）。
+        // 判据用「非空」而不是 families.contains：上面已把异族筛掉，留到这里的非空族必然命中。
+        return filtered.stream()
+            .sorted(Comparator.comparingInt(
+                (RoutingDebugPresetItem preset) -> preset.modelFamily() == null ? 1 : 0))
             .toList();
     }
 

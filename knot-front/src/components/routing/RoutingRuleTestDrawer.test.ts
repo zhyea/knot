@@ -583,6 +583,32 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(vi.mocked(getTestRequestPreset).mock.calls.map((call) => call[0])).toEqual([10]);
   });
 
+  it("⭐ 预设下拉默认优先展示绑定模型族的用例：打开即以它播种请求体", async () => {
+    vi.mocked(getRoutingRuleDebugContext).mockResolvedValue(debugContext([
+      {
+        targetType: "MODEL", targetId: 1, targetCode: "m1", targetName: "模型一",
+        primary: true, modelFamilies: ["openai"], protocols: ["CHAT_COMPLETIONS"]
+      }
+    ], [
+      // 后端已按「同族优先、通用随后」排好序：前端必须原样展示，并按第一项播种
+      { id: 7, name: "openai 专用", protocolCode: "CHAT_COMPLETIONS", modelFamily: "openai" },
+      { id: 9, name: "通用对话", protocolCode: "CHAT_COMPLETIONS", modelFamily: null }
+    ]) as never);
+    vi.mocked(getTestRequestPreset).mockResolvedValue({
+      requestBody: '{"messages":[{"role":"user","content":"族内用例"}]}'
+    } as never);
+
+    const wrapper = await openDrawer();
+
+    // 下拉顺序即「优先展示」：族用例在首项，通用用例退后
+    expect(
+      selectOf(wrapper, 2).findAllComponents(ElOption).map((item) => item.props("label"))
+    ).toEqual(["openai 专用", "通用对话"]);
+    // 默认选中/载入的必须是族用例，而不是原来排在最前面的通用用例
+    expect(selectOf(wrapper, 2).props("modelValue")).toBe(7);
+    expect(getTestRequestPreset).toHaveBeenCalledWith(7);
+  });
+
   it("「全部目标」取协议并集，锁定单个目标后只留该目标自己的协议", async () => {
     vi.mocked(getRoutingRuleDebugContext).mockResolvedValue(debugContext([
       { targetType: "MODEL", targetId: 1, targetCode: "m1", targetName: "模型一", primary: true, protocols: ["CHAT_COMPLETIONS"] },

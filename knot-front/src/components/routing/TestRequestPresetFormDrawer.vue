@@ -89,16 +89,21 @@
               <p>维护完整、具体的请求体 JSON；调试面板按当前目标覆盖 model 字段。</p>
             </div>
           </div>
-          <el-form-item label-width="0" required :error="bodyError">
-            <!-- height 必须给固定值：只给 max-height 时 el-scrollbar 的 wrap 高度算不出来
-                 （其 height:100% 在无确定高度的父级上退化为 auto），超长请求体会被直接裁掉。 -->
-            <JsonCodeEditor
-              v-model="form.requestBody"
-              :readonly="readonly"
-              min-height="220px"
-              max-height="420px"
-              height="420px"
-            />
+          <el-form-item label-width="0">
+            <div class="preset-body-field">
+              <!-- 错误提示放在输入框上方：编辑器固定 420px 高，挂在下方的 el-form-item__error 会落到
+                   视线之外，保存时看不出是哪一栏没过校验。 -->
+              <p v-if="bodyError" class="preset-body-field__error">{{ bodyError }}</p>
+              <!-- height 必须给固定值：只给 max-height 时 el-scrollbar 的 wrap 高度算不出来
+                   （其 height:100% 在无确定高度的父级上退化为 auto），超长请求体会被直接裁掉。 -->
+              <JsonCodeEditor
+                v-model="form.requestBody"
+                :readonly="readonly"
+                min-height="220px"
+                max-height="420px"
+                height="420px"
+              />
+            </div>
           </el-form-item>
         </div>
       </el-form>
@@ -279,6 +284,17 @@ async function submit() {
 
 .preset-section {
   border-color: #e4e7ed;
+}
+
+.preset-body-field {
+  width: 100%;
+}
+
+.preset-body-field__error {
+  margin: 0 0 8px;
+  color: var(--el-color-danger);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 </style>
