@@ -33,7 +33,7 @@
       </section>
     </div>
 
-    <RoutingRuleFormDrawer v-model="formVisible" :rule="editingRule" @saved="onRuleSaved" />
+    <RoutingRuleFormDrawer v-model="formVisible" :rule-id="editingRuleId" @saved="onRuleSaved" />
 
     <RoutingRuleTestDrawer
       v-model="testVisible"
@@ -42,7 +42,6 @@
       :rule-code="testRuleCode"
       :secret-key="testSecretKey"
       :consumer-return-usage-detail="testConsumerReturnUsageDetail"
-      :targets="testTargets"
     />
 
     <OperationLogDrawer
@@ -67,9 +66,13 @@ import RoutingRuleTestDrawer from "../../components/routing/RoutingRuleTestDrawe
 import {listRoutingRuleOperationLogs} from "@/api/operationLogs";
 import {listRoutingRules, getRoutingConsumerByCode} from "@/api/routing";
 import {useLogDrawer} from "@/composables/useLogDrawer";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logRuleId, name: logRuleName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["name", "ruleCode"]});
-const {visible: formVisible, editing: editingRule, openCreate, openEdit} = useRowFormDrawer();
+// 编辑抽屉只收规则 id：列表不再下发限流/额度、重试、摘除与选择策略，整表数据按 id 拉详情获取
+const {visible: formVisible, editing: editingRuleId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => row.id as number
+});
 
 const {
   query,
@@ -92,7 +95,6 @@ const testRuleName = ref("");
 const testRuleCode = ref("");
 const testSecretKey = ref("");
 const testConsumerReturnUsageDetail = ref(false);
-const testTargets = ref<Row[]>([]);
 
 function onRuleSaved() {
   resetPage();
@@ -105,7 +107,6 @@ async function openTest(row: Row) {
   const consumer = await loadConsumerContext(row.consumerCode);
   testSecretKey.value = consumer.secretKey;
   testConsumerReturnUsageDetail.value = consumer.returnUsageDetail;
-  testTargets.value = Array.isArray(row.targets) ? row.targets : [];
   testVisible.value = true;
 }
 

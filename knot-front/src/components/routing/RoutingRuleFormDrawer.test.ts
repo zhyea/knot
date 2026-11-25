@@ -3,7 +3,7 @@ import {describe, it, expect, vi, beforeEach, afterEach} from "vitest";
 import {readFileSync} from "node:fs";
 import {resolve} from "node:path";
 import {enableAutoUnmount, mount, flushPromises, type VueWrapper} from "@vue/test-utils";
-import {defineComponent, h, onMounted} from "vue";
+import {defineComponent, h, watch} from "vue";
 import {ElDrawer, ElMessage} from "element-plus";
 import RoutingRuleFormDrawer from "@/components/routing/RoutingRuleFormDrawer.vue";
 import {useMissingOptionReporter} from "@/composables/useMissingOptionGuard";
@@ -33,13 +33,18 @@ const RemoteSelectStub = defineComponent({
   emits: ["update:modelValue"],
   setup(props) {
     // 模拟真实组件「下拉缺失值」上报：值等于 MISSING 时向守卫报一条。
-    // 只在 mounted 上报——守卫内部是 ref<Map>，在 render 里 set 会触发自身重渲染。
+    // 用 watch 而不是 onMounted：编辑态的字段是详情回来后才填进去的，挂载那一刻还是 null。
+    // 也仍不能在 render 里 set——守卫内部是 ref<Map>，在 render 期间写入会触发自身重渲染。
     const reporter = useMissingOptionReporter();
-    onMounted(() => {
-      if (props.modelValue === MISSING) {
-        reporter?.report("归属用户#1", [MISSING]);
-      }
-    });
+    watch(
+      () => props.modelValue,
+      (value) => {
+        if (value === MISSING) {
+          reporter?.report("归属用户#1", [MISSING]);
+        }
+      },
+      {immediate: true}
+    );
     return () => h("i", {class: "remote-stub"});
   }
 });
@@ -64,7 +69,8 @@ vi.mock("@/api/routing", () => ({
   createRoutingRule: vi.fn(),
   updateRoutingRule: vi.fn(),
   updateRoutingRuleStatus: vi.fn(),
-  checkRoutingRuleCode: vi.fn()
+  checkRoutingRuleCode: vi.fn(),
+  getRoutingRule: vi.fn()
 }));
 
 vi.mock("@/api/gatewayOutage", () => ({
@@ -93,7 +99,7 @@ vi.mock("@/composables/useEnumOptions", () => ({
   })
 }));
 
-import {checkRoutingRuleCode, createRoutingRule, updateRoutingRule} from "@/api/routing";
+import {checkRoutingRuleCode, createRoutingRule, getRoutingRule, updateRoutingRule} from "@/api/routing";
 import {ejectGatewayOutage, listGatewayOutages, releaseGatewayOutage} from "@/api/gatewayOutage";
 import {
   listAppOptions,
@@ -148,10 +154,18 @@ function outageRow(overrides: Dict = {}): Dict {
   };
 }
 
-/** 打开抽屉必须走 setProps：初始化挂在 watch([modelValue, rule]) 上，没有 immediate */
+/**
+ * 打开抽屉：传 `{rule}` 表示「编辑这条规则」——列表行已不再携带限流 / 重试 / 摘除 / 选择策略，
+ * 抽屉只收 id，整表数据按 id 拉详情；这里把夹具当详情喂给 `getRoutingRule`。
+ */
 async function openDrawer(props: Dict = {}): Promise<VueWrapper> {
+  const {rule, ...rest} = props;
+  const ruleId = rule ? (rule.id as number) : null;
+  if (rule) {
+    vi.mocked(getRoutingRule).mockResolvedValue(rule as never);
+  }
   const wrapper = mount(RoutingRuleFormDrawer, {
-    props: {modelValue: false, rule: null, ...props},
+    props: {modelValue: false, ruleId, ...rest},
     global: {
       stubs: {
         RemoteEntitySelect: RemoteSelectStub,
@@ -267,6 +281,7 @@ describe("RoutingRuleFormDrawer 路由规则表单", () => {
     vi.mocked(listModelPoolOptions).mockResolvedValue({list: [{value: "pool-1", label: "模型池一"}]} as never);
     vi.mocked(listUserUsernameOptions).mockResolvedValue({list: [{value: "zhangsan", label: "张三(zhangsan)"}]} as never);
     vi.mocked(checkRoutingRuleCode).mockResolvedValue({available: true} as never);
+    vi.mocked(getRoutingRule).mockResolvedValue(ruleRow() as never);
     vi.mocked(createRoutingRule).mockResolvedValue({} as never);
     vi.mocked(updateRoutingRule).mockResolvedValue({} as never);
     vi.mocked(listGatewayOutages).mockResolvedValue([] as never);
@@ -323,10 +338,32 @@ describe("RoutingRuleFormDrawer 路由规则表单", () => {
 
     await wrapper.setProps({modelValue: false});
     await flushPromises();
-    await wrapper.setProps({rule: ruleRow({id: 6, ruleCode: "R_CLAUDE"}), modelValue: true});
+    vi.mocked(getRoutingRule).mockResolvedValue(ruleRow({id: 6, ruleCode: "R_CLAUDE"}) as never);
+    await wrapper.setProps({ruleId: 6, modelValue: true});
     await flushPromises();
 
     expect(listGatewayOutages).toHaveBeenLastCalledWith({ruleCode: "R_CLAUDE"});
+  });
+
+  it("编辑态按 id 拉详情回填；新建态不拉详情", async () => {
+    await openDrawer({rule: ruleRow()});
+    expect(getRoutingRule).toHaveBeenCalledWith(RULE_ID);
+    expect(getRoutingRule).toHaveBeenCalledTimes(1);
+
+    await openDrawer();
+    // 新建没有 id，不该打详情接口（打出去只能拿到 404）
+    expect(getRoutingRule).toHaveBeenCalledTimes(1);
+  });
+
+  it("详情拿不到就关抽屉并提示：空表单被保存会覆盖掉库里真实配置", async () => {
+    vi.mocked(getRoutingRule).mockRejectedValue(new Error("500"));
+
+    const wrapper = await openDrawer({ruleId: RULE_ID});
+    await flushPromises();
+
+    expect(vi.mocked(ElMessage.error).mock.calls.at(-1)?.[0]).toBe("加载路由规则详情失败，请重试");
+    expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([false]);
+    expect(updateRoutingRule).not.toHaveBeenCalled();
   });
 
   // ==================== 规则编码 ====================

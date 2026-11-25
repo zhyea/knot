@@ -41,6 +41,7 @@ cd knot-front && npx vue-tsc --noEmit && npx vite build                # 前端�
 - **JDK 25 + Mockito 不能 mock 具体类**，测试替身用子类覆写。
 - **`status` 为 0 是合法值**，前端禁用 truthy 判断。
 - **跨表绑定一律存 code 不存 id。**
+- **列表 ↔ 详情数据边界（2026-11-25 立规，`00-core.md` 铁律 12）**：列表接口只返回列表所需字段；编辑 / 功能页只接 `id` / `code` 等标识，每次打开重新拉详情，禁止复用列表行回填表单。执行细则见 `10-backend-java.md §5.4` / `20-frontend-vue.md §7`；存量清单见 `docs/抽屉复用列表数据审计-2026-11-25.md`。
 - **对外契约不许用 `Map` 拼装**：键由本项目定义的请求/响应体、固定字段集返回值、跨模块消息一律 `record` + `@JsonProperty`；只有上游动态 payload / `knot_extend` / 审计快照可用 `Map`（`10-backend-java.md §5.1`）。
 - **Controller 必须薄**：只做「参数绑定 + 委托 + HTTP 状态/响应体出口」，业务（查库、解 JSON、拼响应体、状态映射、归属权限判断）进对应域的 `Runner` / `Service` / `Support`；
   判据是「换掉 HTTP 框架这段逻辑还要不要」，不是行数。守门 `ControllerThinGuardTest`（gateway / admin 各一份），详见 `10-backend-java.md §3.3`。

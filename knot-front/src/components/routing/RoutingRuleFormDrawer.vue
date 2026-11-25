@@ -9,7 +9,7 @@
     @closed="onClosed"
   >
     <el-scrollbar max-height="calc(100vh - 140px)">
-      <el-form :model="form" label-width="100px" class="routing-rule-form">
+      <el-form :model="form" v-loading="detailLoading" label-width="100px" class="routing-rule-form">
         <div class="slot-body rule-section">
           <div class="section-head">
             <div>
@@ -244,7 +244,7 @@
     </el-scrollbar>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
+      <el-button type="primary" :loading="saving" :disabled="detailLoading" @click="submit">保存</el-button>
     </template>
   </el-drawer>
 </template>
@@ -273,7 +273,7 @@ import {
   normalizeEjectionPolicy,
   type EjectionPolicy
 } from "@/utils/ejectionPolicy";
-import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode} from "@/api/routing";
+import {createRoutingRule, getRoutingRule, updateRoutingRule, checkRoutingRuleCode} from "@/api/routing";
 import {listAppOptions, listLogicalModelOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions, listUserUsernameOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
@@ -283,18 +283,27 @@ import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  rule: {type: Object as PropType<Dict | null>, default: null}
+  // 只接收被编辑规则的 id：列表接口不再下发限流/额度、重试、摘除与目标选择策略，
+  // 整表数据一律按 id 拉详情获取（同 ProviderAccountFormDrawer 的口径）。
+  ruleId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
-const isEdit = computed(() => props.rule != null);
+const isEdit = computed(() => props.ruleId != null);
+
+/** 详情加载中：详情没到手就允许点保存，会用空策略覆盖掉库里真实配置 */
+const detailLoading = ref(false);
+/** 详情里的派生展示名：下拉候选项尚未加载时用作回显 label */
+const detailNames = ref<{consumerName?: string | null; appName?: string | null; logicalModelName?: string | null}>({});
+/** 规则编码的绑定处数（后端在详情里下发：路由目标行 + 限流行）；>0 时编码不可改 */
+const boundCount = ref<number | null>(null);
 
 /**
  * 规则编码口径同其它业务码：编辑态且已被引用（有路由目标或限流绑定）才锁定。
  * boundCount 由后端在 DTO/VO 上派生（目标行数 + 限流绑定行）。
  */
-const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => props.rule?.boundCount);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 
 const appOptions = ref<Row[]>([]);
 const logicalModelOptions = ref<Row[]>([]);
@@ -374,14 +383,14 @@ const selectedConsumers = computed<Row[]>(() => {
     return [];
   }
   const consumer = consumerOptions.value.find((item) => String(item.value) === String(form.consumerCode));
-  return [consumer || {value: form.consumerCode, label: props.rule?.consumerName || `#${form.consumerCode}`}];
+  return [consumer || {value: form.consumerCode, label: detailNames.value.consumerName || `#${form.consumerCode}`}];
 });
 const selectedAppOptions = computed(() => {
   if (form.appId == null) {
     return [];
   }
   const app = appOptions.value.find((item) => String(item.value) === String(form.appId));
-  return [app || {value: form.appId, label: props.rule?.appName || `#${form.appId}`}];
+  return [app || {value: form.appId, label: detailNames.value.appName || `#${form.appId}`}];
 });
 /** 统一模型下拉回显项：value=logicalModelCode；后端已派生 logicalModelName，优先用作 label */
 const selectedLogicalModelOptions = computed<Row[]>(() => {
@@ -389,7 +398,7 @@ const selectedLogicalModelOptions = computed<Row[]>(() => {
     return [];
   }
   const logical = logicalModelOptions.value.find((item) => String(item.value) === String(form.logicalModelCode));
-  const fallbackLabel = props.rule?.logicalModelName || form.logicalModelCode;
+  const fallbackLabel = detailNames.value.logicalModelName || form.logicalModelCode;
   return [logical || {value: form.logicalModelCode, label: fallbackLabel}];
 });
 const selectedConsumerId = computed<string | number | null>({
@@ -495,61 +504,92 @@ async function loadOptions() {
 
 function resetForm() {
   targetType.value = RouteTargetType.MODEL;
-  if (props.rule) {
-    const row = props.rule;
-    form.id = row.id;
-    form.ruleCode = normalizeRuleCode(row.ruleCode);
-    form.name = row.name || "";
-    form.appScenarios = parseAppScenarioTags(row.appScenario);
-    form.consumerCode = row.consumerCode || null;
-    form.appId = row.appId ?? null;
-    form.username = row.username || null;
-    form.logicalModelCode = row.logicalModelCode ?? null;
-    form.selectionStrategy = row.selectionStrategy || "PRIORITY";
-    selectedUserRealName.value = row.userRealName ?? null;
-    form.enabled = isRowEnabled(row);
-    form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
-    form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
-    form.ejectionPolicy = normalizeEjectionPolicy(row.ejectionPolicy);
-    form.targets = (row.targets || []).map((m: Dict) => ({
-      targetType: m.targetType || RouteTargetType.MODEL,
-      targetCode: m.targetCode,
-      targetName: m.targetName || m.name,
-      priority: m.priority ?? 100,
-      primary: !!m.primary
-    }));
-    const primaryTarget = form.targets.find((m) => m.primary) || form.targets[0] || null;
-    primaryTargetKey.value = primaryTarget ? targetKey(primaryTarget) : null;
-  } else {
-    form.id = null;
-    form.ruleCode = "";
-    form.name = "";
-    form.appScenarios = [];
-    form.consumerCode = null;
-    form.appId = null;
-    form.username = null;
-    form.logicalModelCode = null;
-    form.selectionStrategy = "PRIORITY";
-    selectedUserRealName.value = null;
-    form.enabled = false;
-    form.targets = [];
-    form.rateLimitPolicy = emptyRateLimitPolicy();
-    form.retryPolicy = defaultRetryPolicy();
-    form.ejectionPolicy = defaultEjectionPolicy();
-    primaryTargetKey.value = null;
-  }
+  form.id = null;
+  form.ruleCode = "";
+  form.name = "";
+  form.appScenarios = [];
+  form.consumerCode = null;
+  form.appId = null;
+  form.username = null;
+  form.logicalModelCode = null;
+  form.selectionStrategy = "PRIORITY";
+  selectedUserRealName.value = null;
+  form.enabled = false;
+  form.targets = [];
+  form.rateLimitPolicy = emptyRateLimitPolicy();
+  form.retryPolicy = defaultRetryPolicy();
+  form.ejectionPolicy = defaultEjectionPolicy();
+  primaryTargetKey.value = null;
+  boundCount.value = null;
+  detailNames.value = {};
   ruleCodeError.value = "";
+}
+
+/** 详情回填：字段口径与后端 RoutingRule VO 一一对应（列表已不含这些字段，只能从这里拿） */
+function fillFormFromDetail(row: Dict) {
+  form.id = row.id;
+  form.ruleCode = normalizeRuleCode(row.ruleCode);
+  form.name = row.name || "";
+  form.appScenarios = parseAppScenarioTags(row.appScenario);
+  form.consumerCode = row.consumerCode || null;
+  form.appId = row.appId ?? null;
+  form.username = row.username || null;
+  form.logicalModelCode = row.logicalModelCode ?? null;
+  form.selectionStrategy = row.selectionStrategy || "PRIORITY";
+  selectedUserRealName.value = row.userRealName ?? null;
+  detailNames.value = {
+    consumerName: row.consumerName ?? null,
+    appName: row.appName ?? null,
+    logicalModelName: row.logicalModelName ?? null
+  };
+  boundCount.value = row.boundCount ?? null;
+  form.enabled = isRowEnabled(row);
+  form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
+  form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
+  form.ejectionPolicy = normalizeEjectionPolicy(row.ejectionPolicy);
+  form.targets = (row.targets || []).map((m: Dict) => ({
+    targetType: m.targetType || RouteTargetType.MODEL,
+    targetCode: m.targetCode,
+    targetName: m.targetName || m.name,
+    priority: m.priority ?? 100,
+    primary: !!m.primary
+  }));
+  const primaryTarget = form.targets.find((m) => m.primary) || form.targets[0] || null;
+  primaryTargetKey.value = primaryTarget ? targetKey(primaryTarget) : null;
+}
+
+/** 打开抽屉的取数：编辑态按 id 拉详情，拿不到就关抽屉（留着空表单可能被误保存，覆盖真实配置） */
+async function loadDetail() {
+  if (props.ruleId == null) {
+    return;
+  }
+  detailLoading.value = true;
+  try {
+    const detail = await getRoutingRule(props.ruleId);
+    if (detail) {
+      fillFormFromDetail(detail);
+    } else {
+      ElMessage.error("未找到该路由规则");
+      emit("update:modelValue", false);
+    }
+  } catch {
+    ElMessage.error("加载路由规则详情失败，请重试");
+    emit("update:modelValue", false);
+  } finally {
+    detailLoading.value = false;
+  }
 }
 
 /** 摘除面板句柄：刷新时机由本组件决定（打开/换规则），面板只负责自身状态机。 */
 const outagePanelRef = ref<{ refresh: () => Promise<void> } | null>(null);
 
 watch(
-  () => [props.modelValue, props.rule],
+  () => [props.modelValue, props.ruleId],
   async ([visible]) => {
     if (visible) {
       resetForm();
       loadOptions();
+      await loadDetail();
       // 等本次渲染落地、面板 ref 就位后再拉取（首次打开时面板是刚挂载的）
       await nextTick();
       outagePanelRef.value?.refresh();

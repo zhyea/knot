@@ -1,6 +1,8 @@
 package org.chobit.knot.svc.service;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -12,18 +14,18 @@ import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.common.constants.enums.ModelTypeEnum;
 import org.chobit.knot.common.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.common.constants.enums.RoutingTestStatusEnum;
+import org.chobit.knot.common.util.TextSupport;
 import org.chobit.knot.svc.dto.routing.RoutingRuleDto;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.svc.dto.routing.RoutingTestPreparation;
 import org.chobit.knot.svc.dto.routing.RoutingTestStreamHandle;
-import org.chobit.knot.dal.entity.LogicalModelEntity;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 import org.chobit.knot.dal.entity.ModelEntity;
 import org.chobit.knot.dal.entity.ModelPoolEntity;
+import org.chobit.knot.dal.entity.ModelPoolItemEntity;
 import org.chobit.knot.dal.entity.RoutingConsumerEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
-import org.chobit.knot.dal.mapper.LogicalModelMapper;
 import org.chobit.knot.dal.mapper.ModelApiBindingMapper;
 import org.chobit.knot.dal.mapper.ModelMapper;
 import org.chobit.knot.dal.mapper.ModelPoolMapper;
@@ -31,27 +33,32 @@ import org.chobit.knot.dal.mapper.RoutingConsumerMapper;
 import org.chobit.knot.svc.service.support.RoutingRuleDebugRunner;
 import org.chobit.knot.svc.service.support.RoutingRuleDebugSupport;
 import org.chobit.knot.svc.vo.routing.ProtocolDebugCapabilityItem;
-import org.chobit.knot.svc.vo.routing.RoutingRuleDebugProtocols;
-import org.chobit.knot.svc.vo.routing.RoutingTargetDebugProtocols;
+import org.chobit.knot.svc.vo.routing.RoutingDebugPresetItem;
+import org.chobit.knot.svc.vo.routing.RoutingDebugTargetItem;
+import org.chobit.knot.svc.vo.routing.RoutingRuleDebugContext;
 import org.chobit.knot.svc.vo.routing.RoutingTestResult;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 
 /**
- * 路由规则调试域：同步测试、流式测试、调试能力下发、逐目标协议枚举。
+ * 路由规则调试域：同步测试、流式测试、调试能力下发、调试上下文（逐目标协议 + 预设）。
  * 规则本身的读写（CRUD、审计快照、写路径校验）留在 {@code RoutingRuleService}；
  * 调试一侧只通过 {@link RoutingRuleService#getById} 读规则，不触碰写路径。
  */
 @Service
 public class RoutingRuleDebugService {
 
+    /** 目标无可调试能力时的空结果（目标失效 / 类型不支持），避免各处各造一个空集 */
+    private static final TargetCapability EMPTY_CAPABILITY =
+        new TargetCapability(Set.of(), Set.of());
+
     private final RoutingRuleService routingRuleService;
     private final RoutingConsumerMapper routingConsumerMapper;
     private final ModelApiBindingMapper modelApiBindingMapper;
     private final ModelMapper modelMapper;
     private final ModelPoolMapper modelPoolMapper;
-    private final LogicalModelMapper logicalModelMapper;
+    private final RoutingTestPresetService presetService;
     private final RoutingRuleDebugRunner debugRunner;
 
     public RoutingRuleDebugService(RoutingRuleService routingRuleService,
@@ -59,15 +66,22 @@ public class RoutingRuleDebugService {
                                    ModelApiBindingMapper modelApiBindingMapper,
                                    ModelMapper modelMapper,
                                    ModelPoolMapper modelPoolMapper,
-                                   LogicalModelMapper logicalModelMapper,
+                                   RoutingTestPresetService presetService,
                                    RoutingRuleDebugRunner debugRunner) {
         this.routingRuleService = routingRuleService;
         this.routingConsumerMapper = routingConsumerMapper;
         this.modelApiBindingMapper = modelApiBindingMapper;
         this.modelMapper = modelMapper;
         this.modelPoolMapper = modelPoolMapper;
-        this.logicalModelMapper = logicalModelMapper;
+        this.presetService = presetService;
         this.debugRunner = debugRunner;
+    }
+
+    /**
+     * 单个调试目标解析出的能力：可调试协议 + 模型族。两者同源（都由目标实际关联的模型推导），
+     * 分开只是为了让「协议并集」与「族并集」各自聚合。
+     */
+    private record TargetCapability(Set<ModelApiProtocolEnum> protocols, Set<String> families) {
     }
 
     /**
@@ -136,24 +150,73 @@ public class RoutingRuleDebugService {
     }
 
     /**
-     * 调试面板协议下拉的数据源：逐目标下发其支持的接口协议，与调试准入校验 {@link #resolveTestProtocol}
-     * 共用 {@link #supportedProtocolsForTarget}，前端不自行解析模型 / 模型池的协议绑定。
+     * 调试面板的上下文：逐目标下发可调试协议、模型族与该作用域内已筛好的预设请求，
+     * 再给出「全部目标」的协议与预设并集。
+     *
+     * <p>协议与调试准入校验 {@link #resolveTestProtocol} 共用 {@link #capabilityOf}，
+     * 前端不自行解析模型 / 模型池的协议绑定；预设筛选也只在后端一处实现，
+     * 避免「面板能选、发出去被拒」这类两份实现漂移。</p>
      */
-    public RoutingRuleDebugProtocols listDebugProtocols(Long ruleId) {
+    public RoutingRuleDebugContext listDebugContext(Long ruleId) {
         List<RoutingRuleTargetDto> targets = routingRuleService.getById(ruleId).targets();
-        List<RoutingTargetDebugProtocols> items = (targets == null ? List.<RoutingRuleTargetDto>of() : targets).stream()
-            .filter(target -> target.targetId() != null)
-            .map(target -> new RoutingTargetDebugProtocols(
+        List<RoutingDebugPresetItem> activePresets = activePresets();
+        List<RoutingDebugTargetItem> items = new ArrayList<>();
+        Set<ModelApiProtocolEnum> allProtocols = new LinkedHashSet<>();
+        Set<String> allFamilies = new LinkedHashSet<>();
+        for (RoutingRuleTargetDto target : targets == null ? List.<RoutingRuleTargetDto>of() : targets) {
+            if (target.targetId() == null) {
+                continue;
+            }
+            TargetCapability capability = capabilityOf(target);
+            allProtocols.addAll(capability.protocols());
+            allFamilies.addAll(capability.families());
+            items.add(new RoutingDebugTargetItem(
                 RouteTargetTypeEnum.ofOrDefault(target.targetType(), RouteTargetTypeEnum.MODEL).code(),
                 target.targetId(),
+                target.targetCode(),
+                target.targetName(),
                 target.primary(),
-                modelFamilyOf(target),
-                supportedProtocolsForTarget(target).stream()
-                    .map(ModelApiProtocolEnum::code)
-                    .toList()
-            ))
+                List.copyOf(capability.families()),
+                protocolCodes(capability.protocols()),
+                filterPresets(activePresets, capability.families(), capability.protocols())
+            ));
+        }
+        return new RoutingRuleDebugContext(
+            items,
+            protocolCodes(allProtocols),
+            filterPresets(activePresets, allFamilies, allProtocols)
+        );
+    }
+
+    /** 调试面板可选的全部预设（仅启用中的用例）；请求体不进上下文，选中后按 id 懒加载。 */
+    private List<RoutingDebugPresetItem> activePresets() {
+        return presetService.listActiveOptions().stream()
+            .map(dto -> new RoutingDebugPresetItem(dto.id(), dto.name(), dto.protocolCode(), dto.modelFamily()))
             .toList();
-        return new RoutingRuleDebugProtocols(items);
+    }
+
+    private static List<String> protocolCodes(Set<ModelApiProtocolEnum> protocols) {
+        return protocols.stream().map(ModelApiProtocolEnum::code).toList();
+    }
+
+    /**
+     * 预设筛选口径（模型族优先，协议兜底）：
+     * 目标（或全部目标）解析出模型族时，只留同族用例与通用用例（{@code modelFamily == null}）；
+     * 一个族都没绑定时，仅按协议筛。协议集合为空则无可选用例。
+     */
+    private static List<RoutingDebugPresetItem> filterPresets(List<RoutingDebugPresetItem> presets,
+                                                              Set<String> families,
+                                                              Set<ModelApiProtocolEnum> protocols) {
+        if (protocols.isEmpty()) {
+            return List.of();
+        }
+        return presets.stream()
+            .filter(preset -> protocols.stream()
+                .anyMatch(protocol -> protocol.code().equals(preset.protocolCode())))
+            .filter(preset -> families.isEmpty()
+                || preset.modelFamily() == null
+                || families.contains(preset.modelFamily()))
+            .toList();
     }
 
     /**
@@ -251,58 +314,67 @@ public class RoutingRuleDebugService {
     }
 
     /**
-     * 目标解析出的模型族 code：MODEL 取映射到的统一模型族，MODEL_POOL 取池归属统一模型族。
-     * 目标是池内展开模型时仍按供应商模型自身的映射解析。无法解析返回 {@code null}。
+     * 目标可调试协议 + 模型族：两者都必须由<b>实际关联的模型</b>推导。
+     * 直挂模型取自身；模型池取池内启用模型的并集（池内能力允许不一致，任一模型支持即可发起调试，
+     * 实际由哪个模型承接由网关按请求协议筛候选）。
      */
-    private String modelFamilyOf(RoutingRuleTargetDto target) {
+    private TargetCapability capabilityOf(RoutingRuleTargetDto target) {
         RouteTargetTypeEnum targetType =
-                RouteTargetTypeEnum.ofOrDefault(target.targetType(), RouteTargetTypeEnum.MODEL);
+            RouteTargetTypeEnum.ofOrDefault(target.targetType(), RouteTargetTypeEnum.MODEL);
         if (targetType == RouteTargetTypeEnum.MODEL) {
             ModelEntity model = modelMapper.getByCode(target.targetCode());
-            return model == null ? null : model.getModelFamilyCode();
+            if (model == null) {
+                // 模型已删 / code 失效：退回模型类型的协议口径，族无从解析
+                return new TargetCapability(fallbackProtocolsForModelType(target.modelType()), Set.of());
+            }
+            return new TargetCapability(
+                supportedProtocolsForModel(model.getId(), target.modelType()),
+                familyCodesOf(model)
+            );
         }
-        if (targetType != RouteTargetTypeEnum.MODEL_POOL || target.targetId() == null) {
-            return null;
+        if (targetType != RouteTargetTypeEnum.MODEL_POOL) {
+            return EMPTY_CAPABILITY;
         }
         ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
         if (pool == null) {
-            return null;
+            return EMPTY_CAPABILITY;
         }
-        LogicalModelEntity logicalModel = logicalModelMapper.getByCode(pool.getLogicalModelCode());
-        return logicalModel == null ? null : logicalModel.getModelFamily();
+        List<ModelEntity> models = enabledModelsOf(pool);
+        if (models.isEmpty()) {
+            return new TargetCapability(fallbackProtocolsForModelType(target.modelType()), Set.of());
+        }
+        Set<ModelApiProtocolEnum> protocols = new LinkedHashSet<>();
+        Set<String> families = new LinkedHashSet<>();
+        for (ModelEntity model : models) {
+            protocols.addAll(supportedProtocolsForModel(model.getId(), target.modelType()));
+            families.addAll(familyCodesOf(model));
+        }
+        return new TargetCapability(protocols, families);
+    }
+
+    /** 池内启用模型（按模型主键去重，保持池内优先级顺序） */
+    private List<ModelEntity> enabledModelsOf(ModelPoolEntity pool) {
+        Map<Long, ModelEntity> models = new LinkedHashMap<>();
+        for (ModelPoolItemEntity item : modelPoolMapper.listItemsByPoolCode(pool.getPoolCode())) {
+            if (!EnabledStatusEnum.isEnabled(item.getStatus())) {
+                continue;
+            }
+            ModelEntity model = modelMapper.getByCode(item.getModelCode());
+            if (model != null) {
+                models.putIfAbsent(model.getId(), model);
+            }
+        }
+        return List.copyOf(models.values());
+    }
+
+    /** 模型绑定的模型族 code；未绑定返回空集合（预设筛选随之退回「只按协议」） */
+    private static Set<String> familyCodesOf(ModelEntity model) {
+        String family = TextSupport.blankToNull(model.getModelFamilyCode());
+        return family == null ? Set.of() : Set.of(family);
     }
 
     private Set<ModelApiProtocolEnum> supportedProtocolsForTarget(RoutingRuleTargetDto target) {
-        RouteTargetTypeEnum targetType =
-                RouteTargetTypeEnum.ofOrDefault(target.targetType(), RouteTargetTypeEnum.MODEL);
-        if (targetType == RouteTargetTypeEnum.MODEL) {
-            return supportedProtocolsForModel(target.targetId(), target.modelType());
-        }
-        if (targetType != RouteTargetTypeEnum.MODEL_POOL) {
-            return Set.of();
-        }
-        // 池条目只存 model_code，协议绑定仍按模型主键 id 查询，这里做一次 code → id 解析
-        ModelPoolEntity protocolPool = modelPoolMapper.getById(target.targetId());
-        if (protocolPool == null) {
-            return Set.of();
-        }
-        List<Long> enabledModelIds = modelPoolMapper.listItemsByPoolCode(protocolPool.getPoolCode()).stream()
-            .filter(item -> EnabledStatusEnum.isEnabled(item.getStatus()))
-            .map(item -> modelMapper.getByCode(item.getModelCode()))
-            .filter(model -> model != null)
-            .map(ModelEntity::getId)
-            .distinct()
-            .toList();
-        if (enabledModelIds.isEmpty()) {
-            return fallbackProtocolsForModelType(target.modelType());
-        }
-        // 池内模型能力允许不一致，取并集：只要池内任一模型支持该协议即可发起调试。
-        // 实际由哪个模型承接，由网关按请求协议筛选候选（见 RoutingResolver 的协议过滤）。
-        Set<ModelApiProtocolEnum> union = new LinkedHashSet<>();
-        for (Long modelId : enabledModelIds) {
-            union.addAll(supportedProtocolsForModel(modelId, target.modelType()));
-        }
-        return union.isEmpty() ? fallbackProtocolsForModelType(target.modelType()) : union;
+        return capabilityOf(target).protocols();
     }
 
     private Set<ModelApiProtocolEnum> supportedProtocolsForModel(Long modelId, String modelType) {

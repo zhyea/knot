@@ -16,7 +16,8 @@ import org.chobit.knot.svc.vo.common.CodeAvailability;
 import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
 import org.chobit.knot.svc.vo.routing.ProtocolDebugCapabilityItem;
 import org.chobit.knot.svc.vo.routing.RoutingRule;
-import org.chobit.knot.svc.vo.routing.RoutingRuleDebugProtocols;
+import org.chobit.knot.svc.vo.routing.RoutingRuleDebugContext;
+import org.chobit.knot.svc.vo.routing.RoutingRuleItem;
 import org.chobit.knot.svc.vo.routing.RoutingTestRequest;
 import org.chobit.knot.svc.vo.routing.RoutingTestResult;
 import org.chobit.knot.svc.vo.routing.RoutingBillingVerdictRequest;
@@ -65,23 +66,33 @@ public class RoutingRuleController {
     }
 
     /**
-     * Lists the protocols each debug target of the rule supports, computed by the same source as test admission.
+     * 调试面板的上下文：逐目标可调试协议 + 该作用域下已按模型族（优先）与协议筛选过的预设请求。
+     * 数据源与调试准入校验同源 —— 目标协议由 {@code supportedProtocolsForTarget} 计算，
+     * 前端不再自行解析模型 / 模型池的协议绑定，也不自行筛预设。
      */
-    @GetMapping("/{id}/debug-protocols")
-    public RoutingRuleDebugProtocols debugProtocols(@PathVariable Long id) {
-        return routingRuleDebugService.listDebugProtocols(id);
+    @GetMapping("/{id}/debug-context")
+    public RoutingRuleDebugContext debugContext(@PathVariable Long id) {
+        return routingRuleDebugService.listDebugContext(id);
     }
 
     /**
-     * Lists routing rules with pagination.
+     * Lists routing rules with pagination. 列表只含列表页要渲染的字段，
+     * 限流 / 额度、重试、摘除与目标选择策略由详情接口按需下发。
      */
     @PostMapping("/list")
-    public PageResult<RoutingRule> list(@RequestBody(required = false) PageQuery query) {
-        PageResult<RoutingRuleDto> page = routingRuleService.list(
+    public PageResult<RoutingRuleItem> list(@RequestBody(required = false) PageQuery query) {
+        return routingRuleService.list(
             PageQuery.toPageRequest(query),
             query == null ? null : query.keyword()
         );
-        return page.mapList(routingRuleConverter::toVOList);
+    }
+
+    /**
+     * 规则详情：编辑抽屉打开时按 id 取完整配置（限流 / 额度、重试、摘除、目标选择策略、绑定处数）。
+     */
+    @GetMapping("/{id}")
+    public RoutingRule get(@PathVariable Long id) {
+        return routingRuleConverter.toVO(routingRuleService.getById(id));
     }
 
     /**

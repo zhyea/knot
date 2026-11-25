@@ -402,7 +402,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (159, 129, 'POST', '/api/test-request-presets', 'TestRequestPresetController', 1),
 (160, 130, 'PUT', '/api/test-request-presets/{id}', 'TestRequestPresetController', 1),
 (161, 131, 'DELETE', '/api/test-request-presets/{id}', 'TestRequestPresetController', 1),
-(162, 128, 'GET', '/api/test-request-presets/options', 'TestRequestPresetController', 1),
 (163, 132, 'PUT', '/api/test-request-presets/{id}/status', 'TestRequestPresetController', 1),
 (164, 67, 'GET', '/api/billing/rules/{id}', 'BillingController', 1),
 (165, 99, 'GET', '/api/provider-accounts/auth-appliers', 'ProviderController', 1),
@@ -453,8 +452,10 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (204, 150, 'POST', '/api/moderation-words/import', 'ModerationWordController', 1),
 (205, 145, 'GET', '/api/moderation-words/export', 'ModerationWordController', 1),
 (206, 151, 'DELETE', '/api/plugins/{id}', 'PluginController', 1),
--- 路由调试协议下发（前端协议下拉数据源，与调试准入校验同源）
-(208, 112, 'GET', '/api/routing-rules/{id}/debug-protocols', 'RoutingRuleController', 1),
+-- 路由规则详情与调试上下文（编辑抽屉 / 调试抽屉的数据源）。
+-- 列表接口只下发列表页渲染所需字段，限流 / 额度、重试、摘除、选择策略与调试用协议、预设都改由这两条端点按需取。
+(222, 112, 'GET', '/api/routing-rules/{id}', 'RoutingRuleController', 1),
+(223, 112, 'GET', '/api/routing-rules/{id}/debug-context', 'RoutingRuleController', 1),
 -- 网关摘除管理面（B4）：查看 / 恢复 / 手动摘除
 (209, 152, 'GET', '/api/gateway/outages', 'GatewayOutageController', 1),
 (210, 153, 'POST', '/api/gateway/outages/release', 'GatewayOutageController', 1),

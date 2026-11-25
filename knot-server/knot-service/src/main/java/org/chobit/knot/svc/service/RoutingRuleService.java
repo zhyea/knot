@@ -39,6 +39,8 @@ import org.chobit.knot.common.model.RateLimitPolicy;
 import org.chobit.knot.common.model.EjectionPolicy;
 import org.chobit.knot.common.model.RetryPolicy;
 import org.chobit.knot.svc.model.TrafficPolicies;
+import org.chobit.knot.svc.vo.routing.RoutingRuleItem;
+import org.chobit.knot.svc.vo.routing.RoutingRuleTargetItem;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
@@ -88,17 +90,22 @@ public class RoutingRuleService {
         this.trafficPolicySupport = trafficPolicySupport;
     }
 
-    public PageResult<RoutingRuleDto> list(PageRequest pageRequest) {
+    public PageResult<RoutingRuleItem> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
-    public PageResult<RoutingRuleDto> list(PageRequest pageRequest, String keyword) {
+    /**
+     * 列表只下发列表页要渲染的字段：限流 / 额度、重试、摘除、目标选择策略一律留给
+     * 详情接口（{@link #getById(Long)}），既省掉一次 {@code kb_resource_traffic_policies}
+     * 批查询，也不让响应体背着用不到的配置。
+     */
+    public PageResult<RoutingRuleItem> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<RoutingRuleEntity> pageInfo = new PageInfo<>(routingRuleMapper.list(
                 TextSupport.blankToNull(keyword)
             ));
-            List<RoutingRuleDto> dtos = enrichList(pageInfo.getList());
-            return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+            List<RoutingRuleItem> items = toItems(pageInfo.getList());
+            return PageResult.of(items, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
     }
 
@@ -192,25 +199,49 @@ public class RoutingRuleService {
         return getById(id);
     }
 
-    private List<RoutingRuleDto> enrichList(List<RoutingRuleEntity> entities) {
+    private List<RoutingRuleItem> toItems(List<RoutingRuleEntity> entities) {
         if (entities == null || entities.isEmpty()) {
             return List.of();
         }
         List<String> ruleCodes = entities.stream().map(RoutingRuleEntity::getRuleCode).toList();
         Map<String, List<RoutingRuleTargetDto>> targetsByRule = loadTargetsByRuleCodes(ruleCodes);
-        Map<Long, TrafficPolicies> traffic =
-            trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.ROUTING_RULE.code(),
-                entities.stream().map(RoutingRuleEntity::getId).toList());
-        List<RoutingRuleDto> result = new ArrayList<>();
+        List<RoutingRuleItem> result = new ArrayList<>();
         for (RoutingRuleEntity entity : entities) {
-            TrafficPolicies tp = traffic.get(entity.getId());
-            result.add(toDto(
-                entity,
-                targetsByRule.getOrDefault(entity.getRuleCode(), List.of()),
-                tp
+            List<RoutingRuleTargetDto> targets =
+                targetsByRule.getOrDefault(entity.getRuleCode(), List.of());
+            result.add(new RoutingRuleItem(
+                entity.getId(),
+                entity.getRuleCode(),
+                entity.getName(),
+                entity.getAppScenario(),
+                entity.getConsumerCode(),
+                entity.getConsumerName(),
+                entity.getAppId(),
+                entity.getAppName(),
+                entity.getUsername(),
+                entity.getUserRealName(),
+                entity.getLogicalModelCode(),
+                entity.getLogicalModelName(),
+                EnabledStatusEnum.isEnabled(entity.getStatus()),
+                targets.stream().map(RoutingRuleService::toTargetItem).toList(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
             ));
         }
         return result;
+    }
+
+    private static RoutingRuleTargetItem toTargetItem(RoutingRuleTargetDto dto) {
+        return new RoutingRuleTargetItem(
+            dto.targetType(),
+            dto.targetId(),
+            dto.targetCode(),
+            dto.targetName(),
+            dto.modelType(),
+            dto.providerAccountCode(),
+            dto.priority(),
+            dto.primary()
+        );
     }
 
     private RoutingRuleDto enrich(RoutingRuleEntity entity) {

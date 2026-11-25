@@ -8,13 +8,8 @@ import org.chobit.knot.common.model.PageQuery;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.RoutingTestPresetService;
 import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
-import org.chobit.knot.svc.vo.common.OptionItem;
-import org.chobit.knot.svc.vo.common.OptionPage;
-import org.chobit.knot.svc.vo.common.meta.RoutingTestPresetOptionMeta;
 import org.chobit.knot.svc.vo.routing.RoutingTestPreset;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/test-request-presets")
@@ -38,21 +33,7 @@ public class RoutingTestPresetController {
         return page.mapList(presetConverter::toVOList);
     }
 
-    /**
-     * 下拉候选：统一 OptionPage 契约（value=id，label=name，meta 带协议与模型族）。
-     * 协议码与模型族属绑定键之外的业务属性，按 options 契约一律走资源专属 meta，不塞进 {@code OptionItem}。
-     */
-    @GetMapping("/options")
-    public OptionPage<OptionItem<RoutingTestPresetOptionMeta>> options() {
-        List<OptionItem<RoutingTestPresetOptionMeta>> list =
-                presetConverter.toVOList(presetService.listActiveOptions()).stream()
-                        .map(p -> new OptionItem<RoutingTestPresetOptionMeta>(
-                                p.id(), p.name(), null, new RoutingTestPresetOptionMeta(p.protocolCode(), p.modelFamily())))
-                        .toList();
-        return OptionPage.of(list, list.size(), 1, Math.max(list.size(), 1));
-    }
-
-    /** 预设详情：下拉选中后按 id 取完整请求体模板（options 契约不承载 requestBody 大字段）。 */
+    /** 预设详情：下拉选中后按 id 取完整请求体模板（调试上下文只带 id / 名称 / 协议 / 模型族）。 */
     @GetMapping("/{id}")
     public RoutingTestPreset get(@PathVariable Long id) {
         return presetConverter.toVO(presetService.get(id));

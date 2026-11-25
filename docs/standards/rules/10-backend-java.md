@@ -579,6 +579,19 @@ gateway 那 10 项就是被逼出来的：前一天补齐棘轮、第二天清�
 - 用脚本批量删时**行尾按字节保留**（CRLF 逐行带 `\r`）；校验方式是 `git diff --numstat` 必须是 `+0`——
   出现 `+N` 就说明整文件被重组过，行尾已经改了。
 
+### 5.4 列表 VO / 详情 VO 分离（2026-11-25 立规，robin 拍板）
+
+⭐⭐ **列表接口只返回渲染列表所需字段；编辑 / 功能页的取数一律走独立详情端点，不为表单便利往列表 VO 里「顺手多加几个字段」。**
+
+| 允许出现在列表 VO | 不允许出现在列表 VO（归详情 VO） |
+|---|---|
+| 列表列展示值、定位标识（`id` / `code`）、筛选排序字段、列表本身展示的派生只读值 | 配置明细与嵌套策略（如 `configJson`、额度 / 重试策略整包）、凭据与密钥、长文本模板、仅供编辑表单的关联行集合 |
+
+- 详情 VO 与列表 VO **分开定义**；列表瘦身不得靠「详情复用列表 VO」绕回去。详情只提供编辑真正需要的字段，不要求与列表同形。
+- 每个可编辑实体都要有按 `id` / `code` 的详情端点；服务层已有 `getById` 而未暴露 Controller 的，按本条补齐。已实测的缺口与优先级见 `docs/抽屉复用列表数据审计-2026-11-25.md`。
+- ⚠ 与 options 接口分工：下拉候选取 `POST /api/{resource}/options`，表单回显取详情端点，两者都不靠列表接口兼任（见 `docs/前端下拉独立options接口-技术方案与实施计划-2026-10-06.md`）。
+- 判例：`AppListPanel.vue:3-12` 只展示 id / appCode / name / deptName / ownerName / remark，而 `AppService.list:61-67` 为整页批量 enrich `quotaPolicies` / `rateLimitPolicy`，仅服务于 `AppFormDrawer.vue:126-133` 的编辑回填——这类 enrich 应移到详情端点。
+
 ## 6. 异常与鉴权
 
 - `BusinessException` **无 `@ResponseStatus`** → 返回 HTTP 200 + `success:false`，前端按业务码处理。
