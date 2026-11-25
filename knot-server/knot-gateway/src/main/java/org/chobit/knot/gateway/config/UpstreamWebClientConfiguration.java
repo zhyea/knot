@@ -47,7 +47,11 @@ public class UpstreamWebClientConfiguration {
      */
     @Bean
     public WebClient upstreamWebClient(WebClient.Builder builder, HttpClient httpClient) {
-        return builder.clientConnector(new ReactorClientHttpConnector(httpClient)).build();
+        return builder
+            .clientConnector(new ReactorClientHttpConnector(httpClient))
+            .codecs(configurer -> configurer.defaultCodecs()
+                .maxInMemorySize(16 * 1024 * 1024))
+            .build();
     }
 
     /**
