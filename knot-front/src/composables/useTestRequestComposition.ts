@@ -248,11 +248,13 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
     }
     const family = (ctx.targetModelFamily() || "").trim();
     return presetOptions.value.filter((preset) => {
-      if (preset.protocolCode !== protocol) {
-        return false;
+      const presetFamily = (preset.modelFamily || "").trim();
+      // 已绑定模型族的预设优先按当前目标的统一模型族匹配，不再按协议过滤
+      if (presetFamily) {
+        return Boolean(family) && presetFamily === family;
       }
-      // 通用用例（未绑族）对任何目标都可用；目标解析不出族时不做族过滤
-      return !family || !preset.modelFamily || preset.modelFamily === family;
+      // 未绑定模型族的通用预设才按当前接口协议筛选
+      return preset.protocolCode === protocol;
     });
   });
 
