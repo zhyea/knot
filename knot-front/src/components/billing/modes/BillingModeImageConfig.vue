@@ -24,17 +24,6 @@
         </el-form-item>
       </el-col>
       <el-col :xs="24" :span="12">
-        <el-form-item label="图像输出">
-          <el-input-number
-            v-model="form.imageTokenOutputImage"
-            :min="0"
-            :step="UNIT_PRICE_STEP"
-            controls-position="right"
-            style="width: 100%"
-          />
-        </el-form-item>
-      </el-col>
-      <el-col :xs="24" :span="12">
         <el-form-item label="文本缓存输入">
           <el-input-number
             v-model="form.imageTokenCacheReadText"
@@ -49,6 +38,17 @@
         <el-form-item label="图像缓存输入">
           <el-input-number
             v-model="form.imageTokenCacheReadImage"
+            :min="0"
+            :step="UNIT_PRICE_STEP"
+            controls-position="right"
+            style="width: 100%"
+          />
+        </el-form-item>
+      </el-col>
+      <el-col :xs="24" :span="12">
+        <el-form-item label="图像输出">
+          <el-input-number
+            v-model="form.imageTokenOutputImage"
             :min="0"
             :step="UNIT_PRICE_STEP"
             controls-position="right"
