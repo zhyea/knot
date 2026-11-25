@@ -86,7 +86,7 @@
 <script setup lang="ts">
 import {computed, reactive, ref, watch, type PropType} from "vue";
 import {ElMessage} from "element-plus";
-import {createDepartment, updateDepartment} from "@/api/departments";
+import {createDepartment, getDepartment, updateDepartment} from "@/api/departments";
 import type {Dict, Row} from "@/types";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 import {EnabledStatus} from "@/constants/status";
@@ -100,14 +100,15 @@ interface ParentOption {
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  department: {type: Object as PropType<Dict | null>, default: null},
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用树 / 列表行数据 */
+  departmentId: {type: Number as PropType<number | null>, default: null},
   treeOptions: {type: Array as PropType<Row[]>, default: (): Row[] => []},
   defaultParentId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
-const isEdit = computed(() => props.department != null);
+const isEdit = computed(() => props.departmentId != null);
 /** 机构编码引用处数（部门下用户 + 应用数）：>0 时不可改 */
 const boundCount = ref(0);
 const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
@@ -149,54 +150,58 @@ const parentOptions = computed(() => {
   return options;
 });
 
-function resetForm() {
-  if (props.department) {
-    form.id = props.department.id;
-    form.deptCode = props.department.deptCode || "";
-    form.deptName = props.department.deptName || "";
-    form.parentId = props.department.parentId ?? null;
-    form.sortOrder = props.department.sortOrder ?? 0;
-    form.status = props.department.status ?? 1;
-    form.remark = props.department.remark || "";
-    boundCount.value = Number(props.department.boundCount ?? 0);
-    return;
-  }
-  form.id = null;
-  form.deptCode = "";
-  form.deptName = "";
-  form.parentId = props.defaultParentId ?? null;
-  form.sortOrder = 0;
-  form.status = 1;
-  form.remark = "";
-  boundCount.value = 0;
+function resetForm(detail: Dict | null): void {
+  form.id = detail?.id ?? null;
+  form.deptCode = detail?.deptCode || "";
+  form.deptName = detail?.deptName || "";
+  form.parentId = detail?.parentId ?? props.defaultParentId ?? null;
+  form.sortOrder = detail?.sortOrder ?? 0;
+  form.status = detail?.status ?? 1;
+  form.remark = detail?.remark || "";
+  boundCount.value = Number(detail?.boundCount ?? 0);
 }
 
 watch(
-    () => [props.modelValue, props.department],
-    ([visible]) => {
-      if (visible) {
-        resetForm();
+    () => [props.modelValue, props.departmentId] as const,
+    async ([visible]) => {
+      if (!visible) return;
+      if (props.departmentId == null) {
+        resetForm(null);
+        return;
       }
+      let detail: Dict;
+      try {
+        const loaded = await getDepartment(props.departmentId);
+        if (!loaded) throw new Error("部门详情为空");
+        detail = loaded as Dict;
+      } catch {
+        ElMessage.error("部门详情加载失败");
+        emit("update:modelValue", false);
+        return;
+      }
+      resetForm(detail);
     },
     {immediate: true}
 );
 
 function shouldDisableParent(node: Row): boolean {
-  if (!props.department) {
+  if (props.departmentId == null) {
     return countLevel(node) >= 3;
   }
-  if (node.id === props.department.id) {
+  if (Number(node.id) === props.departmentId) {
     return true;
   }
-  if (containsDepartment(node, props.department.id)) {
+  if (containsDepartment(node, props.departmentId)) {
     return true;
   }
-  return countLevel(node) + countSubtreeHeight(props.department) > 3;
+  // 编辑对象的子树只从 /tree 端点取，不复用触发编辑的列表行
+  const current = props.departmentId == null ? null : findNodeById(props.treeOptions, props.departmentId);
+  return countLevel(node) + countSubtreeHeight(current) > 3;
 }
 
-function containsDepartment(node: Row, targetId: number | string | null): boolean {
+function containsDepartment(node: Row, targetId: number | null): boolean {
   if (!node) return false;
-  if (node.id === targetId) return true;
+  if (Number(node.id) === targetId) return true;
   return (node.children || []).some((child: Row) => containsDepartment(child, targetId));
 }
 
@@ -219,7 +224,7 @@ function countLevel(node: Row): number {
   return level;
 }
 
-function countSubtreeHeight(node: Row) {
+function countSubtreeHeight(node: Row | null) {
   if (!node) return 1;
   const children = node.children || [];
   if (!children.length) {

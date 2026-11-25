@@ -41,11 +41,11 @@
 
     <ScheduledTaskFormDrawer
       v-model="taskDrawer"
-      :task="editingTask"
+      :task-id="editingTaskId"
       @saved="onTaskSaved"
     />
 
-    <ScheduledTaskRunDrawer v-model="runDrawer" :task="runTask" />
+    <ScheduledTaskRunDrawer v-model="runDrawer" :task-code="runTaskCode" />
 
     <OperationLogDrawer
       v-model="logDrawer"
@@ -69,7 +69,7 @@ import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {listScheduledTasks} from "@/api/scheduledTasks";
 import {useListQuery} from "@/composables/useListQuery";
 import {EnabledStatus} from "@/constants/status";
-import type {Dict, Row} from "@/types";
+import type {Row} from "@/types";
 import {listOperationLogsByEntity} from "@/api/operationLogs";
 import {useLogDrawer} from "@/composables/useLogDrawer";
 const {id: logId, name: logName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["taskName", "taskCode"]});
@@ -91,12 +91,12 @@ const {
 
 const taskDrawer = ref(false);
 const runDrawer = ref(false);
-const editingTask = ref<Dict | null>(null);
-const runTask = ref<Dict | null>(null);
+const editingTaskId = ref<number | null>(null);
+const runTaskCode = ref("");
 
 
 function openTaskDrawer(task: Row | null = null) {
-  editingTask.value = task || null;
+  editingTaskId.value = task == null ? null : Number(task.id);
   taskDrawer.value = true;
 }
 
@@ -106,7 +106,7 @@ function onTaskSaved() {
 }
 
 function openRunDrawer(task: Row) {
-  runTask.value = task;
+  runTaskCode.value = String(task.taskCode ?? "");
   runDrawer.value = true;
 }
 

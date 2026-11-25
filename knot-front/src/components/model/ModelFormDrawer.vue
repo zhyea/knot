@@ -367,7 +367,7 @@
 <script setup lang="ts">
 import {displayText} from "@/utils/format";
 import {EnabledStatus} from "@/constants/status";
-import {type PropType, computed, reactive, ref, watch} from "vue";
+import {type PropType, computed, nextTick, reactive, ref, watch} from "vue";
 import {useRouter} from "vue-router";
 import {ElMessage} from "element-plus";
 import {QuestionFilled, RefreshRight} from "@element-plus/icons-vue";
@@ -437,7 +437,10 @@ interface ModelApiBinding {
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  model: {type: Object as PropType<Dict | null>, default: null}
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  modelId: {type: Number as PropType<number | null>, default: null},
+  /** 复制新建：按源 id 拉详情后去主键、改编码，不把拼好的行从列表传进来 */
+  copyFromId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -507,7 +510,7 @@ const form = reactive<ModelFormState>({
   apiBindings: []
 });
 
-const isEdit = computed(() => props.model?.id != null);
+const isEdit = computed(() => props.modelId != null);
 /** 编码引用处数（路由目标 / 池条目 / 厂商映射 / API 绑定 / 折扣策略）：>0 时编码不可改 */
 const boundCount = ref(0);
 const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
@@ -718,23 +721,32 @@ watch(
   }
 );
 
-async function resetForm() {
+function buildModelCopy(source: Dict): Dict {
+  return {
+    ...source,
+    id: null,
+    modelCode: `${String(source.modelCode ?? "").trim()}-copy`,
+    enabled: false,
+    apiBindings: Array.isArray(source.apiBindings)
+      ? source.apiBindings.map((item: Dict) => ({...item, id: null}))
+      : []
+  };
+}
+
+async function resetForm(): Promise<boolean> {
   resettingForm.value = true;
   modelCodeError.value = "";
   modelCodeValidated.value = false;
   try {
-    if (props.model) {
-      fillForm(props.model);
-      if (isEdit.value) {
-        detailLoading.value = true;
-        try {
-          const detail = await getModel(props.model.id);
-          if (detail) {
-            fillForm(detail);
-          }
-        } finally {
-          detailLoading.value = false;
-        }
+    const sourceId = props.copyFromId ?? props.modelId;
+    if (sourceId != null) {
+      detailLoading.value = true;
+      try {
+        const detail = await getModel(sourceId);
+        if (!detail) throw new Error("模型详情为空");
+        fillForm(props.copyFromId != null ? buildModelCopy(detail) : detail);
+      } finally {
+        detailLoading.value = false;
       }
     } else {
       form.id = null;
@@ -752,16 +764,24 @@ async function resetForm() {
       form.apiBindings = [];
       boundCount.value = 0;
     }
+    return true;
+  } catch {
+    ElMessage.error("模型详情加载失败");
+    emit("update:modelValue", false);
+    return false;
   } finally {
+    // 等 providerAccountCode / logicalModelCode 的联动 watch .flush 完再放开守卫，
+    // 否则它们会把刚从详情回填的 billingRuleCode 当「用户改绑」清掉。
+    await nextTick();
     resettingForm.value = false;
   }
 }
 
 watch(
-  () => [props.modelValue, props.model],
+  () => [props.modelValue, props.modelId, props.copyFromId] as const,
   async ([visible]) => {
     if (visible) {
-      await resetForm();
+      if (!(await resetForm())) return;
       await Promise.all([
         // 带 values 精确回显已绑定统一模型，保证 selectedLogicalModel（协议联动/提交校验）在首屏即有值
         loadLogicalModelOptions({values: form.logicalModelCode ? [form.logicalModelCode] : []}),

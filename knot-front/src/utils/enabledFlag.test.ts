@@ -91,7 +91,7 @@ describe("刻意不统一的三类口径", () => {
     const familyForm = readFileSync(resolve(src, "components/model/ModelFamilyFormDialog.vue"), "utf8");
     expect(modelForm).toContain("row.enabled === true");
     expect(accountForm).toContain("!!row.enabled");
-    expect(familyForm).toContain("props.family.enabled !== false");
+    expect(familyForm).toContain("row.enabled !== false");
   });
 });
 

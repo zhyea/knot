@@ -41,6 +41,14 @@ public class AuthorizationModuleController {
     }
 
     /**
+     * Module detail for edit dialogs.
+     */
+    @GetMapping("/{id}")
+    public AdminModuleDetailItem get(@PathVariable Long id) {
+        return moduleService.getById(id);
+    }
+
+    /**
      * Creates a module.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "Module",

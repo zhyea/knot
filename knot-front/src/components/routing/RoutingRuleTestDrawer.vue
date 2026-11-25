@@ -464,11 +464,13 @@ import {
   VideoPause,
   WarningFilled
 } from "@element-plus/icons-vue";
+import {ElMessage} from "element-plus";
+import type {TestPresetOption} from "@/composables/useTestRequestComposition";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import RoutingBillingVerdictPanel from "./RoutingBillingVerdictPanel.vue";
 import {
-  listRoutingRuleDebugProtocols,
+  getRoutingRuleDebugContext,
   queryGatewayTask,
   testRoutingRule,
   testRoutingRuleBillingVerdict,
@@ -483,7 +485,7 @@ import {
   useAsyncTaskPolling,
   type AsyncTaskTerminalPayload
 } from "@/composables/useAsyncTaskPolling";
-import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
+import {getTestRequestPreset} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {EMPTY_PLACEHOLDER, parseJsonResult} from "@/utils/format";
 import {
@@ -534,7 +536,6 @@ const props = defineProps({
   ruleName: {type: String, default: ""},
   ruleCode: {type: String, default: ""},
   secretKey: {type: String, default: ""},
-  targets: {type: Array as PropType<RoutingTarget[]>, default: (): RoutingTarget[] => []},
   /** 规则绑定消费者自身的「返回消费详情」开关：已开启时无需（也不显示）临时开启勾选 */
   consumerReturnUsageDetail: {type: Boolean, default: false}
 });
@@ -559,8 +560,10 @@ const testResult = ref<RoutingTestResult | null>(null);
 const responseHeaders = ref<Record<string, string>>({});
 /** 目标 key → 该目标可调试的协议 code；清空就是整体换一个空对象（比逐个 delete key 更省心） */
 const targetProtocolMap = ref<Record<string, string[]>>({});
-/** 目标 key → 该目标解析出的模型族 code（预设请求按族过滤；null 表示无法解析，不过滤） */
-const targetFamilyMap = ref<Record<string, string | null>>({});
+/** 目标 key → 该目标作用域内的预设请求（后端已按模型族 / 协议筛好） */
+const presetsByTarget = ref<Record<string, TestPresetOption[]>>({});
+/** 「全部目标」作用域的预设并集 */
+const allPresets = ref<TestPresetOption[]>([]);
 
 /** 区块滚动容器引用，用于追加后自动滚到底部 */
 const streamScrollbar = ref<ScrollbarLike | null>(null);
@@ -677,8 +680,9 @@ const drawerTitle = computed(() => {
   return name ? `路由规则测试 — ${name}` : "路由规则测试";
 });
 
+const ruleTargets = ref<RoutingTarget[]>([]);
 const targetOptions = computed(() =>
-  (Array.isArray(props.targets) ? props.targets : [])
+  ruleTargets.value
     .filter((item) => item?.targetId != null)
     .map((item) => ({
       ...item,
@@ -688,10 +692,6 @@ const targetOptions = computed(() =>
 );
 
 const activeTarget = computed(() => targetOptions.value.find((item) => item.key === testForm.targetKey) || null);
-/** 当前选中目标的模型族：「全部目标」不带族，预设下拉只按协议过滤 */
-const activeTargetFamily = computed<string | null>(() =>
-  testForm.targetKey === ALL_TARGETS_KEY ? null : (targetFamilyMap.value[testForm.targetKey] ?? null)
-);
 const availableProtocols = computed(() =>
   // 与 syncCurrentProtocol 同一口径：这里只负责加 label，协议集合只由 currentProtocolCodes 决定
   currentProtocolCodes().map((code) => ({code, label: protocolLabel(code)}))
@@ -726,12 +726,11 @@ const {
   ruleCode: () => props.ruleCode,
   targetKey: () => testForm.targetKey,
   protocol: activeProtocol,
-  targetModelFamily: () => activeTargetFamily.value,
   billingVerifyEnabled: testBillingVerify,
   consumerReturnUsageDetail: () => props.consumerReturnUsageDetail,
   canonicalOf,
   gatewayPathOf,
-  listPresetOptions: listTestRequestPresetOptions,
+  listPresetOptions: async () => currentPresets(),
   loadPresetDetail: getTestRequestPreset
 });
 
@@ -1116,8 +1115,7 @@ watch(
     testBillingVerify.value = true;
     resetHeaderRows();
     initializeTargetSelection();
-    await Promise.all([loadDebugCapabilities(), loadPresetOptions()]);
-    await loadAllTargetProtocols();
+    await Promise.all([loadDebugCapabilities(), loadDebugContext()]);
   }
 );
 
@@ -1129,6 +1127,7 @@ watch(
     }
     // 唯一的目标切换入口：模板不再挂 @change（两条路径会各跑一次 syncCurrentProtocol）
     syncCurrentProtocol();
+    await loadPresetOptions();
   }
 );
 
@@ -1184,41 +1183,67 @@ function syncCurrentProtocol() {
   ensureTemplateForCurrentSelection();
 }
 
+function toPresetOption(item: {id: number; name: string; protocolCode: string; modelFamily: string | null}): TestPresetOption {
+  return {
+    id: Number(item.id),
+    name: item.name,
+    protocolCode: item.protocolCode || "",
+    modelFamily: item.modelFamily ?? null
+  };
+}
+
+/** 当前作用域的预设：「全部目标」用后端给的并集，单目标用该目标的预设 */
+function currentPresets(): TestPresetOption[] {
+  if (testForm.targetKey === ALL_TARGETS_KEY) {
+    return allPresets.value;
+  }
+  return presetsByTarget.value[testForm.targetKey] || [];
+}
+
 /**
- * 抽屉打开时载入各目标的协议（并集与单目标切换共用同一份缓存）。
- * 协议由后端 GET /api/routing-rules/{id}/debug-protocols 权威下发，与调试准入校验同源，
- * 前端不再解析模型/模型池的协议绑定，避免两份实现漂移。
+ * 目标 / 协议 / 预设一次取齐：后端 GET /api/routing-rules/{id}/debug-context 权威下发，
+ * 与调试准入校验同源。前端只负责选择，不再解析模型绑定、也不自己筛预设（铁律 12）。
  */
-async function loadAllTargetProtocols() {
+async function loadDebugContext() {
   protocolLoading.value = true;
+  ruleTargets.value = [];
+  targetProtocolMap.value = {};
+  presetsByTarget.value = {};
+  allPresets.value = [];
+  if (props.ruleId == null) {
+    syncCurrentProtocol();
+    await loadPresetOptions();
+    return;
+  }
   try {
-    targetProtocolMap.value = {};
-    targetFamilyMap.value = {};
-    if (props.ruleId == null) {
-      syncCurrentProtocol();
-      return;
-    }
-    const detail = await listRoutingRuleDebugProtocols(props.ruleId);
-    const next: Record<string, string[]> = {};
-    const nextFamilies: Record<string, string | null> = {};
-    for (const item of detail?.targets || []) {
-      if (item?.targetId == null) {
-        continue;
-      }
+    const context = await getRoutingRuleDebugContext(props.ruleId);
+    if (!context) throw new Error("调试上下文为空");
+    ruleTargets.value = (Array.isArray(context.targets) ? context.targets : []).map((item) => ({
+      targetType: item.targetType,
+      targetId: item.targetId,
+      targetCode: item.targetCode ?? undefined,
+      targetName: item.targetName ?? undefined,
+      primary: item.primary
+    }));
+    const protocols: Record<string, string[]> = {};
+    const presets: Record<string, TestPresetOption[]> = {};
+    for (const item of context.targets || []) {
+      if (item?.targetId == null) continue;
       const key = `${normalizeTargetType(item.targetType)}:${item.targetId}`;
-      next[key] = item.protocols || [];
-      nextFamilies[key] = item.modelFamily ?? null;
+      protocols[key] = item.protocols || [];
+      presets[key] = (item.presets || []).map(toPresetOption);
     }
-    targetProtocolMap.value = next;
-    targetFamilyMap.value = nextFamilies;
-    syncCurrentProtocol();
+    targetProtocolMap.value = protocols;
+    presetsByTarget.value = presets;
+    allPresets.value = (context.presets || []).map(toPresetOption);
   } catch {
-    // 载入失败保持空表：协议下拉随之置空，不做本地兜底，避免下拉出后端实际不放行的协议
-    targetProtocolMap.value = {};
-    targetFamilyMap.value = {};
-    syncCurrentProtocol();
+    // 载入失败保持空表：协议 / 预设下拉随之置空，不做本地兜底
+    ElMessage.error("规则调试上下文加载失败");
+    emit("update:modelValue", false);
   } finally {
     protocolLoading.value = false;
+    syncCurrentProtocol();
+    await loadPresetOptions();
   }
 }
 

@@ -126,10 +126,7 @@ vi.mock("@/composables/useCopyToClipboard", () => ({
 }));
 
 vi.mock("@/api/routing", () => ({
-  listRoutingRuleDebugProtocols: vi.fn().mockResolvedValue({
-    targets: [{ targetType: "MODEL", targetId: 1, protocols: ["CHAT_COMPLETIONS"] }]
-  }),
-  listTestRequestPresetOptions: vi.fn().mockResolvedValue({ list: [] }),
+  getRoutingRuleDebugContext: vi.fn(),
   getTestRequestPreset: vi.fn().mockResolvedValue(null),
   queryGatewayTask: vi.fn(),
   testRoutingRule: vi.fn(),
@@ -138,14 +135,28 @@ vi.mock("@/api/routing", () => ({
 }));
 
 import {
-  listRoutingRuleDebugProtocols,
-  listTestRequestPresetOptions,
+  getRoutingRuleDebugContext,
   queryGatewayTask,
   testRoutingRule,
   testRoutingRuleStream
 } from "@/api/routing";
 
-const TARGETS = [{ targetType: "MODEL", targetId: 1, targetCode: "m1", modelType: "TOKEN" }];
+const TARGETS = [{ targetType: "MODEL", targetId: 1, targetCode: "m1", targetName: "模型一", primary: true }];
+
+/** 后端 debug-context 响应夹具：前端不再分别调 debug-protocols / presets/options */
+function debugContext(targets: Record<string, unknown>[] = TARGETS, presets: Record<string, unknown>[] = []) {
+  return {
+    targets: targets.map((item) => ({
+      primary: false,
+      modelFamilies: [],
+      protocols: ["CHAT_COMPLETIONS"],
+      presets: [],
+      ...item
+    })),
+    protocols: ["CHAT_COMPLETIONS"],
+    presets
+  };
+}
 
 // 每条用例都挂一个抽屉：不卸载会累积到后续用例（曾让 fake timers 的用例卡住 5.9s 超时）
 enableAutoUnmount(afterEach);
@@ -158,7 +169,6 @@ async function openDrawer(props: Record<string, unknown> = {}): Promise<VueWrapp
       ruleId: 1,
       ruleName: "规则A",
       secretKey: "sk-test",
-      targets: TARGETS,
       ...props
     },
     global: {
@@ -248,9 +258,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     h.copy = vi.fn().mockResolvedValue(true);
     // ⚠ `clearAllMocks` 只清调用记录，**不清 mockResolvedValue**：
     // 上一条用例换过的返回数据会静默延续到下一条（曾让「单目标只有自己的协议」拿到并集）。
-    vi.mocked(listRoutingRuleDebugProtocols).mockResolvedValue({
-      targets: [{ targetType: "MODEL", targetId: 1, protocols: ["CHAT_COMPLETIONS"] }]
-    } as never);
+    vi.mocked(getRoutingRuleDebugContext).mockResolvedValue(debugContext() as never);
     vi.mocked(testRoutingRule).mockReset();
     vi.mocked(testRoutingRuleStream).mockReset();
   });
@@ -263,12 +271,11 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(anonymous.findComponent(ElDrawer).props("title")).toBe("路由规则测试");
   });
 
-  it("打开抽屉触发三个初始化请求，并复位计费校验开关", async () => {
+  it("打开抽屉按 ruleId 取调试上下文，并复位计费校验开关", async () => {
     const wrapper = await openDrawer();
 
     expect(h.caps.loadOptions).toHaveBeenCalledTimes(1);
-    expect(listTestRequestPresetOptions).toHaveBeenCalledTimes(1);
-    expect(listRoutingRuleDebugProtocols).toHaveBeenCalledWith(1);
+    expect(getRoutingRuleDebugContext).toHaveBeenCalledWith(1);
     expect(h.verdict.resetVerdictState).toHaveBeenCalled();
 
     // 默认勾选「执行计费规则校验」
@@ -516,8 +523,8 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(codes.some((code) => code.includes("{oops"))).toBe(true);
   });
 
-  it("协议载入失败：协议下拉降级为空且禁用，不做本地兜底", async () => {
-    vi.mocked(listRoutingRuleDebugProtocols).mockRejectedValue(new Error("boom"));
+  it("调试上下文载入失败：协议下拉降级为空且禁用，不做本地兜底", async () => {
+    vi.mocked(getRoutingRuleDebugContext).mockRejectedValue(new Error("boom"));
 
     const wrapper = await openDrawer();
     const protocol = selectOf(wrapper, 1);
@@ -526,19 +533,26 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(protocol.text()).not.toContain("CHAT_COMPLETIONS");
   });
 
-  it("「全部目标」取协议并集，锁定单个目标后只留该目标自己的协议", async () => {
-    vi.mocked(listRoutingRuleDebugProtocols).mockResolvedValue({
-      targets: [
-        { targetType: "MODEL", targetId: 1, protocols: ["CHAT_COMPLETIONS"] },
-        { targetType: "MODEL", targetId: 2, protocols: ["RESPONSES"] }
-      ]
-    } as never);
+  it("目标下拉来自调试上下文，不接收列表行", async () => {
+    vi.mocked(getRoutingRuleDebugContext).mockResolvedValue(debugContext([
+      {targetType: "MODEL", targetId: 1, targetName: "模型一", primary: true},
+      {targetType: "MODEL", targetId: 2, targetName: "模型二"}
+    ]) as never);
 
-    const TWO_TARGETS = [
-      { targetType: "MODEL", targetId: 1, targetCode: "m1", targetName: "模型一", primary: true },
-      { targetType: "MODEL", targetId: 2, targetCode: "m2", targetName: "模型二" }
-    ];
-    const wrapper = await openDrawer({ targets: TWO_TARGETS });
+    const wrapper = await openDrawer();
+
+    expect(getRoutingRuleDebugContext).toHaveBeenCalledWith(1);
+    expect(selectOf(wrapper, 0).findAllComponents(ElOption).map((item) => item.props("label")))
+      .toEqual(["全部目标", "模型一（主）", "模型二"]);
+  });
+
+  it("「全部目标」取协议并集，锁定单个目标后只留该目标自己的协议", async () => {
+    vi.mocked(getRoutingRuleDebugContext).mockResolvedValue(debugContext([
+      { targetType: "MODEL", targetId: 1, targetCode: "m1", targetName: "模型一", primary: true, protocols: ["CHAT_COMPLETIONS"] },
+      { targetType: "MODEL", targetId: 2, targetCode: "m2", targetName: "模型二", protocols: ["RESPONSES"] }
+    ], []) as never);
+
+    const wrapper = await openDrawer();
 
     expect(protocolOptionLabels(wrapper)).toEqual(["CHAT_COMPLETIONS", "RESPONSES"]);
 
@@ -549,12 +563,12 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
   });
 
   it("切到没有协议的目标：已选协议被清空而不是保留上一个目标的协议", async () => {
-    const TWO_TARGETS = [
-      { targetType: "MODEL", targetId: 1, targetCode: "m1", primary: true },
-      { targetType: "MODEL", targetId: 2, targetCode: "m2" }
-    ];
     // 接口只给 target 1 协议，target 2 无协议
-    const wrapper = await openDrawer({ targets: TWO_TARGETS });
+    vi.mocked(getRoutingRuleDebugContext).mockResolvedValue(debugContext([
+      { targetType: "MODEL", targetId: 1, targetCode: "m1", primary: true, protocols: ["CHAT_COMPLETIONS"] },
+      { targetType: "MODEL", targetId: 2, targetCode: "m2", protocols: [] }
+    ], []) as never);
+    const wrapper = await openDrawer();
     expect(protocolOptionLabels(wrapper)).toEqual(["CHAT_COMPLETIONS"]);
     expect(selectOf(wrapper, 1).props("modelValue")).toBe("CHAT_COMPLETIONS");
 
@@ -960,9 +974,9 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
   });
 
   it("视频协议却按同步返回：概览页给出「未生成任务句柄」的指路文案", async () => {
-    vi.mocked(listRoutingRuleDebugProtocols).mockResolvedValue({
-      targets: [{ targetType: "MODEL", targetId: 1, protocols: ["VIDEO_GENERATIONS"] }]
-    } as never);
+    vi.mocked(getRoutingRuleDebugContext).mockResolvedValue(debugContext([
+      { targetType: "MODEL", targetId: 1, protocols: ["VIDEO_GENERATIONS"] }
+    ]) as never);
     vi.mocked(testRoutingRule).mockResolvedValue({
       status: 200,
       headers: {},

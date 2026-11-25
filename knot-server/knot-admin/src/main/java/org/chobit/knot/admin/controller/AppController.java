@@ -8,6 +8,7 @@ import org.chobit.knot.common.model.PageQuery;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.AppService;
 import org.chobit.knot.svc.vo.app.AppItem;
+import org.chobit.knot.svc.vo.app.AppListItem;
 import org.chobit.knot.common.model.AppOptionQuery;
 import org.chobit.knot.svc.service.OptionsService;
 import org.chobit.knot.svc.vo.common.OptionItem;
@@ -34,14 +35,18 @@ public class AppController {
     }
 
     @PostMapping("/list")
-    public PageResult<AppItem> list(@RequestBody PageQuery query) {
+    public PageResult<AppListItem> list(@RequestBody PageQuery query) {
         PageResult<AppDto> page = appService.list(
                 PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword()
         );
-        return page.mapList(appConverter::toVOList);
+        return page.mapList(appConverter::toListItemVOList);
     }
 
+    @GetMapping("/{id}")
+    public AppItem get(@PathVariable Long id) {
+        return appConverter.toVO(appService.getById(id));
+    }
     @OperationLog(module = "app", operation = "CREATE", entityType = "App",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",

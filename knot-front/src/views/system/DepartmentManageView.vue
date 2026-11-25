@@ -57,7 +57,7 @@
 
     <DepartmentFormDrawer
       v-model="drawerVisible"
-      :department="editingDepartment"
+      :department-id="editingDepartmentId"
       :tree-options="treeData"
       :default-parent-id="defaultParentId"
       @saved="onSaved"
@@ -86,7 +86,12 @@ import {deleteDepartment, getDepartmentTree, listDepartments, updateDepartmentSt
 import {listDepartmentOperationLogs} from "@/api/operationLogs";
 import {EnabledStatus} from "@/constants/status";
 import {useFormDrawer} from "@/composables/useFormDrawer";
-const {visible: drawerVisible, editing: editingDepartment, openCreate, openEdit} = useFormDrawer<Row | null>({emptyValue: null, toEditing: (row) => ({...row, children: flatTreeMap.value.get(row.id)?.children || []}), onOpen: (row) => { defaultParentId.value = row ? row.parentId ?? null : selectedNode.value?.parentId ?? null; }});
+// 列表行只提供主键；上级默认值为新建时从当前树节点推导，编辑态一律由详情下发 parentId
+const {visible: drawerVisible, editing: editingDepartmentId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id),
+  onOpen: (id) => { defaultParentId.value = id == null ? selectedNode.value?.parentId ?? null : null; }
+});
 
 const {
   query,
@@ -133,7 +138,7 @@ function openCreateChild() {
   if (!selectedNode.value) {
     return;
   }
-  editingDepartment.value = null;
+  editingDepartmentId.value = null;
   defaultParentId.value = selectedNode.value.id;
   drawerVisible.value = true;
 }

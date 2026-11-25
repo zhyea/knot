@@ -3,6 +3,7 @@ package org.chobit.knot.svc.converter;
 import org.chobit.knot.svc.dto.user.UserDto;
 import org.chobit.knot.dal.entity.UserEntity;
 import org.chobit.knot.svc.vo.user.UserItem;
+import org.chobit.knot.svc.vo.user.UserListItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -23,6 +24,11 @@ public interface UserConverter {
     UserItem toVO(UserDto dto);
 
     List<UserItem> toVOList(List<UserDto> dtos);
+
+    /** 列表专用视图：角色 id / 部门编码 / 绑定引用数不进列表响应 */
+    UserListItem toListItemVO(UserDto dto);
+
+    List<UserListItem> toListItemVOList(List<UserDto> dtos);
 
     // Item → DTO：入参装配归转换器，controller 不再手拼 12 个位置参数
     // （手拼的代价是「哪个位置该填 null」只存在于调用点，加字段时编译器帮不上忙）

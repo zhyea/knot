@@ -64,7 +64,7 @@
       </section>
     </div>
 
-    <ModelFamilyFormDialog v-model="formVisible" :family="editingFamily" @saved="resetPage" />
+    <ModelFamilyFormDialog v-model="formVisible" :family-id="editingFamilyId" @saved="resetPage" />
 
     <OperationLogDrawer
       v-model="logDrawer"
@@ -92,9 +92,12 @@ import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {deleteModelFamily, listModelFamilies, updateModelFamilyStatus} from "@/api/modelFamilies";
 import {listOperationLogsByEntity} from "@/api/operationLogs";
 import {useLogDrawer} from "@/composables/useLogDrawer";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logId, name: logName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["name", "code"]});
-const {visible: formVisible, editing: editingFamily, openCreate, openEdit} = useRowFormDrawer();
+const {visible: formVisible, editing: editingFamilyId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id)
+});
 
 /**
  * 模型族主数据存于枚举表 ks_enum_configs（category='model_family'），与「系统管理 / 枚举管理」

@@ -44,6 +44,14 @@ public class AuthorizationPermissionController {
     }
 
     /**
+     * Permission detail for edit dialogs.
+     */
+    @GetMapping("/{id}")
+    public AdminPermissionItem get(@PathVariable Long id) {
+        return permissionService.getById(id);
+    }
+
+    /**
      * Creates a permission.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "Permission",

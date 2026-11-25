@@ -176,7 +176,7 @@ import {Delete} from "@element-plus/icons-vue";
 import {ElMessage} from "element-plus";
 import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
-import {checkModelPoolCode, createModelPool, updateModelPool} from "@/api/modelPools";
+import {checkModelPoolCode, createModelPool, getModelPool, updateModelPool} from "@/api/modelPools";
 import {listLogicalModelOptions, listModelOptions} from "@/api/options";
 import {defaultStickyPolicy, normalizeStickyPolicy, type StickyPolicy} from "@/utils/stickyPolicy";
 import {resolveSelectedOption, toOptionsLoader} from "@/utils/options";
@@ -185,13 +185,14 @@ import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  pool: { type: Object as PropType<Dict | null>, default: null }
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  poolId: { type: Number as PropType<number | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
-const isEdit = computed(() => props.pool != null);
-/** 编码引用处数（池内模型条目 + 路由规则目标）：后端在列表/详情里下发，>0 时编码不可改 */
+const isEdit = computed(() => props.poolId != null);
+/** 编码引用处数（池内模型条目 + 路由规则目标）：后端在详情里下发，>0 时编码不可改 */
 const boundCount = ref(0);
 const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 const saving = ref(false);
@@ -266,8 +267,7 @@ const boundModelRows = computed(() =>
 const loadModelOptions = toOptionsLoader(listModelOptions, modelOptions);
 const loadLogicalModelOptions = toOptionsLoader(listLogicalModelOptions, logicalModelOptions);
 
-function resetForm() {
-  const row = props.pool;
+function resetForm(row: Dict | null = null) {
   form.id = row?.id ?? null;
   form.poolCode = row?.poolCode || "";
   form.name = row?.name || "";
@@ -294,14 +294,27 @@ function resetForm() {
 }
 
 watch(
-  () => [props.modelValue, props.pool],
-  ([visible]) => {
-    if (visible) {
-      resetForm();
-      modelOptions.value = [];
-      if (form.logicalModelCode) {
-        loadModelOptions({values: form.items.map((i) => i.modelCode).filter((c) => c != null)});
-      }
+  () => [props.modelValue, props.poolId] as const,
+  async ([visible]) => {
+    if (!visible) return;
+    modelOptions.value = [];
+    if (props.poolId == null) {
+      resetForm(null);
+      return;
+    }
+    let detail: Dict;
+    try {
+      const loaded = await getModelPool(props.poolId);
+      if (!loaded) throw new Error("模型池详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("模型池详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    resetForm(detail);
+    if (form.logicalModelCode) {
+      await loadModelOptions({values: form.items.map((i) => i.modelCode).filter((c) => c != null)});
     }
   }
 );

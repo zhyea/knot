@@ -48,6 +48,13 @@ public class EnumConfigController {
     }
 
     /**
+     * 单个枚举项详情：编辑弹窗打开时按 id 精确取，不复用分类列表行。
+     */
+    @GetMapping("/items/detail/{itemId}")
+    public EnumConfigItem getItem(@PathVariable Long itemId) {
+        return enumConfigService.getById(itemId);
+    }
+    /**
      * 查询全部分类编码。
      */
     @PostMapping("/categories")

@@ -87,7 +87,7 @@
       </section>
     </div>
 
-    <ModerationWordFormDialog v-model="formVisible" :word="editingWord" @saved="resetPage" />
+    <ModerationWordFormDialog v-model="formVisible" :word-id="editingWordId" @saved="resetPage" />
     <ModerationWordImportDialog v-model="importVisible" @imported="resetPage" />
 
     <OperationLogDrawer
@@ -127,9 +127,12 @@ import {
 } from "@/api/moderationWords";
 import {listOperationLogsByEntity} from "@/api/operationLogs";
 import {useLogDrawer} from "@/composables/useLogDrawer";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logId, name: logName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["word"]});
-const {visible: formVisible, editing: editingWord, openCreate, openEdit} = useRowFormDrawer();
+const {visible: formVisible, editing: editingWordId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id)
+});
 
 /**
  * 敏感词库管理页（内容安全模块，权限 moderation:word:*）。

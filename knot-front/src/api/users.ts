@@ -1,8 +1,13 @@
-import {postQuery, post, put} from "./http";
+import {postQuery, post, put, get} from "./http";
 import type {Dict, PageResult} from "@/types";
 
 export function listUsers(params: Dict) {
   return postQuery<PageResult<Dict>>("/api/users", params);
+}
+
+/** 用户详情：编辑抽屉打开时按 id 精确取，不复用列表行数据。 */
+export function getUser(id: number | string) {
+  return get<Dict>(`/api/users/${id}`);
 }
 
 export function createUser(payload: Dict) {

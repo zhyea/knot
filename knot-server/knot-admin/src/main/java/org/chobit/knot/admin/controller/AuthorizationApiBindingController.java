@@ -43,6 +43,14 @@ public class AuthorizationApiBindingController {
     }
 
     /**
+     * API binding detail for edit dialogs.
+     */
+    @GetMapping("/{id}")
+    public AdminApiBindingItem get(@PathVariable Long id) {
+        return apiBindingService.getById(id);
+    }
+
+    /**
      * Creates an api permission binding.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "ApiPermissionBinding",

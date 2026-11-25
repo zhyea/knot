@@ -41,6 +41,12 @@ public class AuthorizationPermissionService {
     /**
      * Creates a permission.
      */
+    /**
+     * Gets one record by id for the admin edit dialog.
+     */
+    public AdminPermissionItem getById(Long id) {
+        return converter.toPermissionItem(support.getPermissionById(id));
+    }
     @Transactional
     public AdminPermissionItem createPermission(AdminPermissionItem request) {
         AdminPermissionEntity entity = converter.toPermissionEntity(request);

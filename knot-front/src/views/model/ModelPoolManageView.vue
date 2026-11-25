@@ -44,7 +44,7 @@
       </section>
     </div>
 
-    <ModelPoolFormDrawer v-model="formVisible" :pool="editingPool" @saved="resetPage" />
+    <ModelPoolFormDrawer v-model="formVisible" :pool-id="editingPoolId" @saved="resetPage" />
     <OperationLogDrawer
       v-model="logDrawer"
       :title="`模型池变更日志 - ${logPoolName || ''}`"
@@ -69,9 +69,12 @@ import ModelPoolFormDrawer from "../../components/model/ModelPoolFormDrawer.vue"
 import {deleteModelPool, listModelPools, restoreModelPool} from "@/api/modelPools";
 import {listModelPoolOperationLogs} from "@/api/operationLogs";
 import {useLogDrawer} from "@/composables/useLogDrawer";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logPoolId, name: logPoolName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["poolCode"]});
-const {visible: formVisible, editing: editingPool, openCreate, openEdit} = useRowFormDrawer();
+const {visible: formVisible, editing: editingPoolId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id)
+});
 
 /**
  * 管理列表带 includeDeleted=true：已逻辑删除的模型池仍展示（浅红底 + 恢复按钮），

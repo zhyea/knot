@@ -189,6 +189,14 @@ public class ModelController {
                 .toList();
     }
 
+    /**
+     * 折扣策略详情：编辑弹窗打开时按 modelCode + policyId 精确取，不复用列表行。
+     */
+    @GetMapping("/{modelCode}/discount-policies/{policyId}")
+    public DiscountPolicy getDiscountPolicy(@PathVariable String modelCode, @PathVariable Long policyId) {
+        return modelConverter.toDiscountPolicyVO(modelService.getDiscountPolicy(modelCode, policyId));
+    }
+
     @OperationLog(module = "model", operation = "CREATE", entityType = "Model",
             entityId = "#p0",
             entityNameAfter = "#p0",

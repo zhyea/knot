@@ -14,6 +14,10 @@ import {
   deleteAuthorizationModule,
   deleteAuthorizationPermission,
   deleteAuthorizationRole,
+  getAuthorizationApiBinding,
+  getAuthorizationMenu,
+  getAuthorizationModule,
+  getAuthorizationPermission,
   getRoleAuthorizationSnapshot,
   listAuthorizationApiBindings,
   listAuthorizationMenus,
@@ -64,11 +68,13 @@ export function useAuthorizationManagement() {
 
   const roleDialogVisible = ref(false);
   const roleGrantDrawerVisible = ref(false);
-  const editingRole = ref<Row | null>(null);
+  const editingRoleId = ref<number | null>(null);
 
   const resourceDialogVisible = ref(false);
   const resourceDialogTitle = ref("");
-  const resourceDialogForm = ref<Dict>({});
+  const resourceDialogId = ref<number | null>(null);
+  /** 按资源类型切换详情加载器；由弹窗在打开时按 id 调用，列表行不进表单 */
+  const resourceDialogLoader = ref<(id: number) => Promise<Dict | null>>(async () => null);
   const resourceDialogFields = ref<ResourceField[]>([]);
   const resourceDialogSubmitter = ref<ResourceSubmitter>(async () => ({}));
   const resourceType = ref("");
@@ -396,12 +402,13 @@ export function useAuthorizationManagement() {
 
   async function loadRoleSnapshot(roleId: number | string) {
     const snapshot = await getRoleAuthorizationSnapshot(roleId);
-    selectedRole.value = rows.value.find((item) => item.id === roleId) || snapshot?.roles?.[0] || null;
+    // 角色名 / 编码取本次快照里的新值，不复用列表行：列表只是入口，详情由 snapshot 端点下发
+    selectedRole.value = snapshot?.roles?.[0] ?? null;
     grantedPermissionIds.value = snapshot?.grantedPermissionIds || [];
   }
 
   function openRoleCreate() {
-    editingRole.value = null;
+    editingRoleId.value = null;
     roleDialogVisible.value = true;
   }
 
@@ -418,7 +425,7 @@ export function useAuthorizationManagement() {
       return;
     }
     if (action === "edit") {
-      editingRole.value = row;
+      editingRoleId.value = Number(row.id);
       roleDialogVisible.value = true;
       return;
     }
@@ -608,7 +615,8 @@ export function useAuthorizationManagement() {
   function openModuleCreate() {
     resourceType.value = "module";
     resourceDialogTitle.value = "新建模块";
-    resourceDialogForm.value = {};
+    resourceDialogId.value = null;
+    resourceDialogLoader.value = async () => null;
     resourceDialogFields.value = [
       { key: "moduleCode", label: "模块编码", required: true, placeholder: "例如: system" },
       { key: "moduleName", label: "模块名称", required: true, placeholder: "请输入模块名称" },
@@ -630,14 +638,16 @@ export function useAuthorizationManagement() {
     if (action === "edit") {
       resourceType.value = "module";
       resourceDialogTitle.value = "编辑模块";
-      resourceDialogForm.value = row;
+      const resourceId = Number(row.id);
+      resourceDialogId.value = resourceId;
+      resourceDialogLoader.value = (id) => getAuthorizationModule(id);
       resourceDialogFields.value = [
         { key: "moduleCode", label: "模块编码", required: true },
         { key: "moduleName", label: "模块名称", required: true },
         { key: "icon", label: "图标" },
         { key: "sortOrder", label: "排序", type: "number", defaultValue: 0 }
       ];
-      resourceDialogSubmitter.value = (payload) => updateAuthorizationModule(row.id, payload);
+      resourceDialogSubmitter.value = (payload) => updateAuthorizationModule(resourceId, payload);
       resourceDialogVisible.value = true;
       return;
     }
@@ -654,7 +664,8 @@ export function useAuthorizationManagement() {
   function openMenuCreate() {
     resourceType.value = "menu";
     resourceDialogTitle.value = "新建菜单";
-    resourceDialogForm.value = {};
+    resourceDialogId.value = null;
+    resourceDialogLoader.value = async () => null;
     resourceDialogFields.value = [
       { key: "moduleId", label: "所属模块", required: true, type: "select", options: moduleOptions.value, placeholder: "请选择模块" },
       { key: "parentId", label: "上级菜单", type: "tree-select", options: menuTreeOptions.value, placeholder: "可选" },
@@ -680,10 +691,12 @@ export function useAuthorizationManagement() {
     if (action === "edit") {
       resourceType.value = "menu";
       resourceDialogTitle.value = "编辑菜单";
-      resourceDialogForm.value = row;
+      const resourceId = Number(row.id);
+      resourceDialogId.value = resourceId;
+      resourceDialogLoader.value = (id) => getAuthorizationMenu(id);
       resourceDialogFields.value = [
         { key: "moduleId", label: "所属模块", required: true, type: "select", options: moduleOptions.value },
-        { key: "parentId", label: "上级菜单", type: "tree-select", options: buildMenuTreeOptions(menuCatalog.value, row.id) },
+        { key: "parentId", label: "上级菜单", type: "tree-select", options: buildMenuTreeOptions(menuCatalog.value, resourceId) },
         { key: "menuCode", label: "菜单编码", required: true },
         { key: "menuName", label: "菜单名称", required: true },
         { key: "routePath", label: "路由路径" },
@@ -692,7 +705,7 @@ export function useAuthorizationManagement() {
         { key: "sortOrder", label: "排序", type: "number", defaultValue: 0 }
       ];
       resourceDialogSubmitter.value = (payload) =>
-        updateAuthorizationMenu(row.id, normalizeNullableFields(payload, ["parentId"]));
+        updateAuthorizationMenu(resourceId, normalizeNullableFields(payload, ["parentId"]));
       resourceDialogVisible.value = true;
       return;
     }
@@ -709,7 +722,8 @@ export function useAuthorizationManagement() {
   function openPermissionCreate() {
     resourceType.value = "permission";
     resourceDialogTitle.value = "新建权限";
-    resourceDialogForm.value = {};
+    resourceDialogId.value = null;
+    resourceDialogLoader.value = async () => null;
     resourceDialogFields.value = [
       { key: "permissionCode", label: "权限编码", required: true },
       { key: "permissionName", label: "权限名称", required: true },
@@ -744,7 +758,9 @@ export function useAuthorizationManagement() {
     if (action === "edit") {
       resourceType.value = "permission";
       resourceDialogTitle.value = "编辑权限";
-      resourceDialogForm.value = row;
+      const resourceId = Number(row.id);
+      resourceDialogId.value = resourceId;
+      resourceDialogLoader.value = (id) => getAuthorizationPermission(id);
       resourceDialogFields.value = [
         { key: "permissionCode", label: "权限编码", required: true },
         { key: "permissionName", label: "权限名称", required: true },
@@ -764,7 +780,7 @@ export function useAuthorizationManagement() {
         { key: "remark", label: "备注", type: "textarea" }
       ];
       resourceDialogSubmitter.value = (payload) =>
-        updateAuthorizationPermission(row.id, normalizeNullableFields(payload, ["menuId"]));
+        updateAuthorizationPermission(resourceId, normalizeNullableFields(payload, ["menuId"]));
       resourceDialogVisible.value = true;
       return;
     }
@@ -784,7 +800,8 @@ export function useAuthorizationManagement() {
   function openApiBindingCreate() {
     resourceType.value = "binding";
     resourceDialogTitle.value = "新建 API 绑定";
-    resourceDialogForm.value = {};
+    resourceDialogId.value = null;
+    resourceDialogLoader.value = async () => null;
     resourceDialogFields.value = [
       { key: "permissionId", label: "绑定权限", required: true, type: "select", options: permissionOptions.value },
       {
@@ -813,7 +830,9 @@ export function useAuthorizationManagement() {
     if (action === "edit") {
       resourceType.value = "binding";
       resourceDialogTitle.value = "编辑 API 绑定";
-      resourceDialogForm.value = row;
+      const resourceId = Number(row.id);
+      resourceDialogId.value = resourceId;
+      resourceDialogLoader.value = (id) => getAuthorizationApiBinding(id);
       resourceDialogFields.value = [
         { key: "permissionId", label: "绑定权限", required: true, type: "select", options: permissionOptions.value },
         {
@@ -826,7 +845,7 @@ export function useAuthorizationManagement() {
           { key: "pathPattern", label: "路径模式", required: true },
           { key: "controllerClass", label: "控制器" }
         ];
-      resourceDialogSubmitter.value = (payload) => updateAuthorizationApiBinding(row.id, payload);
+      resourceDialogSubmitter.value = (payload) => updateAuthorizationApiBinding(resourceId, payload);
       resourceDialogVisible.value = true;
       return;
     }
@@ -1040,10 +1059,11 @@ export function useAuthorizationManagement() {
     grantSaving,
     roleDialogVisible,
     roleGrantDrawerVisible,
-    editingRole,
+    editingRoleId,
     resourceDialogVisible,
     resourceDialogTitle,
-    resourceDialogForm,
+    resourceDialogId,
+    resourceDialogLoader,
     resourceDialogFields,
     resourceDialogSubmitter,
     logDrawerVisible,

@@ -59,6 +59,11 @@ export function listDiscountPolicies(modelCode: string, params: Dict = {}) {
   return postQuery(`/api/models/${modelCode}/discount-policies/list`, params);
 }
 
+/** 折扣策略详情：编辑弹窗打开时按 modelCode + policyId 精确取，不复用列表行数据。 */
+export function getDiscountPolicy(modelCode: string, policyId: number | string) {
+  return get<Dict>(`/api/models/${encodeURIComponent(modelCode)}/discount-policies/${policyId}`);
+}
+
 export function createDiscountPolicy(modelCode: string, payload: Dict) {
   return post(`/api/models/${modelCode}/discount-policies`, payload);
 }

@@ -9,7 +9,7 @@
     <el-scrollbar max-height="calc(100vh - 140px)">
     <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
       <el-form-item label="任务编码" prop="taskCode">
-        <el-input v-model="form.taskCode" placeholder="如 operation-log-retention" :disabled="Boolean(task?.id)" />
+        <el-input v-model="form.taskCode" placeholder="如 operation-log-retention" :disabled="taskId != null" />
       </el-form-item>
       <el-form-item label="任务名称" prop="taskName">
         <el-input v-model="form.taskName" placeholder="请输入任务名称" />
@@ -55,13 +55,15 @@
 <script setup lang="ts">
 import type {Dict} from "@/types";
 import {type PropType,  computed, reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
 import CronExpressionInput from "./CronExpressionInput.vue";
-import {createScheduledTask, listScheduledTaskHandlers, updateScheduledTask} from "@/api/scheduledTasks";
+import {createScheduledTask, getScheduledTask, listScheduledTaskHandlers, updateScheduledTask} from "@/api/scheduledTasks";
 import {EnabledStatus} from "@/constants/status";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  task: { type: Object as PropType<Dict | null>, default: null }
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  taskId: { type: Number as PropType<number | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -74,7 +76,7 @@ const form = reactive(defaultForm());
 const handlerOptions = ref<string[]>([]);
 const handlerLoading = ref(false);
 
-const title = computed(() => (props.task?.id ? "编辑任务配置" : "新增任务配置"));
+const title = computed(() => (props.taskId != null ? "编辑任务配置" : "新增任务配置"));
 
 const rules = {
   taskCode: [{ required: true, message: "请输入任务编码", trigger: "blur" }],
@@ -86,12 +88,26 @@ const rules = {
 };
 
 watch(
-  () => [props.modelValue, props.task],
-  ([open]) => {
-    if (open) {
-      Object.assign(form, defaultForm(), props.task || {});
-      void loadHandlerOptions();
+  () => [props.modelValue, props.taskId] as const,
+  async ([open]) => {
+    if (!open) return;
+    if (props.taskId == null) {
+      Object.assign(form, defaultForm());
+      await loadHandlerOptions();
+      return;
     }
+    let detail: Dict;
+    try {
+      const loaded = await getScheduledTask(props.taskId);
+      if (!loaded) throw new Error("任务详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("任务详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    Object.assign(form, defaultForm(), detail);
+    await loadHandlerOptions();
   },
   { immediate: true }
 );
@@ -118,8 +134,8 @@ async function save() {
   await formRef.value?.validate();
   saving.value = true;
   try {
-    if (props.task?.id) {
-      await updateScheduledTask(props.task.id, form);
+    if (props.taskId != null) {
+      await updateScheduledTask(props.taskId, form);
     } else {
       await createScheduledTask(form);
     }

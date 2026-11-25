@@ -8,6 +8,7 @@ import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.admin.service.ScheduledTaskAdminService;
 import org.chobit.knot.svc.dto.system.ScheduledTaskDto;
 import org.chobit.knot.svc.dto.system.ScheduledTaskRunDto;
+import org.chobit.knot.svc.vo.system.ScheduledTaskListItem;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,10 +29,17 @@ public class ScheduledTaskController {
     }
 
     @PostMapping("/list")
-    public PageResult<ScheduledTaskDto> listTasks(@RequestBody(required = false) ScheduledTaskQuery query) {
-        return scheduledTaskService.listTasks(query);
+    public PageResult<ScheduledTaskListItem> listTasks(@RequestBody(required = false) ScheduledTaskQuery query) {
+        return scheduledTaskService.listTasks(query)
+                .map(t -> new ScheduledTaskListItem(
+                        t.id(), t.taskCode(), t.taskName(), t.handlerCode(), t.cronExpression(),
+                        t.executionMode(), t.status(), t.lastFireAt(), t.nextFireAt()));
     }
 
+    @GetMapping("/{id}")
+    public ScheduledTaskDto get(@PathVariable Long id) {
+        return scheduledTaskService.getTask(id);
+    }
     @OperationLog(module = "scheduled-task", operation = "CREATE", entityType = "ScheduledTask",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.taskName()",

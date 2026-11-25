@@ -36,7 +36,7 @@
 
     <ProviderProfileFormDrawer
       v-model="formVisible"
-      :provider-profile="editing"
+      :provider-id="editingProfileId"
       @saved="load"
     />
 
@@ -63,9 +63,12 @@ import ProviderProfileFormDrawer from "../../components/provider/ProviderProfile
 import {deleteProviderProfile, listProviderProfiles} from "@/api/providerProfiles";
 import {listProviderProfileOperationLogs} from "@/api/operationLogs";
 import {useLogDrawer} from "@/composables/useLogDrawer";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logId, name: logName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["name"]});
-const {visible: formVisible, editing: editing, openCreate, openEdit} = useRowFormDrawer();
+const {visible: formVisible, editing: editingProfileId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id)
+});
 
 const tagPreset = ["原厂", "云厂商", "代理"];
 

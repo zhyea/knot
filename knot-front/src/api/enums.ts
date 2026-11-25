@@ -21,6 +21,11 @@ export function listEnumOperationLogs(category: string) {
   return listOperationLogsByEntity({module: "enum", entityNamePrefix: category});
 }
 
+/** 枚举项详情：编辑弹窗打开时按 itemId 精确取，不复用列表抽屉里的行数据。 */
+export function getEnumItem(itemId: number | string) {
+  return get<Dict>(`/api/system/enums/items/detail/${itemId}`);
+}
+
 export function createEnumConfig(payload: Dict) {
   return post("/api/system/enums", payload);
 }

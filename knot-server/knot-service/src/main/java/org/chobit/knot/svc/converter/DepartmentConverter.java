@@ -3,6 +3,7 @@ package org.chobit.knot.svc.converter;
 import org.chobit.knot.svc.dto.system.DepartmentDto;
 import org.chobit.knot.dal.entity.DepartmentEntity;
 import org.chobit.knot.svc.vo.system.DepartmentItem;
+import org.chobit.knot.svc.vo.system.DepartmentListItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -23,6 +24,11 @@ public interface DepartmentConverter {
     DepartmentItem toVO(DepartmentDto dto);
 
     List<DepartmentItem> toVOList(List<DepartmentDto> dtos);
+
+    /** 分页列表专用视图：父子关系走 /tree，编辑字段走详情 */
+    DepartmentListItem toListItemVO(DepartmentDto dto);
+
+    List<DepartmentListItem> toListItemVOList(List<DepartmentDto> dtos);
 
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

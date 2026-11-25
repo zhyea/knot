@@ -1,7 +1,7 @@
 <template>
   <el-drawer
     v-model="visible"
-    :title="consumer ? '编辑消费者' : '新建消费者'"
+    :title="consumerId != null ? '编辑消费者' : '新建消费者'"
     size="55%"
     class="drawer-with-scrollbar"
     destroy-on-close
@@ -50,9 +50,9 @@
         </el-form-item>
       </div>
 
-      <div v-if="consumer?.secretKey" class="space-line" />
+      <div v-if="loadedDetail?.secretKey" class="space-line" />
 
-      <div v-if="consumer?.secretKey" class="slot-body consumer-section">
+      <div v-if="loadedDetail?.secretKey" class="slot-body consumer-section">
         <div class="section-head">
           <div>
             <h3>密钥信息</h3>
@@ -60,9 +60,9 @@
           </div>
         </div>
         <el-form-item label="API Key">
-          <el-input :model-value="consumer.secretKey" readonly type="password" show-password>
+          <el-input :model-value="loadedDetail?.secretKey" readonly type="password" show-password>
             <template #append>
-              <el-button @click="copy(consumer.secretKey)">复制</el-button>
+              <el-button @click="copy(String(loadedDetail?.secretKey ?? ''))">复制</el-button>
             </template>
           </el-input>
         </el-form-item>
@@ -121,6 +121,7 @@ import {listUserUsernameOptions} from "@/api/options";
 import {
   checkRoutingConsumerCode,
   createRoutingConsumer,
+  getRoutingConsumer,
   updateRoutingConsumer
 } from "@/api/routing";
 import {toOptionsLoader} from "@/utils/options";
@@ -133,10 +134,14 @@ const {copy} = useCopyToClipboard({successMessage: "已复制 API Key"});
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  consumer: { type: Object as PropType<Dict | null>, default: null }
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  consumerId: { type: Number as PropType<number | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
+
+/** 仅承载本次详情返回的密钥，供只读展示；不把列表行当数据源 */
+const loadedDetail = ref<Dict | null>(null);
 
 const visible = computed({
   get: () => props.modelValue,
@@ -147,7 +152,7 @@ const saving = ref(false);
 const consumerCodeError = ref("");
 /** 编码引用处数（绑定的路由规则数，后端 ruleCount）：>0 时编码不可改 */
 const boundCount = ref(0);
-const {codeLocked, codeLockHint} = useCodeBindingLock(() => props.consumer != null, () => boundCount.value);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => props.consumerId != null, () => boundCount.value);
 
 const form = reactive({
   id: null,
@@ -160,11 +165,26 @@ const form = reactive({
 });
 
 watch(
-  () => props.modelValue,
-  (value) => {
-    if (value) {
-      resetForm(props.consumer);
+  () => [props.modelValue, props.consumerId] as const,
+  async ([value]) => {
+    if (!value) return;
+    if (props.consumerId == null) {
+      loadedDetail.value = null;
+      resetForm(null);
+      return;
     }
+    let detail: Dict;
+    try {
+      const loaded = await getRoutingConsumer(props.consumerId);
+      if (!loaded) throw new Error("消费者详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("消费者详情加载失败");
+      visible.value = false;
+      return;
+    }
+    loadedDetail.value = detail;
+    resetForm(detail as Row);
   }
 );
 
@@ -195,6 +215,7 @@ function resetForm(row: Row | null = null) {
 
 function onClosed() {
   form.id = null;
+  loadedDetail.value = null;
 }
 
 async function validateConsumerCode() {
@@ -209,7 +230,7 @@ async function validateConsumerCode() {
     return false;
   }
   try {
-    const res = await checkRoutingConsumerCode(code, props.consumer ? form.id : null);
+    const res = await checkRoutingConsumerCode(code, props.consumerId != null ? form.id : null);
     if (res?.available) {
       consumerCodeError.value = "";
       return true;
@@ -252,7 +273,7 @@ async function submit() {
   }
   saving.value = true;
   try {
-    if (props.consumer) {
+    if (props.consumerId != null) {
       await updateRoutingConsumer(form.id!, buildPayload());
       ElMessage.success("已保存");
     } else {

@@ -11,6 +11,7 @@ import org.chobit.knot.svc.service.UserService;
 import org.chobit.knot.svc.vo.user.ResetPasswordResult;
 import org.chobit.knot.svc.vo.user.UpdateUserStatusRequest;
 import org.chobit.knot.svc.vo.user.UserItem;
+import org.chobit.knot.svc.vo.user.UserListItem;
 import org.chobit.knot.common.model.UserOptionQuery;
 import org.chobit.knot.svc.service.OptionsService;
 import org.chobit.knot.svc.vo.common.OptionItem;
@@ -45,17 +46,21 @@ public class UserController {
      * Lists users.
      */
     @PostMapping
-    public PageResult<UserItem> list(@RequestBody(required = false) PageQuery query) {
+    public PageResult<UserListItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<UserDto> page = userService.listUsers(
                 PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword()
         );
-        return page.mapList(userConverter::toVOList);
+        return page.mapList(userConverter::toListItemVOList);
     }
 
     /**
      * Creates a user.
      */
+    @GetMapping("/{id}")
+    public UserItem get(@PathVariable Long id) {
+        return userConverter.toVO(userService.getUserById(id));
+    }
     @OperationLog(module = "user", operation = "CREATE", entityType = "User",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.username()",

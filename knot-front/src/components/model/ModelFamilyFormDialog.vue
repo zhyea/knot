@@ -45,14 +45,15 @@ import {ElMessage} from "element-plus";
 import {
   checkModelFamilyCode,
   createModelFamily,
+  getModelFamily,
   updateModelFamily
 } from "@/api/modelFamilies";
 import {clearEnumCache} from "@/composables/useEnums";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  /** 传入行表示编辑；null 表示新建 */
-  family: {type: Object as PropType<Row | null>, default: null}
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  familyId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -68,17 +69,17 @@ const form = reactive({
   remark: ""
 });
 
-const isEdit = computed(() => props.family != null);
+const isEdit = computed(() => props.familyId != null);
 
-function resetForm() {
+function resetForm(row: Row | null = null) {
   codeError.value = "";
-  if (props.family) {
-    form.id = props.family.id ?? null;
-    form.code = props.family.code || "";
-    form.name = props.family.name || "";
-    form.sortOrder = props.family.sortOrder ?? 0;
-    form.enabled = props.family.enabled !== false;
-    form.remark = props.family.remark || "";
+  if (row) {
+    form.id = row.id ?? null;
+    form.code = row.code || "";
+    form.name = row.name || "";
+    form.sortOrder = row.sortOrder ?? 0;
+    form.enabled = row.enabled !== false;
+    form.remark = row.remark || "";
   } else {
     form.id = null;
     form.code = "";
@@ -89,9 +90,24 @@ function resetForm() {
   }
 }
 
-watch(() => [props.modelValue, props.family], ([visible]) => {
-  if (visible) resetForm();
-});
+watch(
+  () => [props.modelValue, props.familyId] as const,
+  async ([visible]) => {
+    if (!visible) return;
+    if (props.familyId == null) {
+      resetForm(null);
+      return;
+    }
+    try {
+      const detail = await getModelFamily(props.familyId);
+      if (!detail) throw new Error("模型族详情为空");
+      resetForm(detail as Row);
+    } catch {
+      ElMessage.error("模型族详情加载失败");
+      emit("update:modelValue", false);
+    }
+  }
+);
 
 async function validateCode() {
   codeError.value = "";

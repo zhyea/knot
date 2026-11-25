@@ -49,13 +49,14 @@ import EnumSelect from "../common/EnumSelect.vue";
 import {
   checkModerationWord,
   createModerationWord,
+  getModerationWord,
   updateModerationWord
 } from "@/api/moderationWords";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  /** 传入行表示编辑；null 表示新建 */
-  word: {type: Object as PropType<Row | null>, default: null}
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  wordId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -71,17 +72,17 @@ const form = reactive({
   remark: ""
 });
 
-const isEdit = computed(() => props.word != null);
+const isEdit = computed(() => props.wordId != null);
 
-function resetForm() {
+function resetForm(row: Row | null = null) {
   wordError.value = "";
-  if (props.word) {
-    form.id = props.word.id ?? null;
-    form.word = props.word.word || "";
-    form.categoryCode = props.word.categoryCode || "";
-    form.severity = props.word.severity ?? 2;
-    form.enabled = props.word.enabled !== false;
-    form.remark = props.word.remark || "";
+  if (row) {
+    form.id = row.id ?? null;
+    form.word = row.word || "";
+    form.categoryCode = row.categoryCode || "";
+    form.severity = row.severity ?? 2;
+    form.enabled = row.enabled !== false;
+    form.remark = row.remark || "";
   } else {
     form.id = null;
     form.word = "";
@@ -92,9 +93,24 @@ function resetForm() {
   }
 }
 
-watch(() => [props.modelValue, props.word], ([visible]) => {
-  if (visible) resetForm();
-});
+watch(
+  () => [props.modelValue, props.wordId] as const,
+  async ([visible]) => {
+    if (!visible) return;
+    if (props.wordId == null) {
+      resetForm(null);
+      return;
+    }
+    try {
+      const detail = await getModerationWord(props.wordId);
+      if (!detail) throw new Error("敏感词详情为空");
+      resetForm(detail as Row);
+    } catch {
+      ElMessage.error("敏感词详情加载失败");
+      emit("update:modelValue", false);
+    }
+  }
+);
 
 async function validateWord() {
   wordError.value = "";

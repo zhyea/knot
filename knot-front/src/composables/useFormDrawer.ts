@@ -4,7 +4,7 @@ import type {Row} from "@/types";
 export interface FormDrawerOptions<T> {
   /** 新建态的编辑值。必填：让调用方显式声明类型，避免 `ref(null)` 退化成 `Ref<null>` */
   emptyValue: T;
-  /** 编辑态把行转成编辑值（默认原样）。Provider 只存 id、部门要补 children 时用它 */
+  /** 编辑态把行转成编辑值；新规范下只允许抽 id / code 等定位标识，禁止转发整行 */
   toEditing?: (row: Row) => T;
   /** 打开前后的额外复位（copyFromId / viewMode / defaultParentId 等） */
   onOpen?: (row: Row | null) => void;
@@ -38,9 +38,4 @@ export function useFormDrawer<T>(options: FormDrawerOptions<T>) {
   }
 
   return {visible, editing, openCreate, openEdit, close};
-}
-
-/** 常规「null = 新建 / Row = 编辑」抽屉：省掉每个页面重复写泛型与空值 */
-export function useRowFormDrawer() {
-  return useFormDrawer<Row | null>({emptyValue: null});
 }

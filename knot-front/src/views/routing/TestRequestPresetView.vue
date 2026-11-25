@@ -52,7 +52,7 @@
 
     <TestRequestPresetFormDrawer
       v-model="formVisible"
-      :preset="editingPreset"
+      :preset-id="editingPresetId"
       :readonly="viewMode"
       @saved="resetPage"
     />
@@ -90,7 +90,11 @@ import {EnabledStatus} from "@/constants/status";
 import {useLogDrawer} from "@/composables/useLogDrawer";
 import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logPresetId, name: logPresetName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["name", "code"]});
-const {visible: formVisible, editing: editingPreset, openCreate, openEdit} = useFormDrawer<Row | null>({emptyValue: null, onOpen: () => { viewMode.value = false; }});
+const {visible: formVisible, editing: editingPresetId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id),
+  onOpen: () => { viewMode.value = false; }
+});
 
 const {
   query,
@@ -111,7 +115,7 @@ const viewMode = ref(false);
 const togglingId = ref<number | string | null>(null);
 
 function openView(row: Row) {
-  editingPreset.value = row;
+  editingPresetId.value = Number(row.id);
   viewMode.value = true;
   formVisible.value = true;
 }

@@ -41,17 +41,19 @@ import type {PropType} from "vue";
 import type {FormInstance} from "element-plus";
 import {reactive, ref, watch} from "vue";
 import {ElMessage, type FormItemRule} from "element-plus";
-import type {Dict, Row} from "@/types";
+import type {Dict} from "@/types";
 import {
   checkProviderProfileCode,
   createProviderProfile,
+  getProviderProfile,
   updateProviderProfile
 } from "@/api/providerProfiles";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: Boolean,
-  providerProfile: { type: Object as PropType<Dict | null>, default: null }
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  providerId: { type: Number as PropType<number | null>, default: null }
 });
 const emit = defineEmits(["update:modelValue", "saved"]);
 
@@ -91,16 +93,34 @@ const rules = {
 };
 
 watch(
-  () => [props.modelValue, props.providerProfile],
-  ([visible]) => {
+  () => [props.modelValue, props.providerId] as const,
+  async ([visible]) => {
     if (!visible) return;
-    const row = (props.providerProfile || {}) as Row;
-    editing.value = row;
-    form.code = row?.code || "";
-    form.name = row?.name || "";
-    form.tags = splitTags(row?.tag);
-    form.remark = row?.remark || "";
-    boundCount.value = Number(row?.boundCount ?? 0);
+    if (props.providerId == null) {
+      editing.value = null;
+      form.code = "";
+      form.name = "";
+      form.tags = [];
+      form.remark = "";
+      boundCount.value = 0;
+      return;
+    }
+    let detail: Dict;
+    try {
+      const loaded = await getProviderProfile(props.providerId);
+      if (!loaded) throw new Error("供应商档案详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("供应商档案详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    editing.value = detail;
+    form.code = detail.code || "";
+    form.name = detail.name || "";
+    form.tags = splitTags(detail.tag);
+    form.remark = detail.remark || "";
+    boundCount.value = Number(detail.boundCount ?? 0);
   },
   { immediate: true }
 );

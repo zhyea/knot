@@ -55,7 +55,7 @@ describe("PricingPreviewDrawer 价格种类文案", () => {
     } as never);
 
     const wrapper = mount(PricingPreviewDrawer, {
-      props: {modelValue: false, rule: {id: 12, code: "IMG_GPT"}}
+      props: {modelValue: false, ruleId: 12, ruleCode: "IMG_GPT"}
     });
     await wrapper.setProps({modelValue: true});
     await flushPromises();

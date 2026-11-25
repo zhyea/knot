@@ -210,7 +210,7 @@
 <script setup lang="ts">
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
-import type {Dict, Row} from "@/types";
+import type {Row} from "@/types";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 import EnumControl from "../common/EnumControl.vue";
 import EnumSelect from "../common/EnumSelect.vue";
@@ -223,7 +223,8 @@ import {
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  model: {type: Object as PropType<Dict | null>, default: null}
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  modelId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -234,7 +235,7 @@ const modelCodeChecking = ref(false);
 const modelCodeError = ref("");
 /** 编码引用处数（模型池 / 映射 / 路由规则 / 调试预设）：后端在详情里下发，>0 时编码不可改 */
 const boundCount = ref(0);
-const isEdit = computed(() => props.model != null);
+const isEdit = computed(() => props.modelId != null);
 const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 
 const form = reactive(defaultForm());
@@ -299,21 +300,25 @@ function fillForm(row: Row | null) {
 }
 
 watch(
-  () => [props.modelValue, props.model],
+  () => [props.modelValue, props.modelId] as const,
   async ([visible]) => {
     if (!visible) return;
     squareDisplayActive.value = [];
     modelCodeError.value = "";
-    if (props.model?.id) {
-      fillForm(props.model);
-      detailLoading.value = true;
-      try {
-        fillForm(await getLogicalModel(props.model.id));
-      } finally {
-        detailLoading.value = false;
-      }
-    } else {
+    if (props.modelId == null) {
       fillForm(null);
+      return;
+    }
+    detailLoading.value = true;
+    try {
+      const detail = await getLogicalModel(props.modelId);
+      if (!detail) throw new Error("统一模型详情为空");
+      fillForm(detail);
+    } catch {
+      ElMessage.error("统一模型详情加载失败");
+      emit("update:modelValue", false);
+    } finally {
+      detailLoading.value = false;
     }
   }
 );

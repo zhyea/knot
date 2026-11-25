@@ -1,8 +1,13 @@
-import {postQuery, post, put} from "./http";
+import {postQuery, post, put, get} from "./http";
 import type {Dict} from "@/types";
 
 export function listScheduledTasks(params: Dict) {
   return postQuery("/api/system/scheduled-tasks/list", params);
+}
+
+/** 任务详情：编辑抽屉打开时按 id 精确取，不复用列表行数据。 */
+export function getScheduledTask(id: number | string) {
+  return get<Dict>(`/api/system/scheduled-tasks/${id}`);
 }
 
 export function createScheduledTask(data: Dict) {

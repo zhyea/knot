@@ -24,12 +24,11 @@ function makeCtx(overrides: Partial<TestRequestCompositionContext> = {}): TestRe
     ruleCode: () => "rule-abc",
     targetKey: () => "__ALL__",
     protocol,
-    targetModelFamily: () => null,
     billingVerifyEnabled: ref(true),
     consumerReturnUsageDetail: () => false,
     canonicalOf: (code) => String(code ?? ""),
     gatewayPathOf: (code) => `/v1/${String(code ?? "").toLowerCase()}`,
-    listPresetOptions: vi.fn().mockResolvedValue({ list: [], total: 0 }),
+    listPresetOptions: vi.fn().mockResolvedValue([]),
     loadPresetDetail: vi.fn().mockResolvedValue(null),
     ...overrides
   } as TestRequestCompositionContext;
@@ -194,13 +193,10 @@ describe("useTestRequestComposition 请求构造", () => {
     });
     const api = useTestRequestComposition(
       makeCtx({
-        listPresetOptions: vi.fn().mockResolvedValue({
-          list: [
-            { value: 1, label: "P1", meta: { protocolCode: "CHAT_COMPLETIONS" } },
-            { value: 2, label: "P2", meta: { protocolCode: "CHAT_COMPLETIONS" } }
-          ],
-          total: 2
-        }),
+        listPresetOptions: vi.fn().mockResolvedValue([
+          { id: 1, name: "P1", protocolCode: "CHAT_COMPLETIONS", modelFamily: null },
+          { id: 2, name: "P2", protocolCode: "CHAT_COMPLETIONS", modelFamily: null }
+        ]),
         loadPresetDetail: vi.fn().mockImplementation((id) =>
           String(id) === "1" ? slowDetail : Promise.resolve({ requestBody: '{"from":"p2"}' })
         )
@@ -217,31 +213,19 @@ describe("useTestRequestComposition 请求构造", () => {
     expect(api.currentTemplateText.value).toContain("p2");
   });
 
-  it("filteredPresetOptions：同族预设按模型族匹配，未绑族预设才按协议筛选", async () => {
-    const family = ref<string | null>("openai");
+  it("filteredPresetOptions：后端已按作用域筛好，前端只按当前协议显示", async () => {
     const api = useTestRequestComposition(
       makeCtx({
-        targetModelFamily: () => family.value,
         protocol: computed(() => "CHAT_COMPLETIONS"),
-        listPresetOptions: vi.fn().mockResolvedValue({
-          list: [
-            { value: 1, label: "同族-不同协议", meta: { protocolCode: "RESPONSES", modelFamily: "openai" } },
-            { value: 2, label: "同族-当前协议", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: "openai" } },
-            { value: 3, label: "异族-当前协议", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: "anthropic" } },
-            { value: 4, label: "通用-当前协议", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: null } },
-            { value: 5, label: "通用-不同协议", meta: { protocolCode: "RESPONSES", modelFamily: null } }
-          ],
-          total: 5
-        })
+        listPresetOptions: vi.fn().mockResolvedValue([
+          { id: 1, name: "当前协议-有族", protocolCode: "CHAT_COMPLETIONS", modelFamily: "openai" },
+          { id: 2, name: "其他协议-有族", protocolCode: "RESPONSES", modelFamily: "openai" },
+          { id: 3, name: "当前协议-通用", protocolCode: "CHAT_COMPLETIONS", modelFamily: null }
+        ])
       })
     );
 
     await api.loadPresetOptions();
-    expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([1, 2, 4]);
-
-    // 目标解析不出模型族时，只保留按当前协议命中的通用预设
-    family.value = null;
-    await nextTick();
-    expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([4]);
+    expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([1, 3]);
   });
 });

@@ -5,7 +5,6 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.svc.converter.AppConverter;
@@ -58,13 +57,8 @@ public class AppService {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<AppEntity> pageInfo = new PageInfo<>(appMapper.list(StringUtils.trimToNull(keyword)));
             List<AppEntity> rows = pageInfo.getList();
-            // 整页一次批量取频控/额度，避免逐行 4 条查询
-            Map<Long, TrafficPolicies> traffic = trafficPolicySupport.loadBatch(
-                    TrafficResourceTypeEnum.APP.code(),
-                    rows.stream().map(AppEntity::getId).filter(Objects::nonNull).toList());
-            List<AppDto> dtos = rows.stream()
-                    .map(e -> enrich(appConverter.toDto(e), traffic.get(e.getId())))
-                    .toList();
+            // 列表只返回列表列；额度 / 频控策略只在详情端点按 id 加载（铁律 12）
+            List<AppDto> dtos = appConverter.toDtoList(rows);
             return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
     }

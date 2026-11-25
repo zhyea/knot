@@ -172,6 +172,12 @@ public class UserService {
     /**
      * Creates a new user.
      */
+    /**
+     * Gets a user by primary key for the admin edit form.
+     */
+    public UserDto getUserById(Long id) {
+        return loadUserDto(id);
+    }
     @Transactional
     public UserDto createUser(UserDto request) {
         DepartmentEntity department = validateDepartment(request.deptCode());

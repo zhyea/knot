@@ -1,8 +1,13 @@
-import {postQuery, post, put, del} from "./http";
+import {postQuery, post, put, del, get} from "./http";
 import type {Dict} from "@/types";
 
 export function listApps(params: Dict) {
   return postQuery("/api/apps/list", params);
+}
+
+/** 应用详情：编辑抽屉打开时按 id 精确取，不复用列表行数据。 */
+export function getApp(id: number | string) {
+  return get<Dict>(`/api/apps/${id}`);
 }
 
 export function createApp(payload: Dict) {

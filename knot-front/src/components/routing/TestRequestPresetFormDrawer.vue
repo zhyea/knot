@@ -117,13 +117,14 @@ import {ElMessage} from "element-plus";
 import EnumControl from "../common/EnumControl.vue";
 import EnumSelect from "../common/EnumSelect.vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
-import {createTestRequestPreset, updateTestRequestPreset} from "@/api/routing";
+import {createTestRequestPreset, getTestRequestPreset, updateTestRequestPreset} from "@/api/routing";
 import type {Dict, Row} from "@/types";
 import {formatJsonText, parseJsonResult} from "@/utils/format";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  preset: {type: Object as PropType<Dict | null>, default: null},
+  /** 编辑 / 查看态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  presetId: {type: Number as PropType<number | null>, default: null},
   readonly: {type: Boolean, default: false}
 });
 
@@ -138,7 +139,7 @@ const drawerTitle = computed(() => {
   if (props.readonly) {
     return "查看预设请求";
   }
-  return props.preset ? "编辑预设请求" : "新建预设请求";
+  return props.presetId != null ? "编辑预设请求" : "新建预设请求";
 });
 
 const saving = ref(false);
@@ -157,11 +158,24 @@ const form = reactive({
 });
 
 watch(
-  () => props.modelValue,
-  (value) => {
-    if (value) {
-      resetForm(props.preset);
+  () => [props.modelValue, props.presetId] as const,
+  async ([value]) => {
+    if (!value) return;
+    if (props.presetId == null) {
+      resetForm(null);
+      return;
     }
+    let detail: Dict;
+    try {
+      const loaded = await getTestRequestPreset(props.presetId);
+      if (!loaded) throw new Error("预设请求详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("预设请求详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    resetForm(detail);
   }
 );
 
@@ -243,7 +257,7 @@ async function submit() {
   }
   saving.value = true;
   try {
-    if (props.preset) {
+    if (props.presetId != null) {
       await updateTestRequestPreset(form.id!, buildPayload());
       ElMessage.success("已保存");
     } else {

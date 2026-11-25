@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from "vitest";
-import {useFormDrawer, useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 import type {Row} from "@/types";
 
 const row = (id: number, extra: Record<string, unknown> = {}): Row =>
@@ -7,7 +7,7 @@ const row = (id: number, extra: Record<string, unknown> = {}): Row =>
 
 describe("useFormDrawer 抽屉开关状态机", () => {
   it("初始态关闭、editing 为声明的空值", () => {
-    const d = useRowFormDrawer();
+    const d = useFormDrawer<number | null>({emptyValue: null});
     expect(d.visible.value).toBe(false);
     expect(d.editing.value).toBe(null);
   });
@@ -22,14 +22,14 @@ describe("useFormDrawer 抽屉开关状态机", () => {
     expect(onOpen).toHaveBeenLastCalledWith(null);
   });
 
-  it("编辑打开抽屉并放入整行，onOpen 收到该行", () => {
+  it("编辑打开抽屉只放标识，onOpen 收到原始行", () => {
     const onOpen = vi.fn();
-    const d = useRowFormDrawer();
+    const d = useFormDrawer<number | null>({emptyValue: null, onOpen, toEditing: (r) => Number(r.id)});
     const target = row(7, {code: "A"});
     d.openEdit(target);
     expect(d.visible.value).toBe(true);
-    // ref 对对象做 reactive 包装，断言内容而不是引用
-    expect(d.editing.value).toEqual(target);
+    expect(d.editing.value).toBe(7);
+    expect(onOpen).toHaveBeenLastCalledWith(target);
   });
 
   it("toEditing 支持只存 id / 补字段这类页面差异", () => {
@@ -53,10 +53,10 @@ describe("useFormDrawer 抽屉开关状态机", () => {
   });
 
   it("close 只关抽屉，不擅自清空 editing（复位归抽屉 onClosed）", () => {
-    const d = useRowFormDrawer();
+    const d = useFormDrawer<number | null>({emptyValue: null, toEditing: (r) => Number(r.id)});
     d.openEdit(row(3));
     d.close();
     expect(d.visible.value).toBe(false);
-    expect(d.editing.value).toEqual(row(3));
+    expect(d.editing.value).toBe(3);
   });
 });

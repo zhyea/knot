@@ -60,7 +60,7 @@ import {computed, ref, watch} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Delete, Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
-import {listEnumItemsByCategory, deleteEnumConfig, updateEnumConfig} from "@/api/enums";
+import {getEnumItem, listEnumItemsByCategory, deleteEnumConfig, updateEnumConfig} from "@/api/enums";
 import {clearEnumCache} from "@/composables/useEnums";
 
 const props = defineProps({
@@ -116,13 +116,15 @@ async function onEnabledChange(row: Row, enabled: string | number | boolean) {
   togglingId.value = row.id;
   row.isEnabled = enabled;
   try {
+    // 更新接口要整行字段：按 id 取详情后再改状态，不能用列表行拼请求体
+    const detail = await getEnumItem(row.id);
     await updateEnumConfig(row.id, {
-      category: row.category,
-      itemCode: row.itemCode,
-      itemLabel: row.itemLabel,
-      sortOrder: row.sortOrder ?? 0,
+      category: detail.category,
+      itemCode: detail.itemCode,
+      itemLabel: detail.itemLabel,
+      sortOrder: detail.sortOrder ?? 0,
       isEnabled: enabled,
-      remark: row.remark ?? ""
+      remark: detail.remark ?? ""
     });
     ElMessage.success(enabled ? "已启用" : "已禁用");
     clearEnumCache();

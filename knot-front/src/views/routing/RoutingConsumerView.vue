@@ -35,7 +35,7 @@
 
     <RoutingConsumerFormDrawer
       v-model="drawerVisible"
-      :consumer="editingConsumer"
+      :consumer-id="editingConsumerId"
       @saved="resetPage"
     />
 
@@ -67,9 +67,12 @@ import {
 import {listRoutingConsumerOperationLogs} from "@/api/operationLogs";
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
 import {useLogDrawer} from "@/composables/useLogDrawer";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logConsumerId, name: logConsumerName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["name", "consumerCode"]});
-const {visible: drawerVisible, editing: editingConsumer, openCreate, openEdit} = useRowFormDrawer();
+const {visible: drawerVisible, editing: editingConsumerId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id)
+});
 
 const {copy} = useCopyToClipboard({successMessage: "已复制 API Key"});
 

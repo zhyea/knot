@@ -59,6 +59,12 @@ public class AuthorizationRoleService {
     /**
      * Creates a role.
      */
+    /**
+     * Gets one record by id for the admin edit dialog.
+     */
+    public AdminRoleItem getById(Long id) {
+        return converter.toRoleItem(support.getRoleById(id));
+    }
     @Transactional
     public AdminRoleItem createRole(AdminRoleItem request) {
         AdminRoleEntity entity = converter.toRoleEntity(request);

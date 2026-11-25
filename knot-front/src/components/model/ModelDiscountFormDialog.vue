@@ -48,14 +48,14 @@ import type {Dict} from "@/types";
 import {type PropType, computed, onMounted, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {useEnums} from "@/composables/useEnums";
-import {createDiscountPolicy, updateDiscountPolicy} from "@/api/models";
+import {createDiscountPolicy, getDiscountPolicy, updateDiscountPolicy} from "@/api/models";
 import {EnabledStatus} from "@/constants/status";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
   modelCode: {type: String, default: ""},
-  /** 传入策略行表示编辑，null 表示新增 */
-  policy: {type: Object as PropType<Dict | null>, default: null}
+  /** 编辑态只接主键：打开时按 modelCode + policyId 拉详情，不复用列表行数据 */
+  policyId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -72,27 +72,34 @@ const form = reactive({
   status: 1
 });
 
-const isEdit = computed(() => props.policy != null);
+const isEdit = computed(() => props.policyId != null);
 
-function resetForm() {
-  if (props.policy) {
-    const row = props.policy;
-    form.id = row.id;
-    form.discountType = row.discountType;
-    form.discountValue = row.discountValue;
-    form.status = row.status;
-  } else {
-    form.id = null;
-    form.discountType = "PERCENTAGE";
-    form.discountValue = 0.95;
-    form.status = 1;
-  }
+function resetForm(detail: Dict | null): void {
+  form.id = detail?.id ?? null;
+  form.discountType = detail?.discountType || "PERCENTAGE";
+  form.discountValue = detail?.discountValue ?? 0.95;
+  form.status = detail?.status ?? 1;
 }
 
 watch(
-  () => [props.modelValue, props.policy],
-  ([visible]) => {
-    if (visible) resetForm();
+  () => [props.modelValue, props.modelCode, props.policyId] as const,
+  async ([visible]) => {
+    if (!visible) return;
+    if (props.policyId == null) {
+      resetForm(null);
+      return;
+    }
+    let detail: Dict;
+    try {
+      const loaded = await getDiscountPolicy(props.modelCode, props.policyId);
+      if (!loaded) throw new Error("折扣策略详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("折扣策略详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    resetForm(detail);
   }
 );
 
@@ -106,7 +113,7 @@ async function submit() {
       status: form.status
     };
     if (isEdit.value) {
-      await updateDiscountPolicy(props.modelCode, form.id!, body);
+      await updateDiscountPolicy(props.modelCode, props.policyId!, body);
     } else {
       await createDiscountPolicy(props.modelCode, body);
     }

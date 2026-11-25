@@ -71,7 +71,7 @@
     <EnumItemFormDialog
       v-model="itemFormVisible"
       :category="itemFormCategory"
-      :item="editingItem"
+      :item-id="editingItemId"
       @saved="onItemFormSaved"
     />
 
@@ -126,7 +126,7 @@ const categoryCreateVisible = ref(false);
 
 const itemFormVisible = ref(false);
 const itemFormCategory = ref("");
-const editingItem = ref<Dict | null>(null);
+const editingItemId = ref<number | null>(null);
 
 const logDrawer = ref(false);
 const logCategory = ref("");
@@ -142,14 +142,15 @@ function handleAction(action: string, row: Row) {
 }
 
 function openCreateItem() {
-  editingItem.value = null;
+  editingItemId.value = null;
   itemFormCategory.value = currentCategory.value;
   itemFormVisible.value = true;
 }
 
 function openEditItem(row: Row) {
-  editingItem.value = row;
-  itemFormCategory.value = row.category;
+  editingItemId.value = Number(row.id);
+  // 分类只是新建时的默认值；编辑态 category 由详情下发，不从列表行回填
+  itemFormCategory.value = "";
   itemFormVisible.value = true;
 }
 

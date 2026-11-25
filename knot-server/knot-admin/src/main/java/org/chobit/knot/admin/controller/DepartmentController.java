@@ -9,6 +9,7 @@ import org.chobit.knot.common.model.PageQuery;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.DepartmentService;
 import org.chobit.knot.svc.vo.system.DepartmentItem;
+import org.chobit.knot.svc.vo.system.DepartmentListItem;
 import org.chobit.knot.svc.vo.system.UpdateDepartmentStatusRequest;
 import org.chobit.knot.common.model.DepartmentOptionQuery;
 import org.chobit.knot.admin.service.support.DepartmentTreeSupport;
@@ -41,13 +42,13 @@ public class DepartmentController {
     }
 
     @PostMapping("/list")
-    public PageResult<DepartmentItem> list(@RequestBody(required = false) PageQuery query) {
+    public PageResult<DepartmentListItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<DepartmentDto> page = departmentService.list(
                 PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.parentId()
         );
-        return page.mapList(departmentConverter::toVOList);
+        return page.mapList(departmentConverter::toListItemVOList);
     }
 
     @GetMapping("/tree")
@@ -55,6 +56,10 @@ public class DepartmentController {
         return DepartmentTreeSupport.build(departmentConverter.toVOList(departmentService.listAll()));
     }
 
+    @GetMapping("/{id}")
+    public DepartmentItem get(@PathVariable Long id) {
+        return departmentConverter.toVO(departmentService.getById(id));
+    }
     @OperationLog(module = "department", operation = "CREATE", entityType = "Department",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.deptName()",

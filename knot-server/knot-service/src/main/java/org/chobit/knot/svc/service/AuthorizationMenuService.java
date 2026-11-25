@@ -41,6 +41,12 @@ public class AuthorizationMenuService {
     /**
      * Creates a menu.
      */
+    /**
+     * Gets one record by id for the admin edit dialog.
+     */
+    public AdminMenuDetailItem getById(Long id) {
+        return converter.toMenuItem(support.getMenuById(id));
+    }
     @Transactional
     public AdminMenuDetailItem createMenu(AdminMenuDetailItem request) {
         AdminMenuEntity entity = converter.toMenuEntity(request);

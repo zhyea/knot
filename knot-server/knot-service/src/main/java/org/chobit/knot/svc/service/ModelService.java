@@ -309,6 +309,16 @@ public class ModelService {
      * 逻辑删除供应商模型，可恢复；被引用时拒绝删除（先解除引用再删）。
      * 拦截四类引用：路由规则目标、模型池条目、厂商模型映射、模型 API 协议绑定。
      */
+    /**
+     * Gets one discount policy by model code and id for the admin edit dialog.
+     */
+    public DiscountPolicyDto getDiscountPolicy(String modelCode, Long policyId) {
+        DiscountPolicyEntity entity = discountPolicyMapper.getById(policyId);
+        if (entity == null || !modelCode.equals(entity.getModelCode())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "折扣策略不存在");
+        }
+        return toDiscountPolicyDto(entity);
+    }
     @Transactional
     public void delete(Long id) {
         ModelEntity existing = modelMapper.getById(id);

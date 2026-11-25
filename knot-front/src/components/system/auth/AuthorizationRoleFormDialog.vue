@@ -30,36 +30,51 @@ import {type PropType,  computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {
   createAuthorizationRole,
+  getAuthorizationRole,
   updateAuthorizationRole
 } from "@/api/authorizations";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  role: { type: Object as PropType<Dict | null>, default: null }
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  roleId: { type: Number as PropType<number | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
-const isEdit = computed(() => !!props.role?.id);
+const isEdit = computed(() => props.roleId != null);
 const form = reactive({
   code: "",
   name: "",
   description: ""
 });
 
-function resetForm() {
-  form.code = props.role?.code || "";
-  form.name = props.role?.name || "";
-  form.description = props.role?.description || "";
+function resetForm(detail: Dict | null): void {
+  form.code = detail?.code || "";
+  form.name = detail?.name || "";
+  form.description = detail?.description || "";
 }
 
 watch(
-  () => [props.modelValue, props.role],
-  ([visible]) => {
-    if (visible) {
-      resetForm();
+  () => [props.modelValue, props.roleId] as const,
+  async ([visible]) => {
+    if (!visible) return;
+    if (props.roleId == null) {
+      resetForm(null);
+      return;
     }
+    let detail: Dict;
+    try {
+      const loaded = await getAuthorizationRole(props.roleId);
+      if (!loaded) throw new Error("角色详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("角色详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    resetForm(detail);
   },
   { immediate: true }
 );
@@ -81,7 +96,7 @@ async function submit() {
       description: form.description?.trim() || null
     };
     const saved = isEdit.value
-      ? await updateAuthorizationRole(props.role!.id, payload)
+      ? await updateAuthorizationRole(props.roleId!, payload)
       : await createAuthorizationRole(payload);
     ElMessage.success("已保存");
     emit("update:modelValue", false);

@@ -67,7 +67,7 @@
 <script setup lang="ts">
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
-import {createUser, updateUser} from "@/api/users";
+import {createUser, getUser, updateUser} from "@/api/users";
 import {listDepartmentOptions, listRoleOptions} from "@/api/options";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import {toOptionsLoader} from "@/utils/options";
@@ -78,7 +78,8 @@ import {EnabledStatus} from "@/constants/status";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  user: {type: Object as PropType<Dict | null>, default: null}
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  userId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -104,39 +105,41 @@ const form = reactive<UserFormState>({
   status: 1
 });
 
-const isEdit = computed(() => props.user != null);
+const isEdit = computed(() => props.userId != null);
 /** 登录名引用处数（应用负责人 / 消费者归属 / 路由规则归属）：>0 时不可改 */
 const boundCount = ref(0);
 const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 
-function resetForm() {
-  if (props.user) {
-    form.id = props.user.id;
-    form.username = props.user.username;
-    form.realName = props.user.realName || "";
-    form.password = "";
-    form.deptCode = props.user.deptCode ?? null;
-    form.roleIds = Array.isArray(props.user.roleIds) ? [...props.user.roleIds] : [];
-    form.status = props.user.status ?? 1;
-    boundCount.value = Number(props.user.boundCount ?? 0);
-    return;
-  }
-  form.id = null;
-  form.username = "";
-  form.realName = "";
+function resetForm(detail: Dict | null): void {
+  form.id = detail?.id ?? null;
+  form.username = detail?.username || "";
+  form.realName = detail?.realName || "";
   form.password = "";
-  form.deptCode = null;
-  form.roleIds = [];
-  form.status = 1;
-  boundCount.value = 0;
+  form.deptCode = detail?.deptCode ?? null;
+  form.roleIds = Array.isArray(detail?.roleIds) ? [...detail.roleIds] : [];
+  form.status = detail?.status ?? 1;
+  boundCount.value = Number(detail?.boundCount ?? 0);
 }
 
 watch(
-  () => [props.modelValue, props.user],
-  ([visible]) => {
-    if (visible) {
-      resetForm();
+  () => [props.modelValue, props.userId] as const,
+  async ([visible]) => {
+    if (!visible) return;
+    if (props.userId == null) {
+      resetForm(null);
+      return;
     }
+    let detail: Dict;
+    try {
+      const loaded = await getUser(props.userId);
+      if (!loaded) throw new Error("用户详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("用户详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    resetForm(detail);
   },
   {immediate: true}
 );

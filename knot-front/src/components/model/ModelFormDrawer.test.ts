@@ -171,10 +171,19 @@ function editModel(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** 打开抽屉必须走 setProps：初始化挂在 watch([modelValue, model]) 上，没有 immediate */
-async function openDrawer(props: Record<string, unknown> = {}): Promise<VueWrapper> {
+/**
+ * 打开抽屉必须走 setProps：初始化挂在 watch([modelValue, modelId]) 上，没有 immediate。
+ * 测试仍以 `model` 夹具描述「要编辑哪条」，由这里翻译成只传 id + 详情桩，模拟真实调用链。
+ */
+async function openDrawer(
+  props: Record<string, unknown> = {},
+  detailImpl?: () => Promise<unknown>
+): Promise<VueWrapper> {
+  const {model, ...rest} = props as {model?: {id?: number | string} | null};
+  if (detailImpl) vi.mocked(getModel).mockImplementation(detailImpl as never);
+  else vi.mocked(getModel).mockResolvedValue((model ?? null) as never);
   const wrapper = mount(ModelFormDrawer, {
-    props: {modelValue: false, model: null, ...props},
+    props: {modelValue: false, modelId: model?.id == null ? null : Number(model.id), ...rest},
     global: {
       stubs: {
         EnumControl: EnumControlStub,
@@ -277,6 +286,15 @@ describe("ModelFormDrawer 供应商模型表单", () => {
     // 走 code 精确匹配，不是 keyword 模糊搜索
     expect(listBillingRules).toHaveBeenCalledWith(expect.objectContaining({code: BILLING_CODE, pageSize: 1}));
     expect(wrapper.text()).toContain(BILLING_CODE);
+  });
+
+  it("编辑：详情加载失败即关抽屉，不留可编辑的旧行快照", async () => {
+    const error = vi.spyOn(ElMessage, "error").mockImplementation(() => ({}) as never);
+    const wrapper = await openDrawer({model: editModel()}, () => Promise.reject(new Error("boom")));
+
+    expect(error).toHaveBeenCalledWith("模型详情加载失败");
+    expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([false]);
+    expect(wrapper.emitted("saved")).toBeFalsy();
   });
 
   it("编辑：已绑计费规则被模糊命中但不含目标码时，表格回落为提示而非误展示", async () => {

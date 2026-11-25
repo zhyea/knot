@@ -38,6 +38,12 @@ public class AuthorizationModuleService {
     /**
      * Creates a module.
      */
+    /**
+     * Gets one record by id for the admin edit dialog.
+     */
+    public AdminModuleDetailItem getById(Long id) {
+        return converter.toModuleItem(support.getModuleById(id));
+    }
     @Transactional
     public AdminModuleDetailItem createModule(AdminModuleDetailItem request) {
         AdminModuleEntity entity = converter.toModuleEntity(request);

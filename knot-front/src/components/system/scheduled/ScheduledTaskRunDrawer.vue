@@ -4,20 +4,20 @@
       <ScheduledTaskRunPanel
         v-if="visible"
         ref="runPanelRef"
-        :fixed-task-code="task?.taskCode"
+        :fixed-task-code="taskCode"
       />
     </el-scrollbar>
   </el-drawer>
 </template>
 
 <script setup lang="ts">
-import type {Dict} from "@/types";
-import {type PropType,  computed, ref} from "vue";
+import {computed, ref} from "vue";
 import ScheduledTaskRunPanel from "./ScheduledTaskRunPanel.vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  task: { type: Object as PropType<Dict | null>, default: null }
+  /** 执行记录按任务编码查询：只接标识，不复用列表行 */
+  taskCode: {type: String, default: ""}
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -29,12 +29,7 @@ const visible = computed({
 
 const runPanelRef = ref();
 
-const title = computed(() => {
-  if (!props.task) {
-    return "执行记录";
-  }
-  return `执行记录 - ${props.task.taskName || props.task.taskCode}`;
-});
+const title = computed(() => (props.taskCode ? `执行记录 - ${props.taskCode}` : "执行记录"));
 
 defineExpose({ runPanelRef });
 </script>

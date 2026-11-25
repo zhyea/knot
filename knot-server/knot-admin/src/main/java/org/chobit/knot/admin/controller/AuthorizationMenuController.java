@@ -43,6 +43,14 @@ public class AuthorizationMenuController {
     }
 
     /**
+     * Menu detail for edit dialogs.
+     */
+    @GetMapping("/{id}")
+    public AdminMenuDetailItem get(@PathVariable Long id) {
+        return menuService.getById(id);
+    }
+
+    /**
      * Creates a menu.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "Menu",

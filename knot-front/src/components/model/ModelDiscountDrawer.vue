@@ -38,7 +38,7 @@
     <ModelDiscountFormDialog
       v-model="formVisible"
       :model-code="modelCode"
-      :policy="editingPolicy"
+      :policy-id="editingPolicyId"
       @saved="onFormSaved"
     />
   </el-drawer>
@@ -50,7 +50,7 @@ import {Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
 import {listDiscountPolicies} from "@/api/models";
 import ModelDiscountFormDialog from "./ModelDiscountFormDialog.vue";
-import type {Dict, Row} from "@/types";
+import type {Row} from "@/types";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -62,7 +62,7 @@ const emit = defineEmits(["update:modelValue", "changed"]);
 const loading = ref(false);
 const rows = ref<Row[]>([]);
 const formVisible = ref(false);
-const editingPolicy = ref<Dict | null>(null);
+const editingPolicyId = ref<number | null>(null);
 
 async function load() {
   if (!props.modelCode) return;
@@ -76,12 +76,12 @@ async function load() {
 }
 
 function openCreate() {
-  editingPolicy.value = null;
+  editingPolicyId.value = null;
   formVisible.value = true;
 }
 
 function openEdit(row: Row) {
-  editingPolicy.value = row;
+  editingPolicyId.value = Number(row.id);
   formVisible.value = true;
 }
 
@@ -93,7 +93,7 @@ async function onFormSaved() {
 function onClosed() {
   rows.value = [];
   formVisible.value = false;
-  editingPolicy.value = null;
+  editingPolicyId.value = null;
 }
 
 watch(

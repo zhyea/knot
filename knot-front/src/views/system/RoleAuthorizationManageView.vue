@@ -4,7 +4,7 @@
 
     <AuthorizationRoleFormDialog
       v-model="state.roleDialogVisible.value"
-      :role="state.editingRole.value"
+      :role-id="state.editingRoleId.value"
       @saved="state.onRoleSaved"
     />
 

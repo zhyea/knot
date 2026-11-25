@@ -71,6 +71,12 @@ public class ScheduledTaskAdminService {
         }
     }
 
+    /**
+     * Gets a task by primary key for the admin edit form.
+     */
+    public ScheduledTaskDto getTask(Long id) {
+        return taskService.getTaskById(id);
+    }
     @Transactional
     public ScheduledTaskDto create(ScheduledTaskRequest request) {
         ScheduledTaskDto draft = validated(null, request);

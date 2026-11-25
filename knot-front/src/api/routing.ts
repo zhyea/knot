@@ -1,10 +1,13 @@
 import {postQuery, post, put, get, del, postEventStream, postGatewayJson} from "./http";
 import type {CodeAvailability, Dict, PageResult} from "@/types";
-import type {OptionItem, TestRequestPresetOptionMeta} from "@/types";
-import type {OptionPage} from "./options";
 
 export function listRoutingRules(params: Dict) {
   return postQuery<PageResult<Dict>>("/api/routing-rules/list", params);
+}
+
+/** 规则详情：编辑抽屉打开时按 id 精确取，不复用列表行数据。 */
+export function getRoutingRule(id: number | string) {
+  return get<Dict>(`/api/routing-rules/${id}`);
 }
 
 export function listRoutingConsumers(params: Dict) {
@@ -110,35 +113,44 @@ export function listDebugCapabilities() {
   return get<Dict[]>("/api/routing-rules/debug-capabilities");
 }
 
+/** 调试预设下拉项：后端已按作用域筛好，选中后按 id 懒加载 requestBody */
+export interface RoutingDebugPresetOption {
+  id: number;
+  name: string;
+  protocolCode: string;
+  modelFamily: string | null;
+}
+
+/** 调试目标：协议 / 模型族 / 预设均由后端按该目标实际关联的模型推导 */
+export interface RoutingDebugTarget {
+  targetType: string;
+  targetId: number;
+  targetCode?: string | null;
+  targetName?: string | null;
+  primary: boolean;
+  modelFamilies: string[];
+  protocols: string[];
+  presets: RoutingDebugPresetOption[];
+}
+
 /**
- * 规则各调试目标支持的接口协议：后端权威下发（与调试准入校验同源），
- * 前端不再自行解析模型/模型池的协议绑定。
+ * 调试面板上下文（一次性取齐）：逐目标协议与预设 + 全部目标并集。
+ * 前端只做选择与展示，不再自行解析模型绑定或筛选预设（与调试准入校验同源）。
  */
-export function listRoutingRuleDebugProtocols(ruleId: number | string) {
-  return get<{
-    targets: Array<{
-      targetType: string;
-      targetId: number | string;
-      primary: boolean;
-      /** 目标解析出的模型族 code（MODEL 取映射统一模型、MODEL_POOL 取池归属统一模型）；null 表示无法解析 */
-      modelFamily?: string | null;
-      protocols: string[];
-    }>;
-  }>(`/api/routing-rules/${ruleId}/debug-protocols`);
+export interface RoutingRuleDebugContext {
+  targets: RoutingDebugTarget[];
+  protocols: string[];
+  presets: RoutingDebugPresetOption[];
+}
+
+export function getRoutingRuleDebugContext(ruleId: number | string) {
+  return get<RoutingRuleDebugContext>(`/api/routing-rules/${ruleId}/debug-context`);
 }
 
 // ===================== 预设请求（路由调试请求用例） =====================
 
 export function listTestRequestPresets(params: Dict) {
   return postQuery<PageResult<Dict>>("/api/test-request-presets/list", params);
-}
-
-/**
- * 下拉候选：统一 OptionPage 契约（value=id，label=name）。
- * 接口协议已收敛到 meta：{@code meta.protocolCode}（顶层 code 随 options 强类型化移除）。
- */
-export function listTestRequestPresetOptions() {
-  return get<OptionPage<OptionItem<TestRequestPresetOptionMeta>>>("/api/test-request-presets/options");
 }
 
 /** 预设详情：选中后按 id 取完整请求体模板（options 不含 requestBody）。 */

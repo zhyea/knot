@@ -31,7 +31,7 @@
       </section>
     </div>
 
-    <UserFormDrawer v-model="drawerVisible" :user="editingUser" @saved="resetPage" />
+    <UserFormDrawer v-model="drawerVisible" :user-id="editingUserId" @saved="resetPage" />
 
     <OperationLogDrawer
       v-model="logDrawerVisible"
@@ -55,8 +55,11 @@ import {useListQuery} from "@/composables/useListQuery";
 import {listUsers, resetUserPassword, updateUserStatus} from "@/api/users";
 import {listUserOperationLogs} from "@/api/operationLogs";
 import {EnabledStatus} from "@/constants/status";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
-const {visible: drawerVisible, editing: editingUser, openCreate, openEdit} = useRowFormDrawer();
+import {useFormDrawer} from "@/composables/useFormDrawer";
+const {visible: drawerVisible, editing: editingUserId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id)
+});
 
 const {
   query,

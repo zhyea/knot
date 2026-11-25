@@ -9,6 +9,11 @@ export function getDepartmentTree() {
   return get("/api/system/departments/tree");
 }
 
+/** 部门详情：编辑抽屉打开时按 id 精确取，不复用树 / 列表行数据。 */
+export function getDepartment(id: number | string) {
+  return get(`/api/system/departments/${id}`);
+}
+
 export function createDepartment(payload: Dict) {
   return post("/api/system/departments", payload);
 }

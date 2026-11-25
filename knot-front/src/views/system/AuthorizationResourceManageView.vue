@@ -5,7 +5,8 @@
     <AuthorizationEntityFormDialog
       v-model="state.resourceDialogVisible.value"
       :title="state.resourceDialogTitle.value"
-      :form="state.resourceDialogForm.value"
+      :resource-id="state.resourceDialogId.value"
+      :load-detail="state.resourceDialogLoader.value"
       :fields="state.resourceDialogFields.value"
       :submitter="state.resourceDialogSubmitter.value"
       @saved="state.onResourceSaved"

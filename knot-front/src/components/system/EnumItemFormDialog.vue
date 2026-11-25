@@ -38,7 +38,7 @@
 import type {Dict} from "@/types";
 import {type PropType,  computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
-import {createEnumConfig, updateEnumConfig} from "@/api/enums";
+import {createEnumConfig, getEnumItem, updateEnumConfig} from "@/api/enums";
 import {clearEnumCache} from "@/composables/useEnums";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
@@ -46,8 +46,8 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
   /** 所属分类编码（必填） */
   category: { type: String, default: "" },
-  /** 传入枚举项表示编辑，null 表示在该分类下新增 */
-  item: { type: Object as PropType<Dict | null>, default: null }
+  /** 编辑态只接主键：打开时按 itemId 拉详情，不复用列表抽屉里的行数据 */
+  itemId: { type: Number as PropType<number | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -63,38 +63,45 @@ const form = reactive({
   remark: ""
 });
 
-const isEdit = computed(() => props.item != null);
+const isEdit = computed(() => props.itemId != null);
 
 /**
  * 编码口径同其它业务码：仅在「编辑态且已被引用」时锁定。
- * boundCount 由后端列表 SQL 子查询一次带出（计费规则/统一模型的模型族 + 折扣类型 + 敏感词分类）。
+ * boundCount 由详情端点下发（计费规则/统一模型的模型族 + 折扣类型 + 敏感词分类引用处数）。
  */
-const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => props.item?.boundCount);
+const boundCount = ref(0);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 
-function resetForm() {
-  if (props.item) {
-    form.id = props.item.id;
-    form.category = props.item.category;
-    form.itemCode = props.item.itemCode;
-    form.itemLabel = props.item.itemLabel;
-    form.sortOrder = props.item.sortOrder ?? 0;
-    form.isEnabled = props.item.isEnabled !== false;
-    form.remark = props.item.remark || "";
-  } else {
-    form.id = null;
-    form.category = props.category;
-    form.itemCode = "";
-    form.itemLabel = "";
-    form.sortOrder = 0;
-    form.isEnabled = true;
-    form.remark = "";
-  }
+function resetForm(detail: Dict | null): void {
+  form.id = detail?.id ?? null;
+  form.category = detail?.category || props.category;
+  form.itemCode = detail?.itemCode || "";
+  form.itemLabel = detail?.itemLabel || "";
+  form.sortOrder = detail?.sortOrder ?? 0;
+  form.isEnabled = detail ? detail.isEnabled !== false : true;
+  form.remark = detail?.remark || "";
+  boundCount.value = Number(detail?.boundCount ?? 0);
 }
 
 watch(
-  () => [props.modelValue, props.category, props.item],
-  ([visible]) => {
-    if (visible) resetForm();
+  () => [props.modelValue, props.category, props.itemId] as const,
+  async ([visible]) => {
+    if (!visible) return;
+    if (props.itemId == null) {
+      resetForm(null);
+      return;
+    }
+    let detail: Dict;
+    try {
+      const loaded = await getEnumItem(props.itemId);
+      if (!loaded) throw new Error("枚举项详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("枚举项详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    resetForm(detail);
   }
 );
 

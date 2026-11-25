@@ -46,7 +46,11 @@
 
     <BillingRuleFormDialog v-model="ruleDlg" :rule-id="currentRuleId" :copy-from-id="copyFromId" @saved="resetPage" />
 
-    <PricingPreviewDrawer v-model="previewDrawer" :rule="previewRule" />
+    <PricingPreviewDrawer
+      v-model="previewDrawer"
+      :rule-id="previewRuleId"
+      :rule-code="previewRuleCode"
+    />
 
     <OperationLogDrawer
       v-model="logDrawer"
@@ -102,7 +106,8 @@ const {togglingId, handleEnabledChange} = useEnabledToggle({
 /** 克隆源规则 id：非空时抽屉按 id 取全量记录并预填，保存为新建规则（编码留空） */
 const copyFromId = ref<number | null>(null);
 const previewDrawer = ref(false);
-const previewRule = ref<Row | null>(null);
+const previewRuleId = ref<number | null>(null);
+const previewRuleCode = ref("");
 
 function openCopy(row: Row) {
   currentRuleId.value = null;
@@ -111,7 +116,8 @@ function openCopy(row: Row) {
 }
 
 function openPreview(row: Row) {
-  previewRule.value = row;
+  previewRuleId.value = Number(row.id);
+  previewRuleCode.value = String(row.code ?? "");
   previewDrawer.value = true;
 }
 

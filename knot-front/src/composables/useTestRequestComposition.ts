@@ -1,6 +1,6 @@
 import {computed, reactive, ref, type ComputedRef, type Ref} from "vue";
 import {ElMessage} from "element-plus";
-import type {Dict, OptionItem, OptionPage} from "@/types";
+import type {Dict} from "@/types";
 import {formatJson, formatJsonText, stringifyJson} from "@/utils/format";
 import {safeParseTemplate, stripModelField} from "@/utils/routingTestPayload";
 
@@ -34,12 +34,6 @@ export interface TestPresetOption {
   modelFamily: string | null;
 }
 
-/** 预设项 meta（对应后端 OptionItem<TestRequestPresetOptionMeta>；后端可为 null） */
-interface TestPresetOptionMeta {
-  protocolCode?: string | null;
-  modelFamily?: string | null;
-}
-
 /** 请求头表格行：抽屉打开时按当前密钥 / 规则编码生成默认三行，之后以表格为准 */
 export interface HeaderRow {
   name: string;
@@ -66,8 +60,6 @@ export interface TestRequestCompositionContext {
   targetKey: () => string | null | undefined;
   /** 当前生效协议 code（归一后） */
   protocol: ComputedRef<string>;
-  /** 当前调试目标的模型族 code：空表示不限，预设下拉不做族过滤 */
-  targetModelFamily: () => string | null | undefined;
   /** 「执行计费规则校验」开关：打开时请求头补临时测试头 */
   billingVerifyEnabled: Ref<boolean>;
   /** 规则绑定消费者是否已默认返回消费详情：已开启则无需临时头 */
@@ -76,8 +68,8 @@ export interface TestRequestCompositionContext {
   canonicalOf: (code: unknown) => string;
   /** 协议 → 网关调试路径（后端能力接口下发） */
   gatewayPathOf: (code: unknown) => string;
-  /** 预设下拉项加载 */
-  listPresetOptions: () => Promise<OptionPage<OptionItem<TestPresetOptionMeta>>>;
+  /** 预设下拉项加载：后端调试上下文已按作用域筛好，前端只按协议显示 */
+  listPresetOptions: () => Promise<TestPresetOption[]>;
   /** 按 id 懒加载预设详情（含 requestBody） */
   loadPresetDetail: (id: number | string) => Promise<Dict | null>;
 }
@@ -246,29 +238,13 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
     if (!protocol) {
       return [];
     }
-    const family = (ctx.targetModelFamily() || "").trim();
-    return presetOptions.value.filter((preset) => {
-      const presetFamily = (preset.modelFamily || "").trim();
-      // 已绑定模型族的预设优先按当前目标的统一模型族匹配，不再按协议过滤
-      if (presetFamily) {
-        return Boolean(family) && presetFamily === family;
-      }
-      // 未绑定模型族的通用预设才按当前接口协议筛选
-      return preset.protocolCode === protocol;
-    });
+    // 模型族 / 目标作用域的筛选已在后端 debug-context 完成；前端只按当前协议显示
+    return presetOptions.value.filter((preset) => preset.protocolCode === protocol);
   });
 
   async function loadPresetOptions(): Promise<void> {
     try {
-      const page = await ctx.listPresetOptions();
-      // 统一 OptionPage 契约：value=id，label=name，接口协议走 meta.protocolCode；
-      // requestBody 选中时按 id 懒加载
-      presetOptions.value = (page?.list ?? []).map((item) => ({
-        id: Number(item.value),
-        name: item.label,
-        protocolCode: item.meta?.protocolCode ?? "",
-        modelFamily: item.meta?.modelFamily ?? null
-      }));
+      presetOptions.value = await ctx.listPresetOptions();
     } catch {
       presetOptions.value = [];
     }

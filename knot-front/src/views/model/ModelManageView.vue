@@ -45,7 +45,12 @@
       </section>
     </div>
 
-    <ModelFormDrawer v-model="formVisible" :model="editingModel" @saved="resetPage" />
+    <ModelFormDrawer
+      v-model="formVisible"
+      :model-id="editingModelId"
+      :copy-from-id="copyFromId"
+      @saved="resetPage"
+    />
     <ModelDiscountDrawer v-model="discountDrawerVisible" :model-code="discountModelCode" />
     <OperationLogDrawer
       v-model="logDrawer"
@@ -67,15 +72,20 @@ import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ModelFormDrawer from "../../components/model/ModelFormDrawer.vue";
 import ModelDiscountDrawer from "../../components/model/ModelDiscountDrawer.vue";
 import ModelListPanel from "../../components/model/ModelListPanel.vue";
-import {deleteModel, getModel, listModels, restoreModel} from "@/api/models";
+import {deleteModel, listModels, restoreModel} from "@/api/models";
 import {listModelOperationLogs} from "@/api/operationLogs";
 import {useListQuery} from "@/composables/useListQuery";
 import type {Dict} from "@/types";
 import {ElMessage, ElMessageBox} from "element-plus";
 import {useLogDrawer} from "@/composables/useLogDrawer";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logModelId, name: logModelName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["modelCode"]});
-const {visible: formVisible, editing: editingModel, openCreate, openEdit} = useRowFormDrawer();
+const copyFromId = ref<number | null>(null);
+const {visible: formVisible, editing: editingModelId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id),
+  onOpen: () => { copyFromId.value = null; }
+});
 
 /**
  * 管理列表带 includeDeleted=true：已逻辑删除的供应商模型仍展示（浅红底 + 恢复按钮），
@@ -102,9 +112,10 @@ const {
 const discountDrawerVisible = ref(false);
 const discountModelCode = ref("");
 
-async function openCopy(row: Row) {
-  const detail = row?.id ? await getModel(row.id) : row;
-  editingModel.value = buildModelCopy(detail || row);
+function openCopy(row: Row) {
+  // 不走 openCreate：onOpen 会清掉 copyFromId，这里直接设定「复制源 + 新建态」
+  editingModelId.value = null;
+  copyFromId.value = Number(row.id);
   formVisible.value = true;
 }
 
@@ -116,23 +127,6 @@ function openDiscount(row: Row) {
 
 function loadModelOperationLogs() {
   return listModelOperationLogs(logModelId.value!);
-}
-
-function buildModelCopy(source: Dict = {}): Dict {
-  return {
-    ...source,
-    id: null,
-    modelCode: copyModelCode(source.modelCode),
-    enabled: false,
-    apiBindings: Array.isArray(source.apiBindings)
-      ? source.apiBindings.map((item) => ({ ...item, id: null }))
-      : []
-  };
-}
-
-function copyModelCode(modelCode: string) {
-  const code = String(modelCode || "").trim();
-  return code ? `${code}-copy` : "";
 }
 
 /** 逻辑删除（不物理删除）；被路由规则引用时后端返回 409，错误提示由 http 层统一弹出 */

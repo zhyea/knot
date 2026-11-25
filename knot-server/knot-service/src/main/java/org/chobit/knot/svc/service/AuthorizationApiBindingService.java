@@ -40,6 +40,12 @@ public class AuthorizationApiBindingService {
     /**
      * Creates an api permission binding.
      */
+    /**
+     * Gets one record by id for the admin edit dialog.
+     */
+    public AdminApiBindingItem getById(Long id) {
+        return converter.toApiBindingItem(support.getApiPermissionBindingById(id));
+    }
     @Transactional
     public AdminApiBindingItem createApiPermissionBinding(AdminApiBindingItem request) {
         AdminApiPermissionBindingEntity entity = converter.toApiBindingEntity(request);

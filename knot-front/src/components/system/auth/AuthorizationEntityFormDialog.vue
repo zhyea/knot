@@ -86,7 +86,9 @@ import type {Dict, ResourceField, ResourceSubmitter} from "@/types";
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   title: { type: String, default: "" },
-  form: { type: Object as PropType<Dict>, default: () => ({}) },
+  /** 编辑态只接主键；表单值由 loadDetail 按 id 重新拉取，不复用列表行 */
+  resourceId: { type: Number as PropType<number | null>, default: null },
+  loadDetail: { type: Function as PropType<(id: number) => Promise<Dict | null>>, default: () => Promise.resolve(null) },
   fields: { type: Array as PropType<ResourceField[]>, default: (): ResourceField[] => [] },
   submitter: { type: Function as PropType<ResourceSubmitter>, required: true }
 });
@@ -101,11 +103,11 @@ const defaultTreeProps = {
   children: "children"
 };
 
-function resetForm() {
+function resetForm(detail: Dict | null) {
   for (const key of Object.keys(localForm)) {
     delete localForm[key];
   }
-  const source = props.form || {};
+  const source = detail || {};
   for (const field of props.fields) {
     if (source[field.key] !== undefined && source[field.key] !== null) {
       localForm[field.key] = source[field.key];
@@ -122,11 +124,23 @@ function resetForm() {
 }
 
 watch(
-  () => [props.modelValue, props.form, props.fields],
-  ([visible]) => {
-    if (visible) {
-      resetForm();
+  () => [props.modelValue, props.resourceId, props.fields] as const,
+  async ([visible]) => {
+    if (!visible) return;
+    if (props.resourceId == null) {
+      resetForm(null);
+      return;
     }
+    let detail: Dict | null;
+    try {
+      detail = await props.loadDetail(props.resourceId);
+      if (!detail) throw new Error("资源详情为空");
+    } catch {
+      ElMessage.error("资源详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    resetForm(detail);
   },
   {immediate: true}
 );

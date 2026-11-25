@@ -32,7 +32,7 @@
       </section>
     </div>
 
-    <AppFormDrawer v-model="formVisible" :app="editingApp" @saved="onAppSaved" />
+    <AppFormDrawer v-model="formVisible" :app-id="editingAppId" @saved="onAppSaved" />
 
     <OperationLogDrawer
       v-model="logDrawer"
@@ -55,9 +55,12 @@ import {listAppOperationLogs} from "@/api/operationLogs";
 import {useListQuery} from "@/composables/useListQuery";
 import {listApps} from "@/api/apps";
 import {useLogDrawer} from "@/composables/useLogDrawer";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logAppId, name: logAppName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["name", "appCode"]});
-const {visible: formVisible, editing: editingApp, openCreate, openEdit} = useRowFormDrawer();
+const {visible: formVisible, editing: editingAppId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id)
+});
 
 const {
   query,

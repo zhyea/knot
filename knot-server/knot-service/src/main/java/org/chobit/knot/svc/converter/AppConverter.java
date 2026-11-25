@@ -7,6 +7,7 @@ import org.chobit.knot.svc.dto.app.AppDto;
 import org.chobit.knot.dal.entity.AppEntity;
 
 import org.chobit.knot.svc.vo.app.AppItem;
+import org.chobit.knot.svc.vo.app.AppListItem;
 
 import org.mapstruct.Mapper;
 
@@ -57,6 +58,11 @@ public interface AppConverter {
 
 
     List<AppItem> toVOList(List<AppDto> dtos);
+
+    /** 列表专用视图：不映射额度 / 频控等仅供编辑的策略字段 */
+    AppListItem toListItemVO(AppDto dto);
+
+    List<AppListItem> toListItemVOList(List<AppDto> dtos);
 
 }
 

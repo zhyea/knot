@@ -78,16 +78,17 @@ import {
   normalizeQuotaPolicy,
   normalizeQuotaPolicies
 } from "@/utils/trafficPolicy";
-import {createApp, updateApp} from "@/api/apps";
+import {createApp, getApp, updateApp} from "@/api/apps";
 import {listDepartmentOptions, listUserUsernameOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
-import type {Dict, Row} from "@/types";
+import type {Dict} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  app: {type: Object as PropType<Dict | null>, default: null}
+  /** 编辑态只接主键：打开时按 id 拉详情，不复用列表行数据 */
+  appId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -106,43 +107,41 @@ const form = reactive({
   quotaPolicies: emptyQuotaPolicies()
 });
 
-const isEdit = computed(() => props.app != null);
+const isEdit = computed(() => props.appId != null);
 /** 应用编码引用处数（绑定该应用的路由规则数）：>0 时不可改 */
 const boundCount = ref(0);
 const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 
-function fillFormFromRow(row: Row): void {
-  form.id = row.id;
-  form.appCode = row.appCode || "";
-  form.name = row.name || "";
-  form.deptCode = row.deptCode ?? null;
-  form.ownerUsername = row.ownerUsername ?? null;
-  form.remark = row.remark ?? "";
-  form.quotaPolicies = normalizeQuotaPolicies(row.quotaPolicies);
-  boundCount.value = Number(row.boundCount ?? 0);
-}
-
-function resetForm() {
-  if (props.app) {
-    fillFormFromRow(props.app);
-  } else {
-    form.id = null;
-    form.appCode = "";
-    form.name = "";
-    form.deptCode = null;
-    form.ownerUsername = null;
-    form.remark = "";
-    form.quotaPolicies = emptyQuotaPolicies();
-    boundCount.value = 0;
-  }
+function resetForm(detail: Dict | null): void {
+  form.id = detail?.id ?? null;
+  form.appCode = detail?.appCode || "";
+  form.name = detail?.name || "";
+  form.deptCode = detail?.deptCode ?? null;
+  form.ownerUsername = detail?.ownerUsername ?? null;
+  form.remark = detail?.remark ?? "";
+  form.quotaPolicies = detail ? normalizeQuotaPolicies(detail.quotaPolicies) : emptyQuotaPolicies();
+  boundCount.value = Number(detail?.boundCount ?? 0);
 }
 
 watch(
-  () => [props.modelValue, props.app],
-  ([visible]) => {
-    if (visible) {
-      resetForm();
+  () => [props.modelValue, props.appId] as const,
+  async ([visible]) => {
+    if (!visible) return;
+    if (props.appId == null) {
+      resetForm(null);
+      return;
     }
+    let detail: Dict;
+    try {
+      const loaded = await getApp(props.appId);
+      if (!loaded) throw new Error("应用详情为空");
+      detail = loaded as Dict;
+    } catch {
+      ElMessage.error("应用详情加载失败");
+      emit("update:modelValue", false);
+      return;
+    }
+    resetForm(detail);
   }
 );
 

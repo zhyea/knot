@@ -66,6 +66,14 @@ public class AuthorizationRoleController {
     }
 
     /**
+     * 角色详情：编辑弹窗打开时按 id 精确取，不复用列表行。
+     */
+    @GetMapping("/{id}")
+    public AdminRoleItem get(@PathVariable Long id) {
+        return roleService.getById(id);
+    }
+
+    /**
      * Creates a role.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "Role",

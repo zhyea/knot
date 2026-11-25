@@ -21,8 +21,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 应用列表的频控/额度查询必须是整页一次批量取，不能逐行 {@code load}。
- * 逐行会让单页 20 条放大成 2 + 20×4 次 DB 往返。
+ * 列表与详情的数据边界（铁律 12）：列表只给列表列，不加载额度 / 频控策略；
+ * 策略只在按 id 取详情时加载。
  *
  * <p>JDK 25 下 Mockito 不能 mock 具体类，{@link ResourceTrafficPolicySupport} 用子类覆写做替身。</p>
  */
@@ -33,21 +33,35 @@ class AppServiceListBatchTest {
     private final StubTrafficPolicySupport traffic = new StubTrafficPolicySupport();
 
     @Test
-    void loadsTrafficPoliciesOnceForTheWholePage() {
+    void listDoesNotLoadTrafficPolicies() {
         Page<AppEntity> page = new Page<>(1, 20);
         page.setTotal(2);
         page.add(app(1L));
         page.add(app(2L));
         when(appMapper.list(null)).thenReturn(page);
-        when(appConverter.toDto(any(AppEntity.class))).thenAnswer(invocation -> dto(invocation.getArgument(0)));
+        when(appConverter.toDtoList(any())).thenReturn(List.of(dto(1L), dto(2L)));
+        when(appConverter.toDto(any(AppEntity.class)))
+                .thenAnswer(invocation -> dto(((AppEntity) invocation.getArgument(0)).getId()));
 
         new AppService(appMapper, appConverter, null, traffic, null)
                 .list(new PageRequest(1, 20), null);
 
-        assertEquals(1, traffic.batchCalls, "整页只应批量取一次");
-        assertEquals(0, traffic.singleCalls, "逐行 load 必须彻底消失");
-        assertEquals(TrafficResourceTypeEnum.APP.code(), traffic.batchResourceType);
-        assertEquals(List.of(1L, 2L), traffic.batchIds);
+        assertEquals(0, traffic.batchCalls, "列表不得批量加载仅供编辑的策略");
+        assertEquals(0, traffic.singleCalls, "列表也不得逐行加载策略");
+    }
+
+    @Test
+    void detailLoadsTrafficPoliciesById() {
+        when(appMapper.getById(1L)).thenReturn(app(1L));
+        when(appConverter.toDto(any(AppEntity.class)))
+                .thenAnswer(invocation -> dto(((AppEntity) invocation.getArgument(0)).getId()));
+
+        new AppService(appMapper, appConverter, null, traffic, null).getById(1L);
+
+        assertEquals(1, traffic.singleCalls, "详情必须按 id 加载一次策略");
+        assertEquals(0, traffic.batchCalls, "单条详情不需要批量加载");
+        assertEquals(TrafficResourceTypeEnum.APP.code(), traffic.singleResourceType);
+        assertEquals(1L, traffic.singleResourceId);
     }
 
     private AppEntity app(Long id) {
@@ -57,8 +71,8 @@ class AppServiceListBatchTest {
         return entity;
     }
 
-    private AppDto dto(AppEntity entity) {
-        return new AppDto(entity.getId(), entity.getAppCode(), null, null, null,
+    private AppDto dto(Long id) {
+        return new AppDto(id, "app_" + id, null, null, null,
                 null, null, null, null, List.of(), 0L);
     }
 
@@ -66,7 +80,8 @@ class AppServiceListBatchTest {
 
         private int batchCalls;
         private int singleCalls;
-        private String batchResourceType;
+        private String singleResourceType;
+        private Long singleResourceId;
         private List<Long> batchIds = new ArrayList<>();
 
         private StubTrafficPolicySupport() {
@@ -76,7 +91,6 @@ class AppServiceListBatchTest {
         @Override
         public Map<Long, TrafficPolicies> loadBatch(String resourceType, List<Long> resourceIds) {
             batchCalls++;
-            batchResourceType = resourceType;
             batchIds = resourceIds;
             return Map.of();
         }
@@ -84,6 +98,8 @@ class AppServiceListBatchTest {
         @Override
         public TrafficPolicies load(String resourceType, Long resourceId) {
             singleCalls++;
+            singleResourceType = resourceType;
+            singleResourceId = resourceId;
             return null;
         }
     }

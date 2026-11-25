@@ -79,9 +79,9 @@
 
 <script setup lang="ts">
 import {displayText} from "@/utils/format";
-import {computed, ref, watch} from "vue";
+import {computed, ref, watch, type PropType} from "vue";
 import {ElMessage} from "element-plus";
-import type {Dict, Row} from "@/types";
+import type {Dict} from "@/types";
 import {previewBillingRule} from "@/api/billing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {PEAK_REASONS} from "@/utils/billingPeakOffPeak";
@@ -89,14 +89,16 @@ import {useEnumText} from "@/composables/useEnumText";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  rule: {type: Object as () => Row | null, default: null}
+  /** 只接标识：试算按 id 请求，标题按编码渲染，不复用列表行 */
+  ruleId: {type: Number as PropType<number | null>, default: null},
+  ruleCode: {type: String, default: ""}
 });
 
 const emit = defineEmits(["update:modelValue"]);
 
 const {labelOf: enumLabelOf} = useEnumOptions();
 
-const title = computed(() => `方案试算 - ${props.rule?.code || `#${props.rule?.id ?? ""}`}`);
+const title = computed(() => `方案试算 - ${props.ruleCode || (props.ruleId != null ? `#${props.ruleId}` : "")}`);
 const probeDate = ref<string>(new Date().toISOString().slice(0, 10));
 const probeTime = ref<string>("02:00");
 const usageAmount = ref<number>(1000);
@@ -150,7 +152,7 @@ const reasonText = computed(() => {
 const modeLabel = useEnumText("BillingModeEnum", {fallback: displayText});
 const planLabel = useEnumText("PricingPlanEnum", {fallback: displayText});
 async function run() {
-  if (!props.rule?.id) {
+  if (props.ruleId == null) {
     return;
   }
   const occurredAt = toInstant(probeDate.value, probeTime.value);
@@ -160,7 +162,7 @@ async function run() {
   }
   loading.value = true;
   try {
-    result.value = (await previewBillingRule(props.rule.id, {
+    result.value = (await previewBillingRule(props.ruleId, {
       occurredAt,
       usageAmount: usageNumber.value
     })) as Dict;

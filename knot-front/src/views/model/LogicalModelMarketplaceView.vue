@@ -66,7 +66,7 @@
       </section>
     </div>
 
-    <LogicalModelFormDrawer v-model="formVisible" :model="editingModel" @saved="resetPage" />
+    <LogicalModelFormDrawer v-model="formVisible" :model-id="editingModelId" @saved="resetPage" />
     <OperationLogDrawer
       v-model="logDrawer"
       :title="`统一模型变更日志 - ${logModelName || ''}`"
@@ -93,9 +93,12 @@ import {deleteLogicalModel, listLogicalModels, restoreLogicalModel} from "@/api/
 import {listLogicalModelOperationLogs} from "@/api/operationLogs";
 import {getStorageItem, getStorageJson, setStorageItem, setStorageJson} from "@/utils/storage";
 import {useLogDrawer} from "@/composables/useLogDrawer";
-import {useRowFormDrawer} from "@/composables/useFormDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
 const {id: logModelId, name: logModelName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["modelCode"]});
-const {visible: formVisible, editing: editingModel, openCreate, openEdit} = useRowFormDrawer();
+const {visible: formVisible, editing: editingModelId, openCreate, openEdit} = useFormDrawer<number | null>({
+  emptyValue: null,
+  toEditing: (row) => Number(row.id)
+});
 
 const VIEW_MODE_KEY = "knot.logical-model.view-mode";
 const VIEW_PAGE_SIZE_KEY = "knot.logical-model.view-page-size";
