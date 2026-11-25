@@ -1173,14 +1173,16 @@ function currentProtocolCodes(): string[] {
   return targetProtocolMap.value[testForm.targetKey] || [];
 }
 
-/** 按当前协议列表校正已选协议并重载模板（切换目标后调用，协议已在打开抽屉时预加载） */
+/** 按当前协议列表校正已选协议（切换目标后调用，协议已在打开抽屉时预加载） */
 function syncCurrentProtocol() {
   const protocols = currentProtocolCodes();
   const normalized = canonicalOf(testForm.protocol);
   // 原协议不在新目标的可调试集合里就必须换掉：留着它会让下拉显示一个本次根本不允许的值，
   // 而 runTest 只校验「非空」，于是拿着无效协议发出去
   testForm.protocol = protocols.includes(normalized) ? normalized : protocols[0] || "";
-  ensureTemplateForCurrentSelection();
+  // 这里**不**播种模板：此刻预设列表还是上一作用域的旧数据，用它播种会把上一条规则的请求体
+  // 写进新槽位（实测 qwen 模板串到 seedream）。两个调用方都紧跟 loadPresetOptions()，
+  // 由「列表落地」统一校正选中项与模板——保持唯一校正点。
 }
 
 function toPresetOption(item: {id: number; name: string; protocolCode: string; modelFamily: string | null}): TestPresetOption {

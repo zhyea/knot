@@ -209,12 +209,23 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
     return headers;
   }
 
-  // ===================== 请求模板（按 target+protocol 分槽） =====================
+  // ===================== 请求模板（按 规则 + target + protocol 分槽） =====================
 
   const templateStore = reactive<Dict>({});
 
+  /**
+   * 模板槽位：规则 :: 调试目标 :: 协议。
+   *
+   * <p>⭐ 规则必须进键。抽屉在列表页是<b>单实例长期存活</b>：`destroy-on-close` 只销毁抽屉内容，
+   * 不销毁组件与 composable 状态。此前键里只有 target+protocol，而两条规则的调试目标默认都是
+   * 「全部目标」、协议都是 IMAGE_GENERATIONS，槽位完全相同 → 上一条规则的请求体被下一条直接复用
+   * （实测：先开 qwen 图像规则再开 seedream，选中框仍显示「qwen图像生成」、正文仍是 input.messages）。</p>
+   *
+   * <p>为什么用规则编码而不是 ruleId：ctx 已为 Rule 头提供规则编码，再挂一个只用于分槽的 id 访问器
+   * 就是同一事实的第二个来源；编码唯一且随抽屉打开注入，够用。</p>
+   */
   const activeTemplateKey = computed(
-    () => `${ctx.targetKey() || "default"}::${ctx.protocol.value || "default"}`
+    () => `${ctx.ruleCode() || "default"}::${ctx.targetKey() || "default"}::${ctx.protocol.value || "default"}`
   );
 
   const currentTemplateText = computed({
@@ -233,6 +244,15 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
   const presetOptions = ref<TestPresetOption[]>([]);
   const selectedPresetId = ref<number | string | null>(null);
 
+  /**
+   * 预设列表加载代次：只让最后一次发起的加载落地。
+   *
+   * <p>打开抽屉会并发触发两次加载——抽屉 watch 里的 debug-context 一次，目标从空切到
+   * 「全部目标」时 targetKey watch 再一次。先发起的请求拿到的是上一作用域的旧列表（甚至空表），
+   * 它若后到，会把刚播种好的选中项与模板一起覆盖掉。</p>
+   */
+  let presetLoadSeq = 0;
+
   const filteredPresetOptions = computed(() => {
     const protocol = ctx.protocol.value;
     if (!protocol) {
@@ -243,13 +263,20 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
   });
 
   async function loadPresetOptions(): Promise<void> {
+    const seq = ++presetLoadSeq;
+    let options: TestPresetOption[] = [];
     try {
-      presetOptions.value = await ctx.listPresetOptions();
+      options = await ctx.listPresetOptions();
     } catch {
-      presetOptions.value = [];
+      options = [];
     }
-    // 预设加载完成后，若当前未选中任何预设，默认选中过滤后的第一个（协议已确定时生效）
-    autoSelectFirstPreset();
+    if (seq !== presetLoadSeq) {
+      // 已有更晚的加载发起：本次列表属于旧作用域，整批丢弃
+      return;
+    }
+    presetOptions.value = options;
+    // 列表落地是唯一校正点：换了规则 / 目标 / 协议后的选中项与模板都在这里对齐
+    reconcilePresetSelection();
   }
 
   async function onPresetChange(presetId: number | string | null): Promise<void> {
@@ -262,6 +289,8 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
     if (!preset) {
       return;
     }
+    // 载入期间规则 / 目标可能切换：写入必须回到发起时的槽位，否则旧规则的请求体会落进新槽位
+    const slotKey = activeTemplateKey.value;
     // options 契约不承载 requestBody（大字段），选中后按 id 懒加载预设详情
     let requestBody = "{}";
     try {
@@ -276,63 +305,73 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
     }
     const parsed = safeParseTemplate(requestBody);
     const base = parsed.error ? {} : parsed.value;
-    templateStore[activeTemplateKey.value] = formatJson(stripModelField(base));
-  }
-
-  /** 为该 (target, protocol) 首次生成模板：有可选项时默认选中第一个预设并载入请求体，否则留空白默认 */
-  function seedTemplateForProtocol(): void {
-    const first = filteredPresetOptions.value[0];
-    if (first) {
-      void onPresetChange(first.id);
-    } else {
-      selectedPresetId.value = null;
-      // 无预设可用时的空白默认请求体；具体结构由「预设请求」用例（kb_test_request_presets）提供
-      templateStore[activeTemplateKey.value] = "{}";
-    }
+    templateStore[slotKey] = formatJson(stripModelField(base));
   }
 
   /**
-   * 预设请求下拉「默认选中第一个」：未选中且存在可选项时，自动选中过滤后的第一个。
-   * 仅当模板仍为空白占位（未加载过预设 / 用户尚未编辑）才覆盖模板，避免清掉用户已输入的内容。
+   * 选中态与模板的一致性校正（**唯一入口**：预设列表每次落地都走这里）。
+   *
+   * <p>三条规则，按优先级：</p>
+   * <ol>
+   *   <li>选中项仍属于本作用域且本槽位没有正文 → 按它补载（换目标 / 换协议后槽位是空的）；</li>
+   *   <li>本槽位已有正文 → 绝不覆盖，只把失效的选中项改掉。槽位键含规则，所以这里的正文
+   *       只可能来自本上下文（预设播种或用户编辑）；反过来，选中项失效恰恰说明它来自别处。</li>
+   *   <li>无正文、无可用选中项 → 播种第一条预设的请求体；没有预设可选用时留 "{}"，
+   *       保证 runTest 不会在解析阶段早退。</li>
+   * </ol>
+   *
+   * <p>为什么不「换规则就清空所有槽位」：预设是全局实体（同一 id 的 requestBody 与规则无关），
+   * 本作用域仍可选用的选中项应当保留；跨规则草稿由槽位键隔离，不需要靠清空来解决串台。</p>
    */
-  function autoSelectFirstPreset(): void {
-    if (selectedPresetId.value != null) {
+  function reconcilePresetSelection(): void {
+    const slotKey = activeTemplateKey.value;
+    const options = filteredPresetOptions.value;
+    const current = selectedPresetId.value;
+    const hasSelection = current != null && current !== "";
+    const selectionValid = hasSelection
+      && options.some((preset) => String(preset.id) === String(current));
+    const text = (templateStore[slotKey] || "").trim();
+    const hasBody = !!text && text !== "{}";
+
+    if (selectionValid) {
+      if (hasBody) {
+        return;
+      }
+      void onPresetChange(current);
       return;
     }
-    const first = filteredPresetOptions.value[0];
+
+    // 选中项失效（换了规则 / 目标 / 协议）：先清掉，避免选中框显示一个下拉里不存在的预设
+    // （Element Plus 会沿用 cachedOptions 里的旧 label，看起来像「选中了 qwen 预设」）
+    if (hasSelection) {
+      selectedPresetId.value = null;
+    }
+
+    if (hasBody) {
+      // 本上下文的正文不能因为选中项失效就丢：只补一个合法选中项，正文保持不动
+      selectedPresetId.value = options[0]?.id ?? null;
+      return;
+    }
+
+    const first = options[0];
     if (!first) {
+      if (!text) {
+        templateStore[slotKey] = "{}";
+      }
       return;
     }
-    const current = templateStore[activeTemplateKey.value] || "";
-    const isBlank = !current.trim() || current.trim() === "{}";
-    if (isBlank) {
-      void onPresetChange(first.id);
-    } else {
-      selectedPresetId.value = first.id;
-    }
+    void onPresetChange(first.id);
   }
 
   /**
-   * 协议切换 / 首次进入时确保有模板：没有就播种，有空白占位就补选预设。
-   * 切换目标导致族过滤后原选中项不再可用时，只改选中项、不覆盖模板（模板可能已被用户编辑）。
+   * 协议切换 / 首次进入时确保模板与选中项一致。
+   * 空槽位播种、选中项失效、正文为空白占位三种情况都由 {@link reconcilePresetSelection} 处理。
    */
   function ensureTemplateForCurrentSelection(): void {
-    const protocol = ctx.protocol.value;
-    if (!protocol || !activeTemplateKey.value) {
+    if (!ctx.protocol.value || !activeTemplateKey.value) {
       return;
     }
-    if (!templateStore[activeTemplateKey.value]) {
-      seedTemplateForProtocol();
-      return;
-    }
-    if (selectedPresetId.value != null
-      && !filteredPresetOptions.value.some((preset) => String(preset.id) === String(selectedPresetId.value))) {
-      selectedPresetId.value = filteredPresetOptions.value[0]?.id ?? null;
-      return;
-    }
-    if (selectedPresetId.value == null && filteredPresetOptions.value.length) {
-      autoSelectFirstPreset();
-    }
+    reconcilePresetSelection();
   }
 
   function resetCurrentTemplate(): void {

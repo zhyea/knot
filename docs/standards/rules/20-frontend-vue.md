@@ -36,6 +36,7 @@ npm run type-check:test                    # 5. 测试代码类型检查（tscon
 | npm 并发装包 | `node_modules` 互相抢占 | 装依赖前先查残留 `npm-cli.js install` 进程 |
 | `package-lock.json` 被写坏（空 version 条目） | `TypeError: Invalid Version:` | 直接删锁文件重装，不要逐条修 |
 | 新增的 `*.json` 配置被 `.gitignore` 的 `*.json` 吞掉 | `git status` 里根本不出现，本地全绿、干净 checkout 直接失败 | 落地前先 `git check-ignore -v <file>`；命中就回 `.gitignore` 的「可复现构建资产」段加 `!` 否定规则。2026-11-11 一天内踩了两次（夹具、`tsconfig.test.json`） |
+| 单实例抽屉 / composable 的跨会话状态 | 换一条规则打开，预设选中框仍显示上一条规则的预设、正文还是上一条的请求体 | 受作用域约束的状态必须把作用域写进键（模板槽位 = `规则::目标::协议`，`destroy-on-close` 只销毁抽屉内容、不销毁组件与 composable 状态）；全局选中态在「选项列表落地」时统一校验，失效则连同正文按当前作用域重建。判例 `useTestRequestComposition`（2026-11-25，qwen 预设串到 seedream）；⚠ EP `el-select` 对 `modelValue` 命中 `cachedOptions` 的旧 option 会照旧显示旧 label，光看界面看不出状态是错的 |
 
 ## 3. TypeScript 约定
 

@@ -136,6 +136,7 @@ vi.mock("@/api/routing", () => ({
 
 import {
   getRoutingRuleDebugContext,
+  getTestRequestPreset,
   queryGatewayTask,
   testRoutingRule,
   testRoutingRuleStream
@@ -544,6 +545,42 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(getRoutingRuleDebugContext).toHaveBeenCalledWith(1);
     expect(selectOf(wrapper, 0).findAllComponents(ElOption).map((item) => item.props("label")))
       .toEqual(["全部目标", "模型一（主）", "模型二"]);
+  });
+
+  it("⭐ 连续打开两条规则：不拿上一条规则的预设去播种新规则的模板", async () => {
+    // 实测缺陷：先开 qwen 图像规则（预设 674），关掉再开 seedream（只有预设 10），
+    // 选中框仍显示「qwen图像生成」、正文仍是 Qwen 的 input.messages——
+    // 两条规则的调试目标都是「全部目标」、协议都是 IMAGE_GENERATIONS，旧槽位被直接复用。
+    const imageTarget = {
+      targetType: "MODEL", targetId: 1, targetCode: "m1", targetName: "模型一",
+      primary: true, protocols: ["IMAGE_GENERATIONS"]
+    };
+    vi.mocked(getRoutingRuleDebugContext)
+      .mockResolvedValueOnce(debugContext([imageTarget], [
+        { id: 674, name: "qwen图像生成", protocolCode: "IMAGE_GENERATIONS", modelFamily: null }
+      ]) as never)
+      .mockResolvedValueOnce(debugContext([imageTarget], [
+        { id: 10, name: "文生图", protocolCode: "IMAGE_GENERATIONS", modelFamily: null }
+      ]) as never);
+    vi.mocked(getTestRequestPreset).mockImplementation(async (id) => ({
+      requestBody: String(id) === "674"
+        ? '{"input":{"messages":[{"content":"qwen"}]}}'
+        : '{"prompt":"seedream"}'
+    }));
+
+    const wrapper = await openDrawer({ ruleCode: "gaterouter-qwen-image-2.0" });
+    expect(getTestRequestPreset).toHaveBeenCalledWith(674);
+    vi.mocked(getTestRequestPreset).mockClear();
+
+    // 列表页只有一个长期存活的抽屉实例：关闭只是销毁抽屉内容，composable 状态还在
+    wrapper.findComponent(ElDrawer).vm.$emit("closed");
+    await wrapper.setProps({ modelValue: false, ruleId: 2, ruleCode: "gaterouter-seedream-4.5" });
+    await flushPromises();
+    await wrapper.setProps({ modelValue: true });
+    await flushPromises();
+
+    // 674 不属于 Seedream：打开过程中一次都不该请求它，只该按它自己的预设 10 播种
+    expect(vi.mocked(getTestRequestPreset).mock.calls.map((call) => call[0])).toEqual([10]);
   });
 
   it("「全部目标」取协议并集，锁定单个目标后只留该目标自己的协议", async () => {

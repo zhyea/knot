@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const warningSpy = vi.hoisted(() => vi.fn());
 
@@ -7,7 +7,10 @@ const warningSpy = vi.hoisted(() => vi.fn());
 vi.mock("element-plus", () => ({ ElMessage: { warning: warningSpy } }));
 
 import { useTestRequestComposition } from "@/composables/useTestRequestComposition";
-import type { TestRequestCompositionContext } from "@/composables/useTestRequestComposition";
+import type {
+  TestPresetOption,
+  TestRequestCompositionContext
+} from "@/composables/useTestRequestComposition";
 
 /**
  * 请求构造侧的直接单测。
@@ -211,6 +214,254 @@ describe("useTestRequestComposition 请求构造", () => {
 
     // 过期响应的结果被丢弃，模板仍是 P2 的
     expect(api.currentTemplateText.value).toContain("p2");
+  });
+
+  /**
+   * 预设 ↔ 模板的会话边界（2026-11-25 回归）。
+   *
+   * <p>实测缺陷：抽屉是长期存活的单实例，先打开 gaterouter-qwen-image-2.0（预设 674「qwen图像生成」），
+   * 关闭后打开 gaterouter-seedream-4.5，选中框仍显示「qwen图像生成」、模板仍是 Qwen 的
+   * input.messages 结构，而 Seedream 的预设列表里只有 10「文生图」。两条规则的调试目标都是 ALL、
+   * 协议都是 IMAGE_GENERATIONS，所以槽位 key 相同，旧内容被直接复用。</p>
+   *
+   * <p>这组用例钉住的是「预设列表落地」这一个校正点：选中项必须属于当前协议的可选项集，
+   * 不满足时选中态与模板必须一起作废。</p>
+   */
+  describe("预设与模板的会话边界", () => {
+    const PROTOCOL = "IMAGE_GENERATIONS";
+
+    /** detail 加载是 fire-and-forget：断言前先让宏任务跑一轮 */
+    const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    const QWEN_PRESET: TestPresetOption = {
+      id: 674, name: "qwen图像生成", protocolCode: PROTOCOL, modelFamily: "qwen"
+    };
+    const COMMON_PRESET: TestPresetOption = {
+      id: 10, name: "文生图", protocolCode: PROTOCOL, modelFamily: null
+    };
+
+    /** 两条规则共用协议与调试目标，仅预设作用域不同的调试上下文 */
+    function ruleSwitchCtx(
+      ruleCode: Ref<string>,
+      presets: Record<string, TestPresetOption[]>,
+      bodies: Record<string, string>
+    ): TestRequestCompositionContext {
+      return makeCtx({
+        ruleCode: () => ruleCode.value,
+        protocol: computed(() => PROTOCOL),
+        listPresetOptions: vi.fn(async () => presets[ruleCode.value] ?? []),
+        loadPresetDetail: vi.fn(async (id) => ({ requestBody: bodies[String(id)] ?? "{}" }))
+      });
+    }
+
+    it("⭐ 换规则：旧预设不在新列表时，选中项与模板一起换掉（qwen 模板串到 seedream）", async () => {
+      const ruleCode = ref("gaterouter-qwen-image-2.0");
+      const api = useTestRequestComposition(
+        ruleSwitchCtx(
+          ruleCode,
+          {
+            "gaterouter-qwen-image-2.0": [QWEN_PRESET, COMMON_PRESET],
+            "gaterouter-seedream-4.5": [COMMON_PRESET]
+          },
+          {
+            "674": '{"input":{"messages":[{"role":"user","content":"qwen"}]}}',
+            "10": '{"prompt":"a cat","size":"2K"}'
+          }
+        )
+      );
+
+      await api.loadPresetOptions();
+      await settle();
+      expect(api.selectedPresetId.value).toBe(674);
+      expect(api.currentTemplateText.value).toContain("qwen");
+
+      ruleCode.value = "gaterouter-seedream-4.5";
+      await api.loadPresetOptions();
+      await settle();
+
+      // 674 不属于 Seedream：选中项必须落到它自己的第一条预设，正文不能还是 Qwen 的
+      expect(api.selectedPresetId.value).toBe(10);
+      expect(api.currentTemplateText.value).toContain("a cat");
+      expect(api.currentTemplateText.value).not.toContain("qwen");
+    });
+
+    it("换规则不共用模板槽位：A 的草稿不落到 B，切回 A 仍能恢复", async () => {
+      const ruleCode = ref("rule-a");
+      const api = useTestRequestComposition(
+        ruleSwitchCtx(
+          ruleCode,
+          { "rule-a": [COMMON_PRESET], "rule-b": [COMMON_PRESET] },
+          { "10": '{"prompt":"seeded"}' }
+        )
+      );
+
+      await api.loadPresetOptions();
+      await settle();
+      api.currentTemplateText.value = '{"prompt":"A 手改的草稿"}';
+
+      ruleCode.value = "rule-b";
+      await api.loadPresetOptions();
+      await settle();
+      expect(api.currentTemplateText.value).not.toContain("A 手改的草稿");
+
+      // 切回 A：该规则的草稿还在（槽位按规则隔离，不是一律清空）
+      ruleCode.value = "rule-a";
+      await api.loadPresetOptions();
+      await settle();
+      expect(api.currentTemplateText.value).toContain("A 手改的草稿");
+    });
+
+    it("切目标后已选预设不在新目标列表：换选中并换模板（同一根因的另一条路径）", async () => {
+      const targetKey = ref("MODEL:1");
+      const api = useTestRequestComposition(
+        makeCtx({
+          targetKey: () => targetKey.value,
+          protocol: computed(() => PROTOCOL),
+          listPresetOptions: vi.fn(async () =>
+            targetKey.value === "MODEL:1"
+              ? [{ id: 2, name: "目标一预设", protocolCode: PROTOCOL, modelFamily: null }]
+              : [{ id: 3, name: "目标二预设", protocolCode: PROTOCOL, modelFamily: null }]
+          ),
+          loadPresetDetail: vi.fn(async (id) => ({
+            requestBody: String(id) === "2" ? '{"prompt":"p2"}' : '{"prompt":"p3"}'
+          }))
+        })
+      );
+
+      await api.loadPresetOptions();
+      await settle();
+      expect(api.selectedPresetId.value).toBe(2);
+
+      targetKey.value = "MODEL:2";
+      await api.loadPresetOptions();
+      await settle();
+
+      expect(api.selectedPresetId.value).toBe(3);
+      expect(api.currentTemplateText.value).toContain("p3");
+    });
+
+    it("切目标后选中项仍有效但槽位为空：按选中项补载，不重置成第一条", async () => {
+      const targetKey = ref("MODEL:1");
+      const shared: TestPresetOption[] = [
+        COMMON_PRESET,
+        { id: 11, name: "通用第二例", protocolCode: PROTOCOL, modelFamily: null }
+      ];
+      const api = useTestRequestComposition(
+        makeCtx({
+          targetKey: () => targetKey.value,
+          protocol: computed(() => PROTOCOL),
+          listPresetOptions: vi.fn(async () => shared),
+          loadPresetDetail: vi.fn(async (id) => ({
+            requestBody: String(id) === "11" ? '{"prompt":"second"}' : '{"prompt":"first"}'
+          }))
+        })
+      );
+
+      await api.loadPresetOptions();
+      await api.onPresetChange(11);
+      expect(api.currentTemplateText.value).toContain("second");
+
+      // 新目标的槽位是空的，但选中项（通用预设 11）依然合法 → 补载 11，不能顺手改成第一条 10
+      targetKey.value = "MODEL:2";
+      await api.loadPresetOptions();
+      await settle();
+
+      expect(api.selectedPresetId.value).toBe(11);
+      expect(api.currentTemplateText.value).toContain("second");
+    });
+
+    it("切回旧目标：本目标的正文必须保留，只把失效的选中项改回与正文配对的那条", async () => {
+      const targetKey = ref("MODEL:1");
+      const api = useTestRequestComposition(
+        makeCtx({
+          targetKey: () => targetKey.value,
+          protocol: computed(() => PROTOCOL),
+          listPresetOptions: vi.fn(async () =>
+            targetKey.value === "MODEL:1"
+              ? [{ id: 2, name: "目标一预设", protocolCode: PROTOCOL, modelFamily: null }]
+              : [{ id: 3, name: "目标二预设", protocolCode: PROTOCOL, modelFamily: null }]
+          ),
+          loadPresetDetail: vi.fn(async (id) => ({
+            requestBody: String(id) === "2" ? '{"prompt":"p2"}' : '{"prompt":"p3"}'
+          }))
+        })
+      );
+
+      await api.loadPresetOptions();
+      await settle();
+      targetKey.value = "MODEL:2";
+      await api.loadPresetOptions();
+      await settle();
+      expect(api.currentTemplateText.value).toContain("p3");
+
+      // 切回目标一：槽位里的 p2 属于本上下文，不能因为选中项（3）失效就被清空重建
+      targetKey.value = "MODEL:1";
+      await api.loadPresetOptions();
+      await settle();
+
+      expect(api.currentTemplateText.value).toContain("p2");
+      expect(api.selectedPresetId.value).toBe(2);
+    });
+
+    it("预设详情迟到：写入回到发起时的槽位，不污染切换后的目标槽位", async () => {
+      const targetKey = ref("MODEL:1");
+      let resolveSlow: (value: unknown) => void = () => {};
+      const slow = new Promise((resolve) => {
+        resolveSlow = resolve;
+      });
+      const api = useTestRequestComposition(
+        makeCtx({
+          targetKey: () => targetKey.value,
+          protocol: computed(() => PROTOCOL),
+          listPresetOptions: vi.fn(async () => [QWEN_PRESET]),
+          loadPresetDetail: vi.fn(() => slow)
+        })
+      );
+
+      // 列表落地 → 自动选 674 并开始载入请求体（挂起）
+      await api.loadPresetOptions();
+      const pending = api.onPresetChange(674);
+
+      targetKey.value = "MODEL:2";
+      resolveSlow({ requestBody: '{"input":{"messages":[{"content":"qwen"}]}}' });
+      await pending;
+      await settle();
+
+      // 迟到的正文只能回到 MODEL:1 的槽位；新目标的槽位必须还是空的，
+      // 否则「切目标后新槽位可写」会变成把旧目标的请求体带过去
+      expect(api.currentTemplateText.value).toBe("");
+    });
+
+    it("并发加载：先发起但后返回的旧列表不覆盖后发起的结果", async () => {
+      let resolveStale: (value: TestPresetOption[]) => void = () => {};
+      const stale = new Promise<TestPresetOption[]>((resolve) => {
+        resolveStale = resolve;
+      });
+      let calls = 0;
+      const api = useTestRequestComposition(
+        makeCtx({
+          protocol: computed(() => PROTOCOL),
+          listPresetOptions: vi.fn(() => {
+            calls += 1;
+            return calls === 1 ? stale : Promise.resolve([COMMON_PRESET]);
+          }),
+          loadPresetDetail: vi.fn(async () => ({ requestBody: '{"prompt":"fresh"}' }))
+        })
+      );
+
+      const pending = api.loadPresetOptions();
+      await api.loadPresetOptions();
+      await settle();
+      expect(api.selectedPresetId.value).toBe(10);
+
+      // 打开抽屉时目标从空切到「全部目标」会并发触发第二次加载，旧结果必须按代次丢弃
+      resolveStale([QWEN_PRESET]);
+      await pending;
+      await settle();
+
+      expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([10]);
+      expect(api.currentTemplateText.value).toContain("fresh");
+    });
   });
 
   it("filteredPresetOptions：后端已按作用域筛好，前端只按当前协议显示", async () => {
