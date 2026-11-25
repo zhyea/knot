@@ -10,7 +10,7 @@
   >
 
     <el-scrollbar max-height="calc(100vh - 140px)">
-      <el-form v-loading="detailLoading" :model="form" label-width="120px">
+      <el-form v-loading="detailLoading" :model="form" label-width="96px">
         <div class="slot-body">
           <div class="section-head">
             <div>
@@ -22,7 +22,7 @@
             </el-form-item>
           </div>
           <el-row :gutter="16">
-            <el-col style="flex: 0 0 60%; max-width: 60%">
+            <el-col :span="14">
               <el-form-item label="编码" required :error="codeError">
                 <el-input
                   v-model="form.code"
@@ -35,7 +35,7 @@
                 <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
               </el-form-item>
             </el-col>
-            <el-col style="flex: 0 0 40%; max-width: 40%">
+            <el-col :span="10">
               <el-form-item label="供应商" required>
                 <RemoteEntitySelect
                   v-model="form.providerCode"
