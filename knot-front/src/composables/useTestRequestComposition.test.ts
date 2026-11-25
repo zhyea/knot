@@ -217,27 +217,31 @@ describe("useTestRequestComposition 请求构造", () => {
     expect(api.currentTemplateText.value).toContain("p2");
   });
 
-  it("filteredPresetOptions：按目标模型族过滤，通用用例始终可选；目标无族时不过滤", async () => {
+  it("filteredPresetOptions：同族预设按模型族匹配，未绑族预设才按协议筛选", async () => {
     const family = ref<string | null>("openai");
     const api = useTestRequestComposition(
       makeCtx({
         targetModelFamily: () => family.value,
+        protocol: computed(() => "CHAT_COMPLETIONS"),
         listPresetOptions: vi.fn().mockResolvedValue({
           list: [
-            { value: 1, label: "同族", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: "openai" } },
-            { value: 2, label: "异族", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: "anthropic" } },
-            { value: 3, label: "通用", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: null } }
+            { value: 1, label: "同族-不同协议", meta: { protocolCode: "RESPONSES", modelFamily: "openai" } },
+            { value: 2, label: "同族-当前协议", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: "openai" } },
+            { value: 3, label: "异族-当前协议", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: "anthropic" } },
+            { value: 4, label: "通用-当前协议", meta: { protocolCode: "CHAT_COMPLETIONS", modelFamily: null } },
+            { value: 5, label: "通用-不同协议", meta: { protocolCode: "RESPONSES", modelFamily: null } }
           ],
-          total: 3
+          total: 5
         })
       })
     );
 
     await api.loadPresetOptions();
-    expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([1, 3]);
+    expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([1, 2, 4]);
 
+    // 目标解析不出模型族时，只保留按当前协议命中的通用预设
     family.value = null;
     await nextTick();
-    expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([1, 2, 3]);
+    expect(api.filteredPresetOptions.value.map((preset) => preset.id)).toEqual([4]);
   });
 });
