@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-table v-loading="loading" :data="rows" stripe border>
-      <el-table-column prop="taskCode" label="任务句柄" min-width="210" show-overflow-tooltip>
+      <el-table-column prop="taskCode" label="任务句柄" min-width="240" show-overflow-tooltip>
         <template #default="{ row }">
           <el-button link type="primary" @click="emit('view', row)">{{ row.taskCode }}</el-button>
         </template>
