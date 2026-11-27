@@ -2,7 +2,7 @@
   <el-drawer
     :model-value="modelValue"
     :title="title"
-    size="760px"
+    size="810px"
     destroy-on-close
     @update:model-value="(value: boolean) => emit('update:modelValue', value)"
   >
@@ -19,7 +19,7 @@
       </div>
 
       <!-- label 宽 140：轮询参数每项都带「说明」图标，窄了会折行 -->
-      <el-form label-width="140px" label-position="right" size="default">
+      <el-form label-width="110px" label-position="right" size="default">
         <section class="slot-body profile-form__section">
           <div class="section-head">
             <div>
