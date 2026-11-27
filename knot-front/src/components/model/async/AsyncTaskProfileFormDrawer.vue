@@ -20,238 +20,274 @@
 
       <!-- label 宽 140：轮询参数每项都带「说明」图标，窄了会折行 -->
       <el-form label-width="140px" label-position="right" size="default">
-        <el-divider content-position="left">基本信息</el-divider>
-        <el-form-item label="档案编码" required>
-          <el-input v-model="form.profileCode" :disabled="!isCreate" placeholder="字母开头，可含数字/下划线/连字符，如 KLING_TASK" />
-          <div class="profile-form__hint">
-            绑定表按它引用；<b>已绑定时不能改</b>——改了等于让所有引用指向不存在的档案
+        <section class="slot-body profile-form__section">
+          <div class="section-head">
+            <div>
+              <h3>基本信息</h3>
+              <p>档案是「怎么查上游」的一套口径：新增一家异步上游 = 加一行档案 + 在模型表单里选中它。</p>
+            </div>
           </div>
-        </el-form-item>
-        <el-form-item label="接口协议" required>
-          <el-select v-model="form.protocol" :disabled="!isCreate" placeholder="选择协议" style="width: 100%">
-            <el-option
-              v-for="item in protocolOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-              :disabled="streamProtocols.has(String(item.value))"
-            />
-          </el-select>
-          <div class="profile-form__hint">流式协议不可异步（响应会先结束），已置灰</div>
-        </el-form-item>
-        <el-form-item label="启用">
-          <el-switch v-model="enabled" />
-          <span class="profile-form__hint profile-form__hint--inline">停用后新请求回落同步，在途任务仍按快照跑完</span>
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" placeholder="给下一个人看的说明，如「可灵 3.0 Turbo」" />
-        </el-form-item>
+          <el-form-item label="档案编码" required>
+            <el-input v-model="form.profileCode" :disabled="!isCreate" placeholder="字母开头，可含数字/下划线/连字符，如 KLING_TASK" />
+            <div class="profile-form__hint">
+              绑定表按它引用；<b>已绑定时不能改</b>——改了等于让所有引用指向不存在的档案
+            </div>
+          </el-form-item>
+          <el-form-item label="接口协议" required>
+            <el-select v-model="form.protocol" :disabled="!isCreate" placeholder="选择协议" style="width: 100%">
+              <el-option
+                v-for="item in protocolOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+                :disabled="streamProtocols.has(String(item.value))"
+              />
+            </el-select>
+            <div class="profile-form__hint">流式协议不可异步（响应会先结束），已置灰</div>
+          </el-form-item>
+          <el-form-item label="启用">
+            <el-switch v-model="enabled" />
+            <span class="profile-form__hint profile-form__hint--inline">停用后新请求回落同步，在途任务仍按快照跑完</span>
+          </el-form-item>
+          <el-form-item label="备注">
+            <el-input v-model="form.remark" placeholder="给下一个人看的说明，如「可灵 3.0 Turbo」" />
+          </el-form-item>
+        </section>
 
-        <el-divider content-position="left">查询口径</el-divider>
-        <el-form-item label="查询方法" required>
-          <el-radio-group v-model="form.queryMethod">
-            <el-radio-button value="GET">GET</el-radio-button>
-            <el-radio-button value="POST">POST</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="查询路径" required>
-          <el-input v-model="form.queryPath" placeholder="/v1/videos/text2video/{task_id}" />
-          <div class="profile-form__hint">
-            必须含 <code>{task_id}</code> 占位（可出现在 path 段或 query 段）
-          </div>
-        </el-form-item>
+        <div class="space-line"/>
 
-        <el-divider content-position="left">取值表达式（MVEL）</el-divider>
-        <el-form-item label="任务 ID" required>
-          <el-input v-model="form.taskIdPath" placeholder="data.task_id" />
-          <div class="profile-form__hint">
-            从<b>创建响应</b>取上游任务 ID；取不到时该请求直接返回 502，<b>不会</b>回退同步
-          </div>
-        </el-form-item>
-        <el-form-item label="状态" required>
-          <el-input v-model="form.statusPath" placeholder="data.task_status" />
-          <div class="profile-form__hint">从<b>查询响应</b>取状态文本</div>
-        </el-form-item>
-        <el-form-item label="成功判定" required>
-          <el-input v-model="form.statusSucceeded" placeholder="['succeed','success'] contains status" />
-        </el-form-item>
-        <el-form-item label="失败判定" required>
-          <el-input v-model="form.statusFailed" placeholder="status == 'failed'" />
-        </el-form-item>
-        <el-form-item label="进行中判定">
-          <el-input v-model="form.statusRunning" placeholder="留空 = 除成功/失败外一律非终态" />
-          <div class="profile-form__hint">留空最省事：上游新增中间态时不用改档案</div>
-        </el-form-item>
-        <el-form-item label="用量对象">
-          <el-input v-model="form.usagePath" placeholder="data.usage" />
-          <div class="profile-form__hint">
-            从<b>查询响应</b>取上游<b>用量对象</b>（Map，通常含 cost / total_cost 等供应商成本口径）；
-            留空时沿用顶层 <code>usage</code> / <code>response.usage</code>；
-            取的是<b>对象</b>而非标量文本；保存时会校验 MVEL 语法
-          </div>
-        </el-form-item>
+        <section class="slot-body profile-form__section">
+          <div class="section-head"><div><h3>查询口径</h3></div></div>
+          <el-form-item label="查询方法" required>
+            <el-radio-group v-model="form.queryMethod">
+              <el-radio-button value="GET">GET</el-radio-button>
+              <el-radio-button value="POST">POST</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="查询路径" required>
+            <el-input v-model="form.queryPath" placeholder="/v1/videos/text2video/{task_id}" />
+            <div class="profile-form__hint">
+              必须含 <code>{task_id}</code> 占位（可出现在 path 段或 query 段）
+            </div>
+          </el-form-item>
+        </section>
 
-        <el-divider content-position="left">产物与失败原因</el-divider>
-        <el-form-item label="产物地址" required>
-          <el-input v-model="form.resultPath" placeholder="data.task_result.videos" />
-          <div class="profile-form__hint">
-            标量 = 单个产物；数组 = 多个产物（视频一次生成 n 个时用它）
-          </div>
-        </el-form-item>
-        <el-form-item label="产物字段名">
-          <el-input v-model="form.resultUrlField" placeholder="url" />
-          <div class="profile-form__hint">
-            产物是<b>对象数组</b>时必填（如 videos[].url 填 url）；元素本身是 URL 字符串则留空
-          </div>
-        </el-form-item>
-        <el-form-item label="失败原因">
-          <el-input v-model="form.errorMessagePath" placeholder="data.task_status_msg" />
-          <div class="profile-form__hint">留空时取上游顶层 message</div>
-        </el-form-item>
+        <div class="space-line"/>
 
-        <el-divider content-position="left">轮询参数</el-divider>
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item>
-              <template #label>
-                <span class="profile-form__label">
-                  首次间隔(ms)
-                  <el-tooltip :content="pollTips.intervalMs" placement="top">
-                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                  </el-tooltip>
-                </span>
-              </template>
-              <el-input-number v-model="form.pollIntervalMs" :min="100" :max="3600000" :step="500" controls-position="right" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item>
-              <template #label>
-                <span class="profile-form__label">
-                  退避基数(ms)
-                  <el-tooltip :content="pollTips.backoffBaseMs" placement="top">
-                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                  </el-tooltip>
-                </span>
-              </template>
-              <el-input-number v-model="form.pollBackoffBaseMs" :min="100" :max="3600000" :step="500" controls-position="right" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item>
-              <template #label>
-                <span class="profile-form__label">
-                  退避上限(ms)
-                  <el-tooltip :content="pollTips.backoffMaxMs" placement="top">
-                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                  </el-tooltip>
-                </span>
-              </template>
-              <el-input-number v-model="form.pollBackoffMaxMs" :min="100" :max="3600000" :step="1000" controls-position="right" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item>
-              <template #label>
-                <span class="profile-form__label">
-                  轮询次数上限
-                  <el-tooltip :content="pollTips.maxAttempts" placement="top">
-                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                  </el-tooltip>
-                </span>
-              </template>
-              <el-input-number v-model="form.maxAttempts" :min="1" :max="10000" controls-position="right" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item>
-              <template #label>
-                <span class="profile-form__label">
-                  任务超时(分钟)
-                  <el-tooltip :content="pollTips.timeout" placement="top">
-                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                  </el-tooltip>
-                </span>
-              </template>
-              <el-input-number v-model="form.timeoutMinutes" :min="1" :max="1440" :step="1" controls-position="right" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item>
-              <template #label>
-                <span class="profile-form__label">
-                  产物有效期(天)
-                  <el-tooltip :content="pollTips.resultExpiresDays" placement="top">
-                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                  </el-tooltip>
-                </span>
-              </template>
-              <el-input-number v-model="form.resultExpiresDays" :min="1" :max="3650" controls-position="right" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <div class="profile-form__hint">
-          次数上限与超时<b>先到先生效</b>；每一项的口径见字段名旁的问号图标
-        </div>
+        <section class="slot-body profile-form__section">
+          <div class="section-head">
+            <div>
+              <h3>取值表达式（MVEL）</h3>
+              <p>五个取值字段从创建/查询响应里取值；三个判定字段是布尔表达式，变量为 status 与 body。</p>
+            </div>
+          </div>
+          <el-form-item label="任务 ID" required>
+            <el-input v-model="form.taskIdPath" placeholder="data.task_id" />
+            <div class="profile-form__hint">
+              从<b>创建响应</b>取上游任务 ID；取不到时该请求直接返回 502，<b>不会</b>回退同步
+            </div>
+          </el-form-item>
+          <el-form-item label="状态" required>
+            <el-input v-model="form.statusPath" placeholder="data.task_status" />
+            <div class="profile-form__hint">从<b>查询响应</b>取状态文本</div>
+          </el-form-item>
+          <el-form-item label="成功判定" required>
+            <el-input v-model="form.statusSucceeded" placeholder="['succeed','success'] contains status" />
+          </el-form-item>
+          <el-form-item label="失败判定" required>
+            <el-input v-model="form.statusFailed" placeholder="status == 'failed'" />
+          </el-form-item>
+          <el-form-item label="进行中判定">
+            <el-input v-model="form.statusRunning" placeholder="留空 = 除成功/失败外一律非终态" />
+            <div class="profile-form__hint">留空最省事：上游新增中间态时不用改档案</div>
+          </el-form-item>
+          <el-form-item label="用量对象">
+            <el-input v-model="form.usagePath" placeholder="data.usage" />
+            <div class="profile-form__hint">
+              从<b>查询响应</b>取上游<b>用量对象</b>（Map，通常含 cost / total_cost 等供应商成本口径）；
+              留空时沿用顶层 <code>usage</code> / <code>response.usage</code>；
+              取的是<b>对象</b>而非标量文本；保存时会校验 MVEL 语法
+            </div>
+          </el-form-item>
+        </section>
+
+        <div class="space-line"/>
+
+        <section class="slot-body profile-form__section">
+          <div class="section-head"><div><h3>产物与失败原因</h3></div></div>
+          <el-form-item label="产物地址" required>
+            <el-input v-model="form.resultPath" placeholder="data.task_result.videos" />
+            <div class="profile-form__hint">
+              标量 = 单个产物；数组 = 多个产物（视频一次生成 n 个时用它）
+            </div>
+          </el-form-item>
+          <el-form-item label="产物字段名">
+            <el-input v-model="form.resultUrlField" placeholder="url" />
+            <div class="profile-form__hint">
+              产物是<b>对象数组</b>时必填（如 videos[].url 填 url）；元素本身是 URL 字符串则留空
+            </div>
+          </el-form-item>
+          <el-form-item label="失败原因">
+            <el-input v-model="form.errorMessagePath" placeholder="data.task_status_msg" />
+            <div class="profile-form__hint">留空时取上游顶层 message</div>
+          </el-form-item>
+        </section>
+
+        <div class="space-line"/>
+
+        <section class="slot-body profile-form__section">
+          <div class="section-head"><div><h3>轮询参数</h3></div></div>
+          <el-row :gutter="12">
+            <el-col :span="12">
+              <el-form-item>
+                <template #label>
+                  <span class="profile-form__label">
+                    首次间隔(ms)
+                    <el-tooltip :content="pollTips.intervalMs" placement="top">
+                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                    </el-tooltip>
+                  </span>
+                </template>
+                <el-input-number v-model="form.pollIntervalMs" :min="100" :max="3600000" :step="500" controls-position="right" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item>
+                <template #label>
+                  <span class="profile-form__label">
+                    退避基数(ms)
+                    <el-tooltip :content="pollTips.backoffBaseMs" placement="top">
+                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                    </el-tooltip>
+                  </span>
+                </template>
+                <el-input-number v-model="form.pollBackoffBaseMs" :min="100" :max="3600000" :step="500" controls-position="right" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item>
+                <template #label>
+                  <span class="profile-form__label">
+                    退避上限(ms)
+                    <el-tooltip :content="pollTips.backoffMaxMs" placement="top">
+                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                    </el-tooltip>
+                  </span>
+                </template>
+                <el-input-number v-model="form.pollBackoffMaxMs" :min="100" :max="3600000" :step="1000" controls-position="right" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item>
+                <template #label>
+                  <span class="profile-form__label">
+                    轮询次数上限
+                    <el-tooltip :content="pollTips.maxAttempts" placement="top">
+                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                    </el-tooltip>
+                  </span>
+                </template>
+                <el-input-number v-model="form.maxAttempts" :min="1" :max="10000" controls-position="right" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item>
+                <template #label>
+                  <span class="profile-form__label">
+                    任务超时(分钟)
+                    <el-tooltip :content="pollTips.timeout" placement="top">
+                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                    </el-tooltip>
+                  </span>
+                </template>
+                <el-input-number v-model="form.timeoutMinutes" :min="1" :max="1440" :step="1" controls-position="right" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item>
+                <template #label>
+                  <span class="profile-form__label">
+                    产物有效期(天)
+                    <el-tooltip :content="pollTips.resultExpiresDays" placement="top">
+                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                    </el-tooltip>
+                  </span>
+                </template>
+                <el-input-number v-model="form.resultExpiresDays" :min="1" :max="3650" controls-position="right" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <div class="profile-form__hint">
+            次数上限与超时<b>先到先生效</b>；每一项的口径见字段名旁的问号图标
+          </div>
+        </section>
       </el-form>
 
-      <el-divider content-position="left">试跑（保存前可验）</el-divider>
-      <div class="profile-form__dry-run">
-        <div class="profile-form__dry-run-editor">
-          <div class="profile-form__dry-run-label">创建响应（可选）</div>
-          <JsonCodeEditor v-model="dryRunCreate" height="160px" />
-        </div>
-        <div class="profile-form__dry-run-editor">
-          <div class="profile-form__dry-run-label">查询响应（可选）</div>
-          <JsonCodeEditor v-model="dryRunQuery" height="160px" />
-        </div>
-        <div class="profile-form__dry-run-actions">
-          <el-button type="primary" plain :loading="dryRunning" @click="onDryRun">按当前表达式试跑</el-button>
-          <span class="profile-form__hint">
-            贴一段真实的上游返回即可；表达式写错或状态谁都匹配不上，这里都会指出来
-          </span>
-        </div>
+      <div class="space-line"/>
 
-        <template v-if="dryResult">
-          <el-alert
-            v-for="(item, index) in dryResult.errors ?? []"
-            :key="`e-${index}`"
-            class="profile-form__alert"
-            type="error"
-            :closable="false"
-            show-icon
-            :title="item"
-          />
-          <el-alert
-            v-for="(item, index) in dryResult.warnings ?? []"
-            :key="`w-${index}`"
-            class="profile-form__alert"
-            type="warning"
-            :closable="false"
-            show-icon
-            :title="item"
-          />
-          <el-descriptions :column="2" border size="small" class="profile-form__result">
-            <el-descriptions-item label="任务 ID">{{ displayText(dryResult.upstreamTaskId) }}</el-descriptions-item>
-            <el-descriptions-item label="状态原文">{{ displayText(dryResult.status) }}</el-descriptions-item>
-            <el-descriptions-item label="判定">
-              <el-tag :type="terminalTagType(dryResult.terminal)" size="small">
-                {{ terminalLabel(dryResult.terminal) }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="失败原因">{{ displayText(dryResult.errorMessage) }}</el-descriptions-item>
-            <el-descriptions-item label="产物" :span="2">
-              <template v-if="(dryResult.resultUrls ?? []).length">
-                <div v-for="(url, index) in dryResult.resultUrls" :key="index" class="profile-form__url">
-                  {{ url }}
-                </div>
-              </template>
-              <span v-else>（未取到产物）</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="结论" :span="2">{{ dryResult.elapsedHint }}</el-descriptions-item>
-          </el-descriptions>
-        </template>
-      </div>
+      <section class="slot-body profile-form__section">
+        <div class="section-head">
+          <div>
+            <h3>试跑（保存前可验）</h3>
+          </div>
+        </div>
+        <div class="profile-form__dry-run">
+          <div class="profile-form__dry-run-editor">
+            <div class="profile-form__dry-run-label">创建响应（可选）</div>
+            <JsonCodeEditor v-model="dryRunCreate" height="160px" />
+          </div>
+          <div class="profile-form__dry-run-editor">
+            <div class="profile-form__dry-run-label">查询响应（可选）</div>
+            <JsonCodeEditor v-model="dryRunQuery" height="160px" />
+          </div>
+          <div class="profile-form__dry-run-actions">
+            <el-button type="primary" plain :loading="dryRunning" @click="onDryRun">按当前表达式试跑</el-button>
+            <span class="profile-form__hint">
+              贴一段真实的上游返回即可；表达式写错或状态谁都匹配不上，这里都会指出来
+            </span>
+          </div>
+
+          <template v-if="dryResult">
+            <el-alert
+              v-for="(item, index) in dryResult.errors ?? []"
+              :key="`e-${index}`"
+              class="profile-form__alert"
+              type="error"
+              :closable="false"
+              show-icon
+              :title="item"
+            />
+            <el-alert
+              v-for="(item, index) in dryResult.warnings ?? []"
+              :key="`w-${index}`"
+              class="profile-form__alert"
+              type="warning"
+              :closable="false"
+              show-icon
+              :title="item"
+            />
+            <el-descriptions :column="2" border size="small" class="profile-form__result">
+              <el-descriptions-item label="任务 ID">{{ displayText(dryResult.upstreamTaskId) }}</el-descriptions-item>
+              <el-descriptions-item label="状态原文">{{ displayText(dryResult.status) }}</el-descriptions-item>
+              <el-descriptions-item label="判定">
+                <el-tag :type="terminalTagType(dryResult.terminal)" size="small">
+                  {{ terminalLabel(dryResult.terminal) }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="失败原因">{{ displayText(dryResult.errorMessage) }}</el-descriptions-item>
+              <el-descriptions-item label="产物" :span="2">
+                <template v-if="(dryResult.resultUrls ?? []).length">
+                  <div v-for="(url, index) in dryResult.resultUrls" :key="index" class="profile-form__url">
+                    {{ url }}
+                  </div>
+                </template>
+                <span v-else>（未取到产物）</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="结论" :span="2">{{ dryResult.elapsedHint }}</el-descriptions-item>
+            </el-descriptions>
+          </template>
+        </div>
+      </section>
     </div>
 
     <template #footer>
@@ -499,6 +535,11 @@ function terminalTagType(terminal: unknown): "success" | "danger" | "warning" | 
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+/* 分区用 .slot-body 卡片承载（与其余 FormDrawer 同形），边框色统一为浅灰 */
+.profile-form__section {
+  border-color: #e4e7ed;
 }
 
 .profile-form__hint {

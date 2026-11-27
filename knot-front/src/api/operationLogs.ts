@@ -89,3 +89,8 @@ export function listTestRequestPresetOperationLogs(presetId: number | string) {
 export function listBillingRuleOperationLogs(ruleId: number | string) {
   return listOperationLogsByEntity({ module: "billing", entityType: "BillingRule", entityId: ruleId });
 }
+
+/** 某异步任务档案（entity_type=AsyncTaskProfile）在 system 模块下的操作日志 */
+export function listAsyncTaskProfileOperationLogs(profileId: number | string) {
+  return listOperationLogsByEntity({ module: "system", entityType: "AsyncTaskProfile", entityId: profileId });
+}

@@ -55,6 +55,7 @@ public class AsyncTaskProfileController {
 
     /** 新建或更新（按编码判断；编码与协议在已绑定时不可变） */
     @OperationLog(module = "system", operation = "UPDATE", entityType = "AsyncTaskProfile",
+            entityIdAfter = "#result.id()",
             entityName = "'异步档案 ' + #p0.profileCode()",
             description = "'保存异步任务档案'",
             recordOldValue = false,
@@ -66,6 +67,7 @@ public class AsyncTaskProfileController {
 
     /** 删除（仍被模型引用时拒绝，见 svc 侧说明） */
     @OperationLog(module = "system", operation = "DELETE", entityType = "AsyncTaskProfile",
+            entityId = "@asyncTaskProfileService.profileIdOf(#p0)",
             entityName = "'异步档案 ' + #p0",
             description = "'删除异步任务档案'",
             recordOldValue = false,

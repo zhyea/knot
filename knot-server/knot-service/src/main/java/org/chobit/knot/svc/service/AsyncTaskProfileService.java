@@ -54,6 +54,16 @@ public class AsyncTaskProfileService {
     }
 
     /**
+     * 按档案编码取主键，只供操作日志落 {@code entity_id} 用。
+     * 日志抽屉按主键精确检索（编码不是主键，按名字模糊匹配会把 KLING_TASK 与 KLING_TASK2 混在一起），
+     * 而删除请求只带编码；不存在返回 {@code null}——调用方是日志切面，不参与业务判定。
+     */
+    public Long profileIdOf(String profileCode) {
+        AsyncTaskProfileEntity entity = profileMapper.getByProfileCode(StringUtils.trimToNull(profileCode));
+        return entity == null ? null : entity.getId();
+    }
+
+    /**
      * 管理面检索；状态码先经 {@link EnabledStatusEnum#requireCode} 校验再进 SQL。
      */
     public List<AsyncTaskProfileDetailVo> search(AsyncTaskProfileQuery query) {

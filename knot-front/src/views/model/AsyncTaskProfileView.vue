@@ -38,7 +38,7 @@
               placement="top"
               :show-after="300"
             >
-              <el-button link>这是什么？</el-button>
+              <el-icon class="profile-help-icon" aria-label="这是什么"><QuestionFilled/></el-icon>
             </el-tooltip>
           </div>
         </div>
@@ -92,17 +92,16 @@
           <el-table-column label="更新时间" width="170">
             <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="120" align="center" header-align="center" fixed="right">
+          <el-table-column label="操作" width="160" align="center" header-align="center" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-              <el-button
-                link
-                type="danger"
-                :disabled="bindingCountOf(row) > 0"
-                @click="onDelete(row)"
-              >
-                删除
-              </el-button>
+              <RowActions
+                :actions="[
+                  { key: 'edit', label: '编辑', icon: Edit },
+                  { key: 'log', label: '操作记录', icon: Document },
+                  { key: 'delete', label: '删除', icon: Delete, type: 'danger', disabled: bindingCountOf(row) > 0 }
+                ]"
+                @action="(action) => handleAction(action, row)"
+              />
             </template>
           </el-table-column>
         </el-table>
@@ -123,25 +122,37 @@
       :profile-code="editingCode"
       @saved="load"
     />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`异步任务档案操作记录 - ${logProfileCode || ''}`"
+      :load-logs="loadProfileLogs"
+    />
   </PageSection>
 </template>
 
 <script setup lang="ts">
 import {computed, onMounted} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
+import {Delete, Document, Edit, QuestionFilled} from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import ListPagination from "../../components/common/ListPagination.vue";
+import RowActions from "../../components/common/RowActions.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import AsyncTaskProfileFormDrawer from "../../components/model/async/AsyncTaskProfileFormDrawer.vue";
 import {deleteAsyncTaskProfile, listAsyncTaskProfiles} from "@/api/asyncTaskProfiles";
+import {listAsyncTaskProfileOperationLogs} from "@/api/operationLogs";
 import {useListQuery} from "@/composables/useListQuery";
 import {useEnumOptions} from "@/composables/useEnumOptions";
+import {useLogDrawer} from "@/composables/useLogDrawer";
 import type {Row} from "@/types";
 import {displayText, formatDateTime} from "@/utils/format";
 import {EnabledStatus} from "@/constants/status";
 import {useFormDrawer} from "@/composables/useFormDrawer";
+const {id: logProfileId, name: logProfileCode, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["profileCode"]});
 const {visible: drawer, editing: editingCode, openCreate, openEdit} = useFormDrawer<string>({emptyValue: "", toEditing: (row) => String(row.profileCode ?? "")});
 
 const {
@@ -198,6 +209,24 @@ function pollSummary(row: Row): string {
 
 onMounted(load);
 
+function handleAction(action: string, row: Row) {
+  if (action === "edit") {
+    openEdit(row);
+  } else if (action === "log") {
+    openLog(row);
+  } else if (action === "delete") {
+    onDelete(row);
+  }
+}
+
+/**
+ * 操作记录按 entityId 检索：档案的引用键是 profileCode，但日志表只能按主键 id 精确定位
+ * （按名字模糊匹配会把 KLING_TASK 与 KLING_TASK2 混在一起）。
+ */
+function loadProfileLogs() {
+  return listAsyncTaskProfileOperationLogs(logProfileId.value!);
+}
+
 async function onDelete(row: Row) {
   const profileCode = String(row.profileCode ?? "");
   try {
@@ -220,6 +249,18 @@ async function onDelete(row: Row) {
 </script>
 
 <style scoped>
+/* 「这是什么」只留一个问号图标：说明挂在气泡里，不占工具栏位置 */
+.profile-help-icon {
+  color: var(--el-text-color-secondary);
+  font-size: 16px;
+  cursor: help;
+  outline: none;
+}
+
+.profile-help-icon:hover {
+  color: var(--el-color-primary);
+}
+
 .profile-remark {
   color: var(--el-text-color-secondary);
   font-size: 12px;

@@ -162,4 +162,19 @@ describe("异步任务档案抽屉 · 轮询参数", () => {
       expect(text.trim().length).toBeGreaterThan(0);
     }
   });
+
+  /**
+   * 分区形态（2026-11-27）：抽屉原用 el-divider 划线分隔，长表单里没有可跳读的块边界。
+   * 改成 .slot-body + .section-head 后，标题必须仍是这六段——少一段就意味着某组字段被并进了别的区，
+   * 而这类退化不会让任何断言变红。
+   */
+  it("六个分区各自成块：.section-head 标题齐全，且不再有 el-divider", async () => {
+    const wrapper = await openEdit();
+
+    const titles = wrapper
+      .findAll(".profile-form__section > .section-head h3")
+      .map((node) => node.text());
+    expect(titles).toEqual(["基本信息", "查询口径", "取值表达式（MVEL）", "产物与失败原因", "轮询参数", "试跑（保存前可验）"]);
+    expect(wrapper.find(".el-divider").exists()).toBe(false);
+  });
 });
