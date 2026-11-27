@@ -7,7 +7,7 @@
           placeholder="按档案编码 / 备注筛选"
           @query="handleQuery"
         />
-        <FilterField label="协议" :width="200">
+        <FilterField label="协议" :width="240">
           <el-select v-model="query.protocol" placeholder="全部协议" clearable @change="handleQuery">
             <el-option
               v-for="item in protocolOptions"
@@ -51,7 +51,7 @@
             </template>
           </el-table-column>
           <el-table-column prop="protocol" label="协议" min-width="170" show-overflow-tooltip />
-          <el-table-column label="查询" min-width="300" show-overflow-tooltip>
+          <el-table-column label="查询" min-width="270" show-overflow-tooltip>
             <template #default="{ row }">
               <span class="profile-query">{{ displayText(row.queryMethod) }} {{ displayText(row.queryPath) }}</span>
             </template>
