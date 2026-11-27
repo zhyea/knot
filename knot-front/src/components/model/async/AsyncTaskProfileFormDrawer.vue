@@ -18,8 +18,8 @@
         <span class="profile-form__hint">{{ templateHint }}</span>
       </div>
 
-      <!-- label 宽 140：轮询参数每项都带「说明」图标，窄了会折行 -->
-      <el-form label-width="128px" label-position="right" size="default">
+      <!-- label 宽 140：最长标签是「产物有效期(天)」，留出冒号与左右内边距；问号已移到输入框右侧 -->
+      <el-form label-width="108px" label-position="right" size="default">
         <section class="slot-body profile-form__section">
           <div class="section-head">
             <div>
@@ -139,86 +139,68 @@
           <div class="section-head"><div><h3>轮询参数</h3></div></div>
           <el-row :gutter="12">
             <el-col :span="12">
-              <el-form-item>
-                <template #label>
-                  <span class="profile-form__label">
-                    首次间隔(ms)
-                    <el-tooltip :content="pollTips.intervalMs" placement="top">
-                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                    </el-tooltip>
-                  </span>
-                </template>
-                <el-input-number v-model="form.pollIntervalMs" :min="100" :max="3600000" :step="500" controls-position="right" />
+              <el-form-item label="首次间隔(ms)">
+                <div class="profile-form__field">
+                  <el-input-number v-model="form.pollIntervalMs" :min="100" :max="3600000" :step="500" controls-position="right" />
+                  <el-tooltip :content="pollTips.intervalMs" placement="top">
+                    <el-icon class="profile-form__field-tip"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </div>
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item>
-                <template #label>
-                  <span class="profile-form__label">
-                    退避基数(ms)
-                    <el-tooltip :content="pollTips.backoffBaseMs" placement="top">
-                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                    </el-tooltip>
-                  </span>
-                </template>
-                <el-input-number v-model="form.pollBackoffBaseMs" :min="100" :max="3600000" :step="500" controls-position="right" />
+              <el-form-item label="退避基数(ms)">
+                <div class="profile-form__field">
+                  <el-input-number v-model="form.pollBackoffBaseMs" :min="100" :max="3600000" :step="500" controls-position="right" />
+                  <el-tooltip :content="pollTips.backoffBaseMs" placement="top">
+                    <el-icon class="profile-form__field-tip"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </div>
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item>
-                <template #label>
-                  <span class="profile-form__label">
-                    退避上限(ms)
-                    <el-tooltip :content="pollTips.backoffMaxMs" placement="top">
-                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                    </el-tooltip>
-                  </span>
-                </template>
-                <el-input-number v-model="form.pollBackoffMaxMs" :min="100" :max="3600000" :step="1000" controls-position="right" />
+              <el-form-item label="退避上限(ms)">
+                <div class="profile-form__field">
+                  <el-input-number v-model="form.pollBackoffMaxMs" :min="100" :max="3600000" :step="1000" controls-position="right" />
+                  <el-tooltip :content="pollTips.backoffMaxMs" placement="top">
+                    <el-icon class="profile-form__field-tip"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </div>
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item>
-                <template #label>
-                  <span class="profile-form__label">
-                    轮询次数上限
-                    <el-tooltip :content="pollTips.maxAttempts" placement="top">
-                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                    </el-tooltip>
-                  </span>
-                </template>
-                <el-input-number v-model="form.maxAttempts" :min="1" :max="10000" controls-position="right" />
+              <el-form-item label="轮询次数上限">
+                <div class="profile-form__field">
+                  <el-input-number v-model="form.maxAttempts" :min="1" :max="10000" controls-position="right" />
+                  <el-tooltip :content="pollTips.maxAttempts" placement="top">
+                    <el-icon class="profile-form__field-tip"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </div>
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item>
-                <template #label>
-                  <span class="profile-form__label">
-                    任务超时(分钟)
-                    <el-tooltip :content="pollTips.timeout" placement="top">
-                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                    </el-tooltip>
-                  </span>
-                </template>
-                <el-input-number v-model="form.timeoutMinutes" :min="1" :max="1440" :step="1" controls-position="right" />
+              <el-form-item label="任务超时(分钟)">
+                <div class="profile-form__field">
+                  <el-input-number v-model="form.timeoutMinutes" :min="1" :max="1440" :step="1" controls-position="right" />
+                  <el-tooltip :content="pollTips.timeout" placement="top">
+                    <el-icon class="profile-form__field-tip"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </div>
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item>
-                <template #label>
-                  <span class="profile-form__label">
-                    产物有效期(天)
-                    <el-tooltip :content="pollTips.resultExpiresDays" placement="top">
-                      <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
-                    </el-tooltip>
-                  </span>
-                </template>
-                <el-input-number v-model="form.resultExpiresDays" :min="1" :max="3650" controls-position="right" />
+              <el-form-item label="产物有效期(天)">
+                <div class="profile-form__field">
+                  <el-input-number v-model="form.resultExpiresDays" :min="1" :max="3650" controls-position="right" />
+                  <el-tooltip :content="pollTips.resultExpiresDays" placement="top">
+                    <el-icon class="profile-form__field-tip"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </div>
               </el-form-item>
             </el-col>
           </el-row>
           <div class="profile-form__hint">
-            次数上限与超时<b>先到先生效</b>；每一项的口径见字段名旁的问号图标
+            次数上限与超时<b>先到先生效</b>；每一项的口径见输入框右侧的问号图标
           </div>
         </section>
       </el-form>
@@ -552,21 +534,29 @@ function terminalTagType(terminal: unknown): "success" | "danger" | "warning" | 
   margin-left: 12px;
 }
 
-/* 带「说明」气泡的 label：图标跟文字同一基线，不撑高表单行 */
-.profile-form__label {
-  display: inline-flex;
+/* 带「说明」气泡的字段：输入框撑满该列，问号挂在输入框右侧（label 只留字段名） */
+.profile-form__field {
+  display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  width: 100%;
 }
 
-.profile-form__label-icon {
+/* 输入框吃掉该列剩余宽度（flex-basis 0 才不会被 EP 默认的 150px 抢回主尺寸），问号不压缩 */
+.profile-form__field :deep(.el-input-number) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.profile-form__field-tip {
+  flex: 0 0 auto;
   color: #c0c4cc;
   font-size: 13px;
   cursor: help;
   outline: none;
 }
 
-.profile-form__label-icon:hover {
+.profile-form__field-tip:hover {
   color: var(--el-color-primary, #409eff);
 }
 
